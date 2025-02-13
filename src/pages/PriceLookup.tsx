@@ -57,6 +57,65 @@ const PriceLookup = () => {
     year: ''
   });
 
+  const fetchVehicleData = async () => {
+    if (!vrn.trim()) {
+      toast({
+        title: "Input Required",
+        description: "Please enter a valid registration number.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      const apiUrl = import.meta.env.VITE_VEHICLE_API_URL;
+      const apiKey = import.meta.env.VITE_VEHICLE_API_KEY;
+      if (!apiUrl || !apiKey) {
+        throw new Error("Missing API URL or API Key in environment variables.");
+      }
+      // Build the URL as required by the vehicle data API:
+      // Expected format: 
+      // https://uk1.ukvehicledata.co.uk/api/datapackage/VehicleData?v=2&api_nullitems=1&auth_apikey=YOUR_API_KEY&key_VRM=VRN
+      const url = `${apiUrl}?v=2&api_nullitems=1&auth_apikey=${apiKey}&key_VRM=${vrn.trim()}`;
+      
+      console.log("Fetching vehicle data from:", url);
+      
+      const response = await fetch(url);
+      
+      // Check that the response has JSON content; if not, grab the text and throw an error.
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        const text = await response.text();
+        throw new Error(`Expected JSON, got: ${text}`);
+      }
+
+      const result = await response.json();
+
+      // Extract vehicle details from the nested response structure
+      if (
+        result?.Response &&
+        result?.Response.StatusCode === "Success" &&
+        result?.Response.DataItems &&
+        result.Response.DataItems.VehicleRegistration
+      ) {
+        const registration = result.Response.DataItems.VehicleRegistration;
+        setVehicleDetails({
+          make: registration.Make || "",
+          model: registration.Model || "",
+          year: registration.YearOfManufacture || "",
+        });
+        toast({ title: "Vehicle data loaded successfully" });
+      } else {
+        throw new Error("Vehicle data not found in API response");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error fetching vehicle data",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleQuoteSelection = (quote: CompanyQuote) => {
     setSelectedQuote(quote);
     setIsConfirmationOpen(true);
@@ -66,7 +125,7 @@ const PriceLookup = () => {
     if (selectedQuote) {
       toast({
         title: "Order Confirmed",
-        description: `Your £{selectedQuote.company} order has been confirmed. We'll contact you shortly with next steps.`,
+        description: `Your ${selectedQuote.company} order has been confirmed. We'll contact you shortly with next steps.`,
       });
     }
     setIsConfirmationOpen(false);
@@ -92,10 +151,29 @@ const PriceLookup = () => {
     setGlassSelections(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleQuoteSubmit = (e: React.FormEvent) => {
+  const handleQuoteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!vrn || glassSelections.length === 0 || glassSelections.some(s => !s.type) || 
-        !vehicleDetails.make || !vehicleDetails.model || !vehicleDetails.year) {
+    if (!vrn.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid VRN.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!vehicleDetails.make || !vehicleDetails.model || !vehicleDetails.year) {
+      await fetchVehicleData();
+    }
+
+    if (
+      !vrn.trim() ||
+      glassSelections.length === 0 ||
+      glassSelections.some(s => !s.type) ||
+      !vehicleDetails.make ||
+      !vehicleDetails.model ||
+      !vehicleDetails.year
+    ) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -110,14 +188,14 @@ const PriceLookup = () => {
         price: 79.99,
         estimatedTimeDelivery: "2-3 days",
         estimatedTimePickup: "Pickup: Same Day ",
-        argicCode: "WS-2023-X"
+        argicCode: "2448AGNMV1B"
       },
       {
         company: "Windscreen (Sensor)",
         price: 99.99,
         estimatedTimeDelivery: "2-3 days",
         estimatedTimePickup: "Delivery: Next Day",
-        argicCode: "WS-2023-X"
+        argicCode: "2448AGNMV1B"
       }
     ];
 
@@ -210,40 +288,11 @@ const PriceLookup = () => {
                         <Input
                           type="text"
                           value={vrn}
-                          onChange={(e) => setVrn(e.target.value)}
+                          onChange={(e) => setVrn(e.target.value.toUpperCase())}
+                          onBlur={fetchVehicleData}
                           placeholder="e.g., AB12 CDE"
                           className="w-full input-focus border-[#0D9488]/20 transition-all duration-200"
                         />
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                          Vehicle Details
-                          <span className="text-[#0D9488] text-xs">(Required)</span>
-                        </label>
-                        <div className="grid grid-cols-3 gap-4">
-                          <Input
-                            type="text"
-                            value={vehicleDetails.make}
-                            onChange={(e) => setVehicleDetails(prev => ({ ...prev, make: e.target.value }))}
-                            placeholder="Make"
-                            className="w-full input-focus border-[#0D9488]/20 transition-all duration-200"
-                          />
-                          <Input
-                            type="text"
-                            value={vehicleDetails.model}
-                            onChange={(e) => setVehicleDetails(prev => ({ ...prev, model: e.target.value }))}
-                            placeholder="Model"
-                            className="w-full input-focus border-[#0D9488]/20 transition-all duration-200"
-                          />
-                          <Input
-                            type="text"
-                            value={vehicleDetails.year}
-                            onChange={(e) => setVehicleDetails(prev => ({ ...prev, year: e.target.value }))}
-                            placeholder="Year"
-                            className="w-full input-focus border-[#0D9488]/20 transition-all duration-200"
-                          />
-                        </div>
                       </div>
 
                       <div className="space-y-4">
@@ -371,7 +420,7 @@ const PriceLookup = () => {
                           
                             <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
                               <span>Vehicle:</span>
-                              <span>{`£{vehicleDetails.make} £{vehicleDetails.model} (£{vehicleDetails.year})`}</span>
+                              <span>{`${vehicleDetails.make} ${vehicleDetails.model} (${vehicleDetails.year})`}</span>
                             </div>
                           
                             <Button 
