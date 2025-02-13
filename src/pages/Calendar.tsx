@@ -18,7 +18,7 @@ const Calendar = () => {
         id: day * 1,
         technician: "John Doe",
         customer: `Customer £{day}A`,
-        service: "Windshield Replacement",
+        service: "Windscreen Replacement",
         time: "09:00 AM",
         location: "123 Main St, City",
         status: "Scheduled"

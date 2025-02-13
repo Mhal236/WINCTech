@@ -255,8 +255,8 @@ export const BookingForm = () => {
                 <SelectValue placeholder="Select service type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="windshield-replacement">Windshield Replacement</SelectItem>
-                <SelectItem value="windshield-repair">Windshield Repair</SelectItem>
+                <SelectItem value="Windscreen-replacement">Windscreen Replacement</SelectItem>
+                <SelectItem value="Windscreen-repair">Windscreen Repair</SelectItem>
                 <SelectItem value="side-window">Side Window Service</SelectItem>
                 <SelectItem value="rear-window">Rear Window Service</SelectItem>
                 <SelectItem value="calibration">ADAS Calibration</SelectItem>
