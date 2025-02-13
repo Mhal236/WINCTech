@@ -17,7 +17,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 // Instead of importing from the public folder, reference the image using its absolute path.
-const logo = "public/windscreen-compare-technician.png";
+const logo = "/windscreen-compare-technician.png";
 
 export const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
