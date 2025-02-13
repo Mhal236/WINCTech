@@ -26,12 +26,12 @@ const Glass = () => {
             <Card key={item} className="hover:shadow-lg transition-shadow duration-200">
               <CardHeader className="flex flex-row items-center space-y-0 pb-2">
                 <Car className="h-6 w-6 text-[#0D9488] mr-2" />
-                <CardTitle className="text-lg font-semibold">Windshield Type {item}</CardTitle>
+                <CardTitle className="text-lg font-semibold">Windscreen Type {item}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
                   <p className="text-sm text-gray-500">Compatible with multiple vehicle models</p>
-                  <p className="font-medium">$299.99</p>
+                  <p className="font-medium">£299.99</p>
                   <Button className="w-full bg-[#F97316] hover:bg-[#EA580C]">
                     Add to Quote
                   </Button>

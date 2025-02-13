@@ -38,7 +38,7 @@ const Technicians = () => {
                       />
                     ))}
                   </div>
-                  <p className="text-sm text-gray-500">Specializes in windshield replacement</p>
+                  <p className="text-sm text-gray-500">Specializes in Windscreen replacement</p>
                   <p className="text-sm text-gray-500">5+ years experience</p>
                   <Button className="w-full bg-[#F97316] hover:bg-[#EA580C]">
                     Schedule Service

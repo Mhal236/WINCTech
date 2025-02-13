@@ -192,7 +192,7 @@ const Reporting = () => {
             <CardContent>
               <div className="space-y-4">
                 {[
-                  { name: 'Windshield Replacement', value: '45%' },
+                  { name: 'Windscreen Replacement', value: '45%' },
                   { name: 'Side Window Repair', value: '25%' },
                   { name: 'Rear Window Service', value: '20%' },
                   { name: 'Chip Repair', value: '10%' },

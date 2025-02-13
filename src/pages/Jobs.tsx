@@ -45,7 +45,7 @@ const Jobs = () => {
     {
       id: 1,
       customer: "Alice Smith",
-      service: "Windshield Replacement",
+      service: "Windscreen Replacement",
       date: "2024-03-20",
       time: "09:00 AM",
       status: "In Progress",
