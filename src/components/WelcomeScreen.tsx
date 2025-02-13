@@ -50,7 +50,7 @@ export const WelcomeScreen = ({ userName = "Alex Wonder" }: WelcomeScreenProps) 
           Hello, {userName}
         </h1>
         <div className="mt-4 text-[#0D9488]/50 text-lg md:text-xl animate-pulse">
-          Welcome to Glass Trade Hub
+          Welcome to Windscreen Compare Technician Hub
         </div>
       </div>
     </div>
