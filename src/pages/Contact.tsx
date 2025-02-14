@@ -1,4 +1,3 @@
-
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +18,7 @@ const Contact = () => {
       name: "Michael Chen",
       role: "Account Manager",
       email: "Michael@windscreencompare.com",
-      phone: "+44 7700 900123"
+      phone: "020 7946 0123"
     }
   ];
 
@@ -91,11 +90,11 @@ const Contact = () => {
                 </div>
                 <div className="flex items-center gap-3">
                   <Phone className="text-[#0D9488]" />
-                  <span>+44 7700 800456</span>
+                  <span>020 7946 0123</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <MapPin className="text-[#0D9488]" />
-                  <span>12 Baker Street, London, W1U 3AA, UK</span>
+                  <span>221B Baker Street, London, NW1 6XE, UK</span>
                 </div>
               </div>
             </div>
@@ -109,7 +108,7 @@ const Contact = () => {
                 <h2 className="text-2xl font-semibold text-[#0D9488]">Our Team</h2>
               </div>
               <div className="space-y-6">
-                {teamMembers.map((member, index) => (
+                {teamMembers.map((member) => (
                   <div
                     key={member.name}
                     className="p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors duration-200"

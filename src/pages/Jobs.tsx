@@ -44,37 +44,40 @@ const Jobs = () => {
   const jobs = [
     {
       id: 1,
-      customer: "Alice Smith",
-      service: "Windscreen Replacement",
-      date: "2024-03-20",
+      customer: "Xander A",
+      address: "1 Mayfair Place, London, W1J 8AJ",
+      damage: "Damage: Windscreen (Sensor)",
+      vrn: "HN11 EYW",
+      date: "15-02-2025",
       time: "09:00 AM",
       status: "In Progress",
       price: "£299.99",
-      technician: "John Doe",
-      vehicle: "2022 Toyota Camry",
+      vehicle: "BMW 1 series",
       priority: "High"
     },
     {
       id: 2,
       customer: "Bob Johnson",
-      service: "Side Window Repair",
+      address: "Flat 12, 7 High Street, London, W1H 7AN",
+      damage: "Damage: Side Window cracked",
+      vrn: "AB12 CDE",
       date: "2024-03-20",
       time: "11:30 AM",
       status: "Scheduled",
       price: "£199.99",
-      technician: "Jane Smith",
       vehicle: "2023 Honda Civic",
       priority: "Medium"
     },
     {
       id: 3,
       customer: "Carol Williams",
-      service: "Rear Window Replacement",
+      address: "Unit 3, 45 Kensington Park Road, London, SW7 1AA",
+      damage: "Damage: Rear window shattered",
+      vrn: "ZX98 YTR",
       date: "2024-03-20",
       time: "02:00 PM",
       status: "Completed",
       price: "£399.99",
-      technician: "Mike Brown",
       vehicle: "2021 Ford F-150",
       priority: "Normal"
     },
@@ -104,19 +107,13 @@ const Jobs = () => {
                     <p className="text-sm font-medium text-gray-500">{stat.title}</p>
                     <h3 className="text-2xl font-bold mt-2">{stat.value}</h3>
                   </div>
-                  <div className={`p-2 rounded-lg £{
-                    stat.trend === 'up' ? 'bg-green-100' : 'bg-gray-100'
-                  }`}>
-                    <stat.icon className={`w-5 h-5 £{
-                      stat.trend === 'up' ? 'text-green-600' : 'text-gray-600'
-                    }`} />
+                  <div className={`p-2 rounded-lg ${stat.trend === "up" ? "bg-green-100" : "bg-gray-100"}`}>
+                    <stat.icon className={`w-5 h-5 ${stat.trend === "up" ? "text-green-600" : "text-gray-600"}`} />
                   </div>
                 </div>
                 <div className="flex items-center mt-4">
-                  {stat.trend === 'up' && <ArrowUp className="w-4 h-4 text-green-600" />}
-                  <span className={`text-sm ml-1 £{
-                    stat.trend === 'up' ? 'text-green-600' : 'text-gray-600'
-                  }`}>
+                  {stat.trend === "up" && <ArrowUp className="w-4 h-4 text-green-600" />}
+                  <span className={`text-sm ml-1 ${stat.trend === "up" ? "text-green-600" : "text-gray-600"}`}>
                     {stat.change}
                   </span>
                 </div>
@@ -131,7 +128,7 @@ const Jobs = () => {
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1 flex gap-4">
                 <Input
-                  placeholder="Search jobs..."
+                  placeholder="Search"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full md:w-64 border-[#0D9488] focus:ring-[#0D9488]"
@@ -164,8 +161,8 @@ const Jobs = () => {
                 <div className="flex flex-col md:flex-row justify-between gap-4">
                   <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
-                      <h3 className="font-semibold text-lg text-[#0D9488]">{job.service}</h3>
-                      <p className="text-sm text-gray-500">{job.vehicle}</p>
+                      <h3 className="font-semibold text-lg text-[#0D9488]">{job.damage || "Service"}</h3>
+                      <p className="text-sm text-gray-500">{job.vehicle || "Vehicle Info"}</p>
                       <p className="text-sm text-gray-500">Customer: {job.customer}</p>
                     </div>
                     <div>
@@ -174,25 +171,17 @@ const Jobs = () => {
                       <p className="text-sm text-gray-500">{job.time}</p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium">Assigned to:</p>
-                      <p className="text-sm text-gray-500">{job.technician}</p>
-                      <span className={`inline-block px-2 py-1 text-xs rounded-full 
-                        £{job.priority === 'High' ? 'bg-red-100 text-red-600' : 
-                          job.priority === 'Medium' ? 'bg-yellow-100 text-yellow-600' : 
-                          'bg-blue-100 text-blue-600'}`}>
-                        {job.priority} Priority
-                      </span>
+                      <p className="text-sm font-medium">Address:</p>
+                      <p className="text-sm text-gray-500">{job.address || "N/A"}</p>
+                      <p className="text-sm font-medium mt-2">Damage:</p>
+                      <p className="text-sm text-gray-500">{job.damage || "N/A"}</p>
+                      <p className="text-sm font-medium mt-2">VRN:</p>
+                      <p className="text-sm text-gray-500">{job.vrn || "N/A"}</p>
                     </div>
                   </div>
                   <div className="flex flex-col md:flex-row items-end md:items-center gap-4">
                     <div className="text-right">
                       <p className="font-medium text-lg">{job.price}</p>
-                      <span className={`inline-block px-2 py-1 text-xs rounded-full
-                        £{job.status === 'In Progress' ? 'bg-[#0D9488]/10 text-[#0D9488]' :
-                          job.status === 'Completed' ? 'bg-green-100 text-green-600' :
-                          'bg-blue-100 text-blue-600'}`}>
-                        {job.status}
-                      </span>
                     </div>
                     <Button variant="ghost" size="icon">
                       <MoreVertical className="h-5 w-5 text-gray-500" />

@@ -1,4 +1,3 @@
-
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,7 +37,7 @@ const Team = () => {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-500">
                     <Phone className="h-4 w-4" />
-                    <span>(555) 123-456{member}</span>
+                    <span>020 7946 0000</span>
                   </div>
                   <Button className="w-full bg-[#0D9488] hover:bg-[#0D9488]/90">
                     Send Message
