@@ -11,6 +11,7 @@ import {
   Settings,
   LogOut,
   ChevronDown,
+  ArrowRight,
 } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -28,12 +29,13 @@ export const Sidebar = () => {
   // Update the navigation array with the DashboardLayout menu items
   const navigation = [
     { name: "Dashboard", href: "/", icon: Home },
-    { name: "Jobs", href: "/jobs", icon: Briefcase },
+    { name: "Jobs", href: "/job-swipe", icon: ArrowRight },
     { name: "Calendar", href: "/calendar", icon: Calendar },
     { name: "Glass Order", href: "/price-lookup", icon: Search },
-    { name: "History", href: "/quotes", icon: ClipboardList },
+    { name: "History", href: "/jobs", icon: ClipboardList },
     { name: "Reports", href: "/reporting", icon: BarChart },
     { name: "Contact Us", href: "/contact", icon: MessageCircle },
+
   ];
 
   const settingsNav = {

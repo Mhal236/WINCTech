@@ -14,6 +14,7 @@ import Settings from "./pages/Settings";
 import Calendar from "./pages/Calendar";
 import Reporting from "./pages/Reporting";
 import Jobs from "./pages/Jobs";
+import JobSwipe from "./pages/JobSwipe";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ const App = () => (
               <Route path="/contact" element={<Contact />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/404" element={<NotFound />} />
+              <Route path="/job-swipe" element={<JobSwipe />} />
               <Route path="*" element={<Navigate to="/404" replace />} />
             </Routes>
           </Router>

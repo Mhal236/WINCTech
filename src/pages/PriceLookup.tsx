@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Check, Package, ShoppingCart, Star } from "lucide-react";
 import { useLocation } from "react-router-dom";
@@ -41,6 +41,10 @@ interface VehicleDetails {
 
 const PriceLookup = () => {
   const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const jobId = searchParams.get('jobId');
+  const damageType = searchParams.get('damage');
+  const vehicleInfo = searchParams.get('vrn');
   const isScheduleTab = location.search.includes('tab=schedule');
   const [vrn, setVrn] = useState("");
   const [glassSelections, setGlassSelections] = useState<GlassSelection[]>([]);
@@ -56,6 +60,20 @@ const PriceLookup = () => {
     model: '',
     year: ''
   });
+
+  useEffect(() => {
+    if (jobId && damageType && vehicleInfo) {
+      // Set the initial vehicle and damage information
+      setVrn(vehicleInfo);
+      setGlassSelections([{
+        type: damageType,
+        quantity: 1
+      }]);
+      
+      // Trigger vehicle data fetch
+      fetchVehicleData();
+    }
+  }, [jobId, damageType, vehicleInfo]);
 
   const fetchVehicleData = async () => {
     if (!vrn.trim()) {
