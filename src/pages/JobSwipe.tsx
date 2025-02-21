@@ -168,7 +168,7 @@ const JobSwipe = () => {
         <MapContainer
           center={userLocation || [51.5074, -0.1278]}
           zoom={12}
-          className="w-full h-full absolute inset-0"
+          className="w-full h-full absolute inset-0 z-10"
           ref={mapRef}
         >
           <TileLayer
@@ -216,19 +216,19 @@ const JobSwipe = () => {
           )}
         </MapContainer>
 
-        {/* Job Details Panel */}
+        {/* Job Details Panel - Updated for mobile */}
         <div 
-          className="absolute bottom-4 left-4 right-4 max-w-md mx-auto z-[1000]"
+          className="absolute bottom-0 left-0 right-0 w-full max-w-full mx-auto z-20 sm:bottom-4 sm:left-4 sm:right-4 sm:max-w-md"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="bg-white/40 backdrop-blur-md rounded-xl shadow-lg border border-white/20 overflow-hidden">
+          <div className="bg-white/40 backdrop-blur-md rounded-t-xl sm:rounded-xl shadow-lg border border-white/20 overflow-hidden">
             <div className="relative p-3">
               <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/5" />
               
               <div className="relative">
                 <div className="flex gap-3">
-                  {/* Damage Image */}
-                  <div className="w-24 h-24 rounded-lg overflow-hidden border border-white/20">
+                  {/* Damage Image - Made responsive */}
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden border border-white/20 flex-shrink-0">
                     <img 
                       src={currentJob.image || "/images/windscreen-damage.jpg"} 
                       alt="Damage" 
@@ -236,8 +236,8 @@ const JobSwipe = () => {
                     />
                   </div>
 
-                  <div className="flex-1">
-                    <h2 className="text-base font-semibold text-gray-900">{currentJob.title}</h2>
+                  <div className="flex-1 min-w-0"> {/* Added min-w-0 to prevent text overflow */}
+                    <h2 className="text-sm sm:text-base font-semibold text-gray-900 truncate">{currentJob.title}</h2>
                     <p className="text-xs text-gray-600 line-clamp-2 mt-0.5">{currentJob.description}</p>
                     <div className="flex items-center justify-between mt-2">
                       <span className="text-sm font-medium bg-gradient-to-r from-red-500 to-red-600 bg-clip-text text-transparent">
@@ -248,7 +248,8 @@ const JobSwipe = () => {
                   </div>
                 </div>
 
-                <div className="mt-2 grid grid-cols-3 gap-1.5">
+                {/* Info Grid - Made responsive */}
+                <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                   <div className="flex items-center gap-1.5 bg-black/5 p-1.5 rounded-lg backdrop-blur-sm border border-white/10">
                     <User className="h-3.5 w-3.5 text-gray-400" />
                     <div>
@@ -272,13 +273,13 @@ const JobSwipe = () => {
                   </div>
                 </div>
 
-                {/* Vehicle Details */}
-                <div className="bg-black/5 p-4 rounded-lg space-y-3">
-                  <h4 className="font-medium flex items-center gap-2">
+                {/* Vehicle Details - Improved spacing for mobile */}
+                <div className="bg-black/5 p-3 sm:p-4 rounded-lg space-y-2 sm:space-y-3 mt-2">
+                  <h4 className="text-sm sm:text-base font-medium flex items-center gap-2">
                     <Car className="h-4 w-4" />
                     Vehicle Information
                   </h4>
-                  <div className="grid gap-2 text-sm">
+                  <div className="grid gap-1.5 sm:gap-2 text-xs sm:text-sm">
                     <div className="flex items-center gap-2">
                       <span className="text-gray-500">Make/Model:</span>
                       <span>{currentJob.vehicle}</span>
@@ -294,12 +295,12 @@ const JobSwipe = () => {
                   </div>
                 </div>
 
-                {/* Action Buttons */}
+                {/* Action Buttons - Improved for mobile */}
                 <div className="mt-2 flex gap-1.5">
                   <Button 
                     type="button"
                     onClick={handleAcceptJob}
-                    className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium h-8 text-sm shadow-lg shadow-red-500/20 border border-white/10"
+                    className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium h-10 sm:h-8 text-sm shadow-lg shadow-red-500/20 border border-white/10"
                   >
                     Accept Job
                   </Button>
@@ -307,7 +308,7 @@ const JobSwipe = () => {
                     type="button"
                     variant="outline"
                     onClick={openGoogleMapsDirections}
-                    className="px-3 h-8 border-white/20 bg-white/20 hover:bg-white/30"
+                    className="px-3 h-10 sm:h-8 border-white/20 bg-white/20 hover:bg-white/30"
                   >
                     <MapPin className="h-4 w-4 text-gray-600" />
                   </Button>
@@ -317,9 +318,9 @@ const JobSwipe = () => {
           </div>
         </div>
 
-        {/* Job Details Dialog */}
+        {/* Dialog - Made responsive */}
         <Dialog open={showDetails} onOpenChange={setShowDetails}>
-          <DialogContent className="max-w-md bg-white/95 backdrop-blur-md">
+          <DialogContent className="max-w-[95vw] sm:max-w-md bg-white/95 backdrop-blur-md m-4">
             <DialogHeader>
               <DialogTitle className="text-xl font-semibold">Job Details</DialogTitle>
             </DialogHeader>
