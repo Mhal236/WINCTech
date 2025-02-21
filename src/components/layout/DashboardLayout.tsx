@@ -6,7 +6,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 
 const navItems = [
   { icon: Home, label: "Home", href: "/" },
-  { icon: Briefcase, label: "Jobs", href: "/JobSwipe" },
+  { icon: Briefcase, label: "Jobs", href: "/job-swipe" },
   { icon: Calendar, label: "Schedule", href: "/Calendar" },
   { icon: User, label: "Profile", href: "/Contact" },
   { icon: Settings, label: "Settings", href: "/settings" },
