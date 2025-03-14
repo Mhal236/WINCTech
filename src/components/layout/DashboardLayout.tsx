@@ -7,8 +7,8 @@ import { Sidebar } from "@/components/layout/Sidebar";
 const navItems = [
   { icon: Home, label: "Home", href: "/" },
   { icon: Briefcase, label: "Jobs", href: "/job-swipe" },
-  { icon: Calendar, label: "Schedule", href: "/Calendar" },
-  { icon: User, label: "Profile", href: "/Contact" },
+  { icon: Calendar, label: "Schedule", href: "/calendar" },
+  { icon: User, label: "Profile", href: "/contact" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 
@@ -16,14 +16,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <main className="pb-16"> {/* Add padding bottom to account for nav bar */}
+    <Sidebar>
+      <div className="p-6 h-full">
         {children}
-      </main>
-
+      </div>
+      
       {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 sm:hidden">
-        <div className="flex justify-around items-center h-16">
+      <nav className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-sm border border-gray-100 
+        rounded-full shadow-xl w-[90%] max-w-md z-[2000] sm:hidden">
+        <div className="flex justify-around items-center h-14 px-2">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.href;
@@ -33,26 +34,21 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 key={item.href}
                 to={item.href}
                 className={cn(
-                  "flex flex-col items-center justify-center w-full h-full",
+                  "flex flex-col items-center justify-center p-2 rounded-full transition-colors",
                   "text-xs font-medium",
                   isActive 
-                    ? "text-red-600" 
-                    : "text-gray-500 hover:text-gray-900"
+                    ? "text-red-600 bg-red-50" 
+                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
                 )}
               >
-                <Icon className="h-5 w-5 mb-1" />
-                <span>{item.label}</span>
+                <Icon className="h-5 w-5" />
+                <span className="sr-only">{item.label}</span>
               </Link>
             );
           })}
         </div>
       </nav>
-
-      {/* Desktop Sidebar - hidden on mobile */}
-      <nav className="hidden sm:block fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200">
-        <Sidebar />
-      </nav>
-    </div>
+    </Sidebar>
   );
 }
 

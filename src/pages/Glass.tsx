@@ -3,8 +3,27 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Car, Search } from "lucide-react";
+import { checkGlassAvailability } from '@/utils/glassAvailability';
 
 const Glass = () => {
+  const checkAvailability = async (eurocodeId: string, quantity: number) => {
+    const credentials = {
+      login: process.env.NEXT_PUBLIC_GLASS_API_LOGIN!,
+      password: process.env.NEXT_PUBLIC_GLASS_API_PASSWORD!,
+      userId: parseInt(process.env.NEXT_PUBLIC_GLASS_API_USER_ID!, 10)
+    };
+
+    const result = await checkGlassAvailability(eurocodeId, quantity, 'DEFAULT_DEPOT', credentials);
+    
+    if (result.error) {
+      console.error('Availability check failed:', result.error);
+      // Handle error (show toast notification, etc.)
+    } else {
+      console.log('Glass availability:', result.isAvailable);
+      // Handle success (update UI, etc.)
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -40,6 +59,13 @@ const Glass = () => {
             </Card>
           ))}
         </div>
+
+        <Button 
+          className="w-full bg-[#F97316] hover:bg-[#EA580C]"
+          onClick={() => checkAvailability('EUROCODE123', 1)}
+        >
+          Check Availability
+        </Button>
       </div>
     </DashboardLayout>
   );
