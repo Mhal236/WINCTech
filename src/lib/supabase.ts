@@ -1,6 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
+// IMPORTANT: This file is maintained for backward compatibility
+// It uses our secure client implementation that doesn't expose API keys to the client
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Import the secure client
+import { supabase } from './supabase-client';
 
-export const supabase = createClient(supabaseUrl, supabaseKey); 
+// Export it for use in components
+export { supabase }; 

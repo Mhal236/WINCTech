@@ -11,6 +11,7 @@ interface VehicleDetails {
 
 const VehicleDataLookup = () => {
   const [vrn, setVrn] = useState("");
+  const [loading, setLoading] = useState(false);
   const [vehicleDetails, setVehicleDetails] = useState<VehicleDetails>({
     make: "",
     model: "",
@@ -27,30 +28,25 @@ const VehicleDataLookup = () => {
       });
       return;
     }
+    
+    setLoading(true);
+    
     try {
-      const apiUrl = import.meta.env.VITE_VEHICLE_API_URL;
-      const apiKey = import.meta.env.VITE_VEHICLE_API_KEY;
-      // Create the URL and append the required query parameters.
-      const url = new URL(apiUrl);
-      // The API might require the key to be passed as "api_key" along with your registration parameter.
-      url.searchParams.append("api_key", apiKey);
-      url.searchParams.append("registration", vrn.trim());
-      // Append additional parameters here if necessary per the API documentation
-
-      const response = await fetch(url.toString());
+      // Use secure server endpoint that handles the API call
+      const response = await fetch(`/api/vehicle/${vrn.trim()}`);
+      
       if (!response.ok) {
-        throw new Error("API request failed");
+        const errorText = await response.text();
+        throw new Error(`API request failed: ${errorText}`);
       }
-      const result = await response.json();
-
-      // Assuming the API responds with a structure like:
-      // { data: { make: "...", model: "...", year: "..." } }
-      const { data } = result;
-      if (data) {
+      
+      const data = await response.json();
+      
+      if (data && data.make) {
         setVehicleDetails({
-          make: data.make || "",
-          model: data.model || "",
-          year: data.year || "",
+          make: data.make,
+          model: data.model,
+          year: data.year,
         });
         toast({ title: "Vehicle data loaded successfully" });
       } else {
@@ -62,6 +58,8 @@ const VehicleDataLookup = () => {
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -79,8 +77,8 @@ const VehicleDataLookup = () => {
           placeholder="e.g., AB12 CDE"
         />
       </div>
-      <Button onClick={fetchVehicleData}>
-        Fetch Vehicle Data
+      <Button onClick={fetchVehicleData} disabled={loading}>
+        {loading ? "Loading..." : "Fetch Vehicle Data"}
       </Button>
       {vehicleDetails.make && (
         <div className="mt-4 space-y-2">

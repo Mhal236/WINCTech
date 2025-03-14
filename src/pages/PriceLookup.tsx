@@ -85,45 +85,25 @@ const PriceLookup = () => {
       return;
     }
     try {
-      const apiUrl = import.meta.env.VITE_VEHICLE_API_URL;
-      const apiKey = import.meta.env.VITE_VEHICLE_API_KEY;
-      if (!apiUrl || !apiKey) {
-        throw new Error("Missing API URL or API Key in environment variables.");
+      // Use secure server endpoint that handles the API call
+      const response = await fetch(`/api/vehicle/${vrn.trim()}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API request failed: ${errorText}`);
       }
-      // Build the URL as required by the vehicle data API:
-      // Expected format: 
-      // https://uk1.ukvehicledata.co.uk/api/datapackage/VehicleData?v=2&api_nullitems=1&auth_apikey=YOUR_API_KEY&key_VRM=VRN
-      const url = `${apiUrl}?v=2&api_nullitems=1&auth_apikey=${apiKey}&key_VRM=${vrn.trim()}`;
       
-      console.log("Fetching vehicle data from:", url);
+      const data = await response.json();
       
-      const response = await fetch(url);
-      
-      // Check that the response has JSON content; if not, grab the text and throw an error.
-      const contentType = response.headers.get("content-type") || "";
-      if (!contentType.includes("application/json")) {
-        const text = await response.text();
-        throw new Error(`Expected JSON, got: ${text}`);
-      }
-
-      const result = await response.json();
-
-      // Extract vehicle details from the nested response structure
-      if (
-        result?.Response &&
-        result?.Response.StatusCode === "Success" &&
-        result?.Response.DataItems &&
-        result.Response.DataItems.VehicleRegistration
-      ) {
-        const registration = result.Response.DataItems.VehicleRegistration;
+      if (data && data.make) {
         setVehicleDetails({
-          make: registration.Make || "",
-          model: registration.Model || "",
-          year: registration.YearOfManufacture || "",
+          make: data.make,
+          model: data.model,
+          year: data.year,
         });
         toast({ title: "Vehicle data loaded successfully" });
       } else {
-        throw new Error("Vehicle data not found in API response");
+        throw new Error("Vehicle data not found");
       }
     } catch (error: any) {
       toast({
