@@ -14,18 +14,17 @@ export interface Job {
 export const jobsData = [
   {
     id: 1,
-    title: "Windscreen Replacement - BMW",
-    description: "Full windscreen replacement needed due to large impact damage. ADAS calibration required.",
-    location: { lat: 51.5074, lng: -0.1278 }, // Central London
-    customer: "James Wilson",
-    address: "15 Oxford Street, London W1D 2DH",
-    damage: "Impact Damage",
-    price: "£299.99",
-    urgency: "High",
-    insurance: "Direct Line",
-    timeline: "Today",
+    title: "Windscreen Replacement",
+    description: "Front windscreen replacement needed",
+    customer: "John Smith",
     vehicle: "BMW 3 Series",
-
+    damage: "Cracked Windscreen",
+    insurance: "Direct Line",
+    price: "£299.99",
+    timeline: "ASAP",
+    address: "123 London Road",
+    location: { lat: 51.5074, lng: -0.1278 },
+    image: "/images/windscreen-damage.jpg"
   },
   {
     id: 2,

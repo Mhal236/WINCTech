@@ -13,7 +13,7 @@ import Team from "./pages/Team";
 import Settings from "./pages/Settings";
 import Calendar from "./pages/Calendar";
 import Reporting from "./pages/Reporting";
-import Jobs from "./pages/Jobs";
+import History from "./pages/History";
 import JobSwipe from "./pages/JobSwipe";
 
 const queryClient = new QueryClient();
@@ -30,7 +30,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/calendar" element={<Calendar />} />
               <Route path="/reporting" element={<Reporting />} />
-              <Route path="/jobs" element={<Jobs />} />
+              <Route path="/history" element={<History />} />
               <Route path="/price-lookup" element={<PriceLookup />} />
               <Route path="/quotes" element={<Quotes />} />
               <Route path="/team" element={<Team />} />

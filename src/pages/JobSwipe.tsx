@@ -1,17 +1,24 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { MapContainer, TileLayer, Marker } from 'react-leaflet';
-import { jobsData } from "@/data/jobs";
+import { MapContainer, TileLayer, Marker, useMap, Popup } from 'react-leaflet';
 import { Button } from "@/components/ui/button";
 import { Clock, User, PoundSterling, Shield, Car, Info, MapPin } from "lucide-react";
 import { LatLngExpression } from 'leaflet';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
 import 'leaflet-routing-machine';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
 
-declare const L: any; // Add this line to handle Leaflet Routing Machine typing
+// Add at the top of the file, after imports
+declare module 'leaflet' {
+  export namespace Routing {
+    function control(options: any): any;
+    function osrmv1(options: any): any;
+  }
+}
 
 // Fix for default marker icons
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -49,40 +56,280 @@ const laterIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
+// After the icon definitions (urgentIcon, soonIcon, laterIcon)
+const createIcon = (color: string) => {
+  const markerIcons = {
+    'red': urgentIcon,
+    'yellow': soonIcon,
+    'green': laterIcon,
+    'blue': new L.Icon({
+      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
+    })
+  };
+  return markerIcons[color] || markerIcons['blue'];
+};
+
+// Add this with your other icon definitions
+const userLocationIcon = new L.DivIcon({
+  html: `
+    <div class="technician-marker">
+      <div class="pulse-ring"></div>
+      <div class="technician-dot"></div>
+    </div>
+  `,
+  className: 'technician-icon',
+  iconSize: [20, 20],
+  iconAnchor: [10, 10]
+});
+
+// Add this CSS to your styles
+const pulseStyle = `
+  .technician-icon {
+    background: transparent;
+    border: none;
+  }
+  .technician-marker {
+    position: relative;
+  }
+  .technician-dot {
+    width: 20px;
+    height: 20px;
+    background: #3b82f6;
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+  }
+  .pulse-ring {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    background: rgba(59, 130, 246, 0.4);
+    border-radius: 50%;
+    left: -10px;
+    top: -10px;
+    animation: pulse-ring 2s infinite;
+  }
+  @keyframes pulse-ring {
+    0% { transform: scale(0.5); opacity: 1; }
+    50% { transform: scale(1); opacity: 0.5; }
+    100% { transform: scale(0.5); opacity: 1; }
+  }
+`;
+
+interface MapComponentProps {
+  userLocation: [number, number] | null;
+  jobsData: CustomerJob[];
+  handleMarkerClick: (index: number) => void;
+  isAccepted: boolean;
+  acceptedJob: CustomerJob | null;
+}
+
+const getMarkerColor = (timeline?: string) => {
+  if (!timeline) return 'blue';
+  const timelineLower = timeline.toLowerCase();
+  if (timelineLower.includes('urgent') || timelineLower.includes('asap')) return 'red';
+  if (timelineLower.includes('soon') || timelineLower.includes('tomorrow')) return 'yellow';
+  return 'green';
+};
+
+const MapComponent = ({ userLocation, jobsData, handleMarkerClick, isAccepted, acceptedJob }: MapComponentProps) => {
+  return (
+    <>
+      <TileLayer
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      />
+      {userLocation && (
+        <Marker 
+          position={userLocation as LatLngExpression}
+          icon={userLocationIcon}
+        >
+          <Popup>Your Location</Popup>
+        </Marker>
+      )}
+      {!isAccepted && jobsData.map((job, index) => (
+        <Marker
+          key={job.quoteid}
+          position={[job.location.lat, job.location.lng] as LatLngExpression}
+          icon={createIcon(getMarkerColor(job.timeline))}
+          eventHandlers={{
+            click: () => handleMarkerClick(index)
+          }}
+        >
+          <Popup>
+            <div className="text-sm">
+              <p className="font-semibold">{job.full_name}</p>
+              <p>{job.vehicle_reg} - {job.make} {job.model}</p>
+              <p>{job.area}</p>
+              <p className="text-blue-600">{job.timeline || 'No timeline specified'}</p>
+              <p className="font-bold text-red-600">£{job.quote_price || 0}</p>
+            </div>
+          </Popup>
+        </Marker>
+      ))}
+      {isAccepted && acceptedJob && (
+        <Marker
+          position={[acceptedJob.location.lat, acceptedJob.location.lng] as LatLngExpression}
+          icon={createIcon('blue')}
+        >
+          <Popup>
+            <div className="text-sm">
+              <p className="font-semibold">{acceptedJob.full_name}</p>
+              <p>{acceptedJob.area}</p>
+              <p className="text-blue-600">{acceptedJob.timeline}</p>
+            </div>
+          </Popup>
+        </Marker>
+      )}
+    </>
+  );
+};
+
+interface CustomerJob {
+  quoteid: string;
+  full_name: string;
+  lastname: string;
+  location: {
+    lat: number;
+    lng: number;
+  };
+  postcode: string;
+  customerid: string;
+  vehicle_reg: string;
+  make: string;
+  model: string;
+  year: string;
+  colour: string;
+  type: string;
+  style: string;
+  covertype: string;
+  coverlevel: string;
+  quote_price?: number;
+  damaged_windows?: string;
+  image_url?: string;
+  timeline?: string;
+  address?: string;
+  area: string;
+}
+
 const JobSwipe = () => {
+  const [jobs, setJobs] = useState<CustomerJob[]>([]);
+  const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showDetails, setShowDetails] = useState(false);
   const [isAccepted, setIsAccepted] = useState(false);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [routingControl, setRoutingControl] = useState<any>(null);
-  const [acceptedJob, setAcceptedJob] = useState<any>(null);
-  const currentJob = jobsData[currentIndex];
-  const mapRef = React.useRef<L.Map | null>(null);
+  const [acceptedJob, setAcceptedJob] = useState<CustomerJob | null>(null);
+  const mapRef = useRef(null);
   const navigate = useNavigate();
+  const [isCardVisible, setIsCardVisible] = useState(true);
 
-  // Get user's location when component mounts
+  // Fetch jobs from Supabase
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('MasterCustomer')
+          .select('*');
+
+        if (error) {
+          console.error('Supabase error:', error);
+          throw error;
+        }
+
+        if (data) {
+          console.log('Raw data from Supabase:', data);
+
+          const jobsWithLocation = await Promise.all(data.map(async (job) => {
+            // Don't try to parse location if it's already an object
+            const existingLocation = job.location && typeof job.location === 'string' 
+              ? { lat: 51.5074, lng: -0.1278 } // Default to London if parsing fails
+              : (job.location || { lat: 51.5074, lng: -0.1278 });
+
+            const address = `${job.address || ''}, ${job.postcode || ''}, UK`;
+            
+            try {
+              const response = await fetch(
+                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`
+              );
+              
+              const locationData = await response.json();
+
+              return {
+                ...job,
+                quoteid: job.id,
+                image_url: job.image_url || '/default-image.jpg',
+                area: job.location || 'Location not available',
+                location: locationData && locationData.length > 0 
+                  ? {
+                      lat: parseFloat(locationData[0].lat),
+                      lng: parseFloat(locationData[0].lon)
+                    }
+                  : existingLocation
+              };
+            } catch (error) {
+              return {
+                ...job,
+                quoteid: job.id,
+                image_url: job.image_url || '/default-image.jpg',
+                area: job.location || 'Location not available',
+                location: existingLocation
+              };
+            }
+          }));
+
+          console.log('Final jobs with locations:', jobsWithLocation);
+          setJobs(jobsWithLocation);
+        }
+      } catch (error) {
+        console.error('Error fetching jobs:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchJobs();
+  }, []);
+
   useEffect(() => {
     if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition((position) => {
-        setUserLocation([position.coords.latitude, position.coords.longitude]);
-      });
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation([position.coords.latitude, position.coords.longitude]);
+        },
+        () => {
+          // Default to London if geolocation fails
+          setUserLocation([51.5074, -0.1278]);
+        }
+      );
     }
   }, []);
 
+  useEffect(() => {
+    console.log('Map ref:', mapRef.current);
+    console.log('jobsData:', jobs);
+    console.log('userLocation:', userLocation);
+  }, [userLocation]);
+
   const handleMarkerClick = (index: number) => {
-    if (!isAccepted) {
-      setCurrentIndex(index);
-    }
+    setCurrentIndex(index);
+    setIsCardVisible(true);
   };
 
   const handleAcceptJob = (e: React.MouseEvent) => {
     if (e) e.preventDefault();
     if (e) e.stopPropagation();
     
-    localStorage.setItem('currentJob', JSON.stringify(currentJob));
+    localStorage.setItem('currentJob', JSON.stringify(jobs[currentIndex]));
     setIsAccepted(true);
     setShowDetails(false);
-    setAcceptedJob(currentJob);
+    setAcceptedJob(jobs[currentIndex]);
 
     if (mapRef.current && userLocation) {
       // Clear existing route if any
@@ -94,7 +341,7 @@ const JobSwipe = () => {
       const control = L.Routing.control({
         waypoints: [
           L.latLng(userLocation[0], userLocation[1]),
-          L.latLng(currentJob.location.lat, currentJob.location.lng)
+          L.latLng(jobs[currentIndex].location.lat, jobs[currentIndex].location.lng)
         ],
         router: L.Routing.osrmv1({
           serviceUrl: 'https://router.project-osrm.org/route/v1'
@@ -121,7 +368,7 @@ const JobSwipe = () => {
 
       // Fit bounds to show both points with padding
       const bounds = L.latLngBounds(
-        [userLocation, [currentJob.location.lat, currentJob.location.lng]]
+        [userLocation, [jobs[currentIndex].location.lat, jobs[currentIndex].location.lng]]
       );
       mapRef.current.fitBounds(bounds, { 
         padding: [50, 50],
@@ -130,10 +377,9 @@ const JobSwipe = () => {
     }
   };
 
-  // Add cleanup effect
+  // Fix the cleanup effect
   useEffect(() => {
     return () => {
-      // Clean up routing control when component unmounts
       if (mapRef.current && routingControl) {
         mapRef.current.removeControl(routingControl);
       }
@@ -142,16 +388,16 @@ const JobSwipe = () => {
 
   const openGoogleMapsDirections = () => {
     console.log("User location:", userLocation);
-    console.log("Current job:", currentJob);
+    console.log("Current job:", jobs[currentIndex]);
 
     if (!userLocation) {
       console.log("User location not available");
       return;
     }
 
-    // Format coordinates and address
+    // Format coordinates and location
     const origin = `${userLocation[0]},${userLocation[1]}`;
-    const destination = `${currentJob.location.lat},${currentJob.location.lng}`;
+    const destination = `${jobs[currentIndex].location.lat},${jobs[currentIndex].location.lng}`;
 
     // Create Google Maps URL with coordinates
     const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
@@ -162,227 +408,206 @@ const JobSwipe = () => {
     window.open(url, '_blank');
   };
 
+  const getVehicleDisplay = (job: CustomerJob) => {
+    if (!job?.make && !job?.model && !job?.year) return "Vehicle information not available";
+    return `${job.year || ''} ${job.make || ''} ${job.model || ''}`.trim();
+  };
+
+  // Add the price formatting helper function if not already present
+  const formatPrice = (price: number | null | undefined) => {
+    if (price == null) return '£0.00';
+    return `£${price.toFixed(2)}`;
+  };
+
+  // Add a map click handler
+  const handleMapClick = () => {
+    setIsCardVisible(false);
+  };
+
+  // At the top of your JobSwipe component
+  useEffect(() => {
+    // Create style element
+    const styleElement = document.createElement('style');
+    styleElement.textContent = pulseStyle;
+    document.head.appendChild(styleElement);
+
+    // Cleanup
+    return () => {
+      document.head.removeChild(styleElement);
+    };
+  }, []);
+
   return (
     <DashboardLayout>
-      <div className="w-full h-[calc(100vh-2rem)] relative">
-        <MapContainer
-          center={userLocation || [51.5074, -0.1278]}
-          zoom={12}
-          className="w-full h-full absolute inset-0 z-10"
-          ref={mapRef}
-        >
-          <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          />
-          
-          {/* Show user location marker */}
-          {userLocation && (
-            <Marker
-              position={userLocation as LatLngExpression}
-              icon={new L.Icon({
-                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-                iconSize: [25, 41],
-                iconAnchor: [12, 41],
-                popupAnchor: [1, -34],
-                shadowSize: [41, 41]
-              })}
-            />
-          )}
-
-          {/* Show only accepted job marker if a job is accepted */}
-          {acceptedJob ? (
-            <Marker 
-              key={acceptedJob.id}
-              position={[acceptedJob.location.lat, acceptedJob.location.lng] as LatLngExpression}
-              icon={urgentIcon}
-            />
-          ) : (
-            jobsData.map((job, index) => (
-              <Marker 
-                key={job.id}
-                position={[job.location.lat, job.location.lng] as LatLngExpression}
-                icon={
-                  job.timeline === 'Today' ? urgentIcon :
-                  job.timeline === '2-3 Days' ? soonIcon :
-                  laterIcon
-                }
-                eventHandlers={{
-                  click: () => handleMarkerClick(index)
-                }}
+      <div className="h-[calc(100vh-6rem)] relative">
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <p>Loading jobs...</p>
+          </div>
+        ) : (
+          <>
+            <MapContainer
+              center={userLocation || [51.5074, -0.1278]}
+              zoom={13}
+              style={{ height: '100%', width: '100%' }}
+              ref={mapRef as any}
+            >
+              <MapClickHandler onMapClick={handleMapClick} />
+              <MapComponent 
+                userLocation={userLocation} 
+                jobsData={jobs} 
+                handleMarkerClick={handleMarkerClick} 
+                isAccepted={isAccepted}
+                acceptedJob={acceptedJob}
               />
-            ))
-          )}
-        </MapContainer>
+            </MapContainer>
 
-        {/* Job Details Panel - Updated for mobile */}
-        <div 
-          className="absolute bottom-0 left-0 right-0 w-full max-w-full mx-auto z-20 sm:bottom-4 sm:left-4 sm:right-4 sm:max-w-md"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="bg-white/40 backdrop-blur-md rounded-t-xl sm:rounded-xl shadow-lg border border-white/20 overflow-hidden">
-            <div className="relative p-3">
-              <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/5" />
-              
-              <div className="relative">
-                <div className="flex gap-3">
-                  {/* Damage Image - Made responsive */}
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden border border-white/20 flex-shrink-0">
-                    <img 
-                      src={currentJob.image || "/images/windscreen-damage.jpg"} 
-                      alt="Damage" 
+            {/* Card with visibility and transition */}
+            <div className={`absolute bottom-24 sm:bottom-6 left-1/2 transform -translate-x-1/2 w-[90%] max-w-lg z-[1000] transition-all duration-300 ease-in-out ${
+              isCardVisible 
+                ? 'opacity-100 translate-y-0' 
+                : 'opacity-0 translate-y-8 pointer-events-none'
+            }`}>
+              <div className="bg-gradient-to-br from-white/95 to-white/75 backdrop-blur-xl rounded-2xl shadow-lg border border-white/20 overflow-hidden">
+                {/* Image Section - New */}
+                <div className="relative w-full h-32 bg-gradient-to-r from-gray-100 to-gray-200">
+                  {jobs[currentIndex].image_url ? (
+                    <img
+                      src={jobs[currentIndex].image_url}
+                      alt="Vehicle damage"
                       className="w-full h-full object-cover"
                     />
-                  </div>
-
-                  <div className="flex-1 min-w-0"> {/* Added min-w-0 to prevent text overflow */}
-                    <h2 className="text-sm sm:text-base font-semibold text-gray-900 truncate">{currentJob.title}</h2>
-                    <p className="text-xs text-gray-600 line-clamp-2 mt-0.5">{currentJob.description}</p>
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="text-sm font-medium bg-gradient-to-r from-red-500 to-red-600 bg-clip-text text-transparent">
-                        {currentJob.price}
-                      </span>
-                      <span className="text-xs text-gray-500">Est. Time: 1.5 hrs</span>
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Car className="w-8 h-8 text-gray-400" />
                     </div>
-                  </div>
+                  )}
                 </div>
 
-                {/* Info Grid - Made responsive */}
-                <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                  <div className="flex items-center gap-1.5 bg-black/5 p-1.5 rounded-lg backdrop-blur-sm border border-white/10">
-                    <User className="h-3.5 w-3.5 text-gray-400" />
+                <div className="p-3.5">
+                  {/* Header Section */}
+                  <div className="flex justify-between items-start mb-2.5">
                     <div>
-                      <p className="text-[10px] text-gray-500">Customer</p>
-                      <p className="text-xs font-medium">{currentJob.customer}</p>
+                      <h2 className="text-sm font-semibold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600">
+                        {getVehicleDisplay(jobs[currentIndex])}
+                      </h2>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="px-1.5 py-0.5 bg-gradient-to-r from-gray-100 to-gray-50 rounded-full text-[10px] font-medium text-gray-600">
+                          {jobs[currentIndex].vehicle_reg}
+                        </span>
+                        <span className="px-1.5 py-0.5 bg-gradient-to-r from-red-50 to-orange-50 rounded-full text-[10px] font-medium text-red-600">
+                          {jobs[currentIndex].covertype}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-600 to-red-500">
+                        {jobs[currentIndex]?.quote_price 
+                          ? formatPrice(jobs[currentIndex].quote_price)
+                          : 'Quote Required'}
+                      </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 bg-black/5 p-1.5 rounded-lg backdrop-blur-sm border border-white/10">
-                    <Clock className="h-3.5 w-3.5 text-gray-400" />
-                    <div>
-                      <p className="text-[10px] text-gray-500">Timeline</p>
-                      <p className="text-xs font-medium">{currentJob.timeline}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-black/5 p-1.5 rounded-lg backdrop-blur-sm border border-white/10">
-                    <MapPin className="h-3.5 w-3.5 text-gray-400" />
-                    <div>
-                      <p className="text-[10px] text-gray-500">Location</p>
-                      <p className="text-xs font-medium line-clamp-1">{currentJob.address}</p>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Vehicle Details - Improved spacing for mobile */}
-                <div className="bg-black/5 p-3 sm:p-4 rounded-lg space-y-2 sm:space-y-3 mt-2">
-                  <h4 className="text-sm sm:text-base font-medium flex items-center gap-2">
-                    <Car className="h-4 w-4" />
-                    Vehicle Information
-                  </h4>
-                  <div className="grid gap-1.5 sm:gap-2 text-xs sm:text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-500">Make/Model:</span>
-                      <span>{currentJob.vehicle}</span>
+                  {/* Info Grid */}
+                  <div className="grid grid-cols-2 gap-1.5 mb-2.5">
+                    {[
+                      { icon: User, text: `${jobs[currentIndex]?.full_name}` },
+                      { 
+                        icon: MapPin, 
+                        text: jobs[currentIndex].area || 'Location not available',
+                        className: 'text-gray-500'
+                      },
+                      { 
+                        icon: Info, 
+                        text: jobs[currentIndex].damaged_windows || 'Front Windscreen',
+                        className: 'text-amber-600'
+                      },
+                      { 
+                        icon: Clock, 
+                        text: jobs[currentIndex].timeline || 'Today',
+                        className: 'text-blue-600'
+                      }
+                    ].map((item, index) => (
+                      <div key={index} 
+                        className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-gradient-to-br from-gray-50/50 to-transparent backdrop-blur-sm border border-white/20"
+                      >
+                        <item.icon className={`w-3 h-3 flex-shrink-0 ${item.className || 'text-gray-500'}`} />
+                        <span className="text-[11px] font-medium text-gray-700 truncate">
+                          {item.text}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Actions Section */}
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/20">
+                    <div className="flex gap-0.5">
+                      <Button
+                        onClick={() => setCurrentIndex((prev) => (prev > 0 ? prev - 1 : prev))}
+                        disabled={currentIndex === 0}
+                        variant="ghost"
+                        size="sm"
+                        className="h-9 w-7 text-gray-600 hover:text-gray-900 hover:bg-white/30 disabled:opacity-40"
+                      >
+                        ←
+                      </Button>
+                      <Button
+                        onClick={() => setCurrentIndex((prev) => (prev < jobs.length - 1 ? prev + 1 : prev))}
+                        disabled={currentIndex === jobs.length - 1}
+                        variant="ghost"
+                        size="sm"
+                        className="h-9 w-7 text-gray-600 hover:text-gray-900 hover:bg-white/30 disabled:opacity-40"
+                      >
+                        →
+                      </Button>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-500">Damage Type:</span>
-                      <span>{currentJob.damage}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-500">Insurance:</span>
-                      <span>{currentJob.insurance}</span>
+                    
+                    <div className="flex gap-1.5 flex-1">
+                      <Button 
+                        onClick={handleAcceptJob}
+                        className={`h-9 flex-1 text-xs font-medium rounded-lg transition-all duration-300 ${
+                          isAccepted 
+                            ? 'bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 text-white shadow-lg shadow-green-500/20'
+                            : 'bg-gradient-to-r from-red-600 to-rose-500 hover:from-red-700 hover:to-rose-600 text-white shadow-lg shadow-red-500/20'
+                        }`}
+                        disabled={isAccepted}
+                      >
+                        {isAccepted ? '✓ Accepted' : 'Accept Job'}
+                      </Button>
+                      <Button
+                        onClick={openGoogleMapsDirections}
+                        className="h-9 w-9 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-lg shadow-lg shadow-blue-500/20 transition-all duration-300 flex items-center justify-center"
+                      >
+                        <MapPin className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
-                </div>
-
-                {/* Action Buttons - Improved for mobile */}
-                <div className="mt-2 flex gap-1.5">
-                  <Button 
-                    type="button"
-                    onClick={handleAcceptJob}
-                    className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium h-10 sm:h-8 text-sm shadow-lg shadow-red-500/20 border border-white/10"
-                  >
-                    Accept Job
-                  </Button>
-                  <Button 
-                    type="button"
-                    variant="outline"
-                    onClick={openGoogleMapsDirections}
-                    className="px-3 h-10 sm:h-8 border-white/20 bg-white/20 hover:bg-white/30"
-                  >
-                    <MapPin className="h-4 w-4 text-gray-600" />
-                  </Button>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Dialog - Made responsive */}
-        <Dialog open={showDetails} onOpenChange={setShowDetails}>
-          <DialogContent className="max-w-[95vw] sm:max-w-md bg-white/95 backdrop-blur-md m-4">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-semibold">Job Details</DialogTitle>
-            </DialogHeader>
-            
-            <div className="space-y-4 p-4">
-              {/* Customer Info */}
-              <div className="bg-black/5 p-4 rounded-lg">
-                <h4 className="font-medium mb-2">Customer Details</h4>
-                <p className="text-sm">{currentJob.customer}</p>
-                <p className="text-sm text-gray-500 mt-1">{currentJob.address}</p>
-              </div>
-
-              {/* Vehicle Details */}
-              <div className="bg-black/5 p-4 rounded-lg space-y-3">
-                <h4 className="font-medium flex items-center gap-2">
-                  <Car className="h-4 w-4" />
-                  Vehicle Information
-                </h4>
-                <div className="grid gap-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-500">Make/Model:</span>
-                    <span>{currentJob.vehicle}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-500">Damage Type:</span>
-                    <span>{currentJob.damage}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-500">Insurance:</span>
-                    <span>{currentJob.insurance}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button 
-                  onClick={handleAcceptJob}
-                  className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white"
-                >
-                  Accept Job
-                </Button>
-                <Button 
-                  variant="outline"
-                  onClick={openGoogleMapsDirections}
-                  className="px-3 border-gray-200"
-                >
-                  <MapPin className="h-5 w-5" />
-                </Button>
-                <Button 
-                  variant="outline"
-                  onClick={() => setShowDetails(false)}
-                  className="border-gray-200"
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+          </>
+        )}
       </div>
     </DashboardLayout>
   );
+};
+
+// Add this component to handle map clicks
+const MapClickHandler = ({ onMapClick }: { onMapClick: () => void }) => {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (!map) return;
+    
+    map.on('click', onMapClick);
+    
+    return () => {
+      map.off('click', onMapClick);
+    };
+  }, [map, onMapClick]);
+
+  return null;
 };
 
 export default JobSwipe; 

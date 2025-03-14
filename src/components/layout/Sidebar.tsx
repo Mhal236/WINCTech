@@ -20,7 +20,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 // Instead of importing from the public folder, reference the image using its absolute path.
 const logo = "/windscreen-compare-technician.png";
 
-export const Sidebar = () => {
+export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -29,13 +29,12 @@ export const Sidebar = () => {
   // Update the navigation array with the DashboardLayout menu items
   const navigation = [
     { name: "Dashboard", href: "/", icon: Home },
-    { name: "Jobs", href: "/job-swipe", icon: ArrowRight },
+    { name: "Jobs", href: "/job-swipe", icon: Briefcase },
     { name: "Calendar", href: "/calendar", icon: Calendar },
     { name: "Glass Order", href: "/price-lookup", icon: Search },
-    { name: "History", href: "/jobs", icon: ClipboardList },
+    { name: "History", href: "/history", icon: ClipboardList },
     { name: "Reports", href: "/reporting", icon: BarChart },
     { name: "Contact Us", href: "/contact", icon: MessageCircle },
-
   ];
 
   const settingsNav = {
@@ -45,7 +44,8 @@ export const Sidebar = () => {
   };
 
   return (
-    <>
+    <div className="flex h-screen w-full overflow-hidden">
+      {/* Sidebar */}
       <div
         className={cn(
           "fixed top-0 left-0 z-40 h-screen transition-all bg-card border-r",
@@ -127,23 +127,25 @@ export const Sidebar = () => {
           </div>
         </div>
       </div>
+
+      {/* Mobile overlay */}
       {isMobile && !collapsed && (
         <div
           className="fixed inset-0 bg-black/20 z-30"
           onClick={() => setCollapsed(true)}
         />
       )}
-      <div
+
+      {/* Main content */}
+      <main
         className={cn(
-          "transition-all duration-200",
-          collapsed ? "ml-16" : "ml-64",
-          isMobile && "ml-0"
+          "flex-1 w-full transition-all duration-200",
+          collapsed ? "pl-16" : "pl-64",
+          isMobile && "pl-0"
         )}
       >
-        <div className="p-4">
-          {/* Content will be rendered here */}
-        </div>
-      </div>
-    </>
+        {children}
+      </main>
+    </div>
   );
 };
