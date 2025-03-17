@@ -139,7 +139,7 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
       {/* Main content */}
       <main
         className={cn(
-          "flex-1 w-full transition-all duration-200",
+          "flex-1 w-full transition-all duration-200 overflow-y-auto",
           collapsed ? "pl-16" : "pl-64",
           isMobile && "pl-0"
         )}
