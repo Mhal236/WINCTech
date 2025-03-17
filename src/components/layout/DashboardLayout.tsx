@@ -17,7 +17,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <Sidebar>
-      <div className="p-6 h-full">
+      <div className="p-6 h-full overflow-y-auto">
         {children}
       </div>
       
