@@ -57,7 +57,7 @@ const Calendar = () => {
       case "In Progress":
         return "bg-yellow-100 text-yellow-600";
       case "Completed":
-        return "bg-green-100 text-green-600";
+        return "bg-blue-100 text-blue-600";
       default:
         return "bg-gray-100 text-gray-600";
     }
@@ -82,19 +82,19 @@ const Calendar = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="text-xl font-semibold flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#0D9488] animate-pulse"></span>
+                  <span className="w-2 h-2 rounded-full bg-[#3d99be] animate-pulse"></span>
                   Jobs for {date?.toLocaleDateString()}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4">
                   {jobs.map(job => (
-                    <Card key={job.id} className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-[#0D9488]">
+                    <Card key={job.id} className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-[#135084]">
                       <CardContent className="p-6">
                         <div className="flex flex-col md:flex-row justify-between gap-4">
                           <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div>
-                              <h3 className="font-semibold text-lg text-[#0D9488]">{job.damage || "Service"}</h3>
+                              <h3 className="font-semibold text-lg text-[#3d99be]">{job.damage || "Service"}</h3>
                               <p className="text-sm text-gray-500">{job.vehicle || "Vehicle Info"}</p>
                               <p className="text-sm text-gray-500">Customer: {job.customer}</p>
                             </div>
@@ -118,9 +118,9 @@ const Calendar = () => {
                               <span
                                 className={`inline-block px-2 py-1 text-xs rounded-full ${
                                   job.status === 'In Progress'
-                                    ? 'bg-[#0D9488]/10 text-[#0D9488]'
+                                    ? 'bg-[#135084]/10 text-[#135084]'
                                     : job.status === 'Completed'
-                                    ? 'bg-green-100 text-green-600'
+                                    ? 'bg-blue-100 text-blue-600'
                                     : 'bg-blue-100 text-blue-600'
                                 }`}
                               >

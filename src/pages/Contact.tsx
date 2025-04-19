@@ -36,13 +36,13 @@ const Contact = () => {
   return (
     <DashboardLayout>
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-[#0D9488] mb-8">Contact Us</h1>
+        <h1 className="text-3xl font-bold text-[#3d99be] mb-8">Contact Us</h1>
         
         <div className="grid md:grid-cols-2 gap-12">
           {/* Contact Form Section */}
           <div className="space-y-6">
             <div className="bg-white rounded-lg p-6 shadow-md">
-              <h2 className="text-2xl font-semibold mb-4 text-[#0D9488]">Send us a message</h2>
+              <h2 className="text-2xl font-semibold mb-4 text-[#3d99be]">Send us a message</h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <Label htmlFor="name">Name</Label>
@@ -51,7 +51,7 @@ const Contact = () => {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Your name"
-                    className="border-[#0D9488]/20"
+                    className="border-[#3d99be]/20"
                   />
                 </div>
                 <div>
@@ -62,7 +62,7 @@ const Contact = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Your email"
-                    className="border-[#0D9488]/20"
+                    className="border-[#3d99be]/20"
                   />
                 </div>
                 <div>
@@ -72,28 +72,28 @@ const Contact = () => {
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="Your message"
-                    className="min-h-[150px] border-[#0D9488]/20"
+                    className="min-h-[150px] border-[#3d99be]/20"
                   />
                 </div>
-                <Button type="submit" className="w-full bg-[#0D9488] hover:bg-[#0D9488]/90">
+                <Button type="submit" className="w-full">
                   Send Message
                 </Button>
               </form>
             </div>
 
             <div className="bg-white rounded-lg p-6 shadow-md">
-              <h2 className="text-2xl font-semibold mb-4 text-[#0D9488]">Contact Information</h2>
+              <h2 className="text-2xl font-semibold mb-4 text-[#3d99be]">Contact Information</h2>
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <Mail className="text-[#0D9488]" />
+                  <Mail className="text-[#3d99be]" />
                   <span>technician@windscreencompare.com</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Phone className="text-[#0D9488]" />
+                  <Phone className="text-[#3d99be]" />
                   <span>020 7946 0123</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <MapPin className="text-[#0D9488]" />
+                  <MapPin className="text-[#3d99be]" />
                   <span>221B Baker Street, London, NW1 6XE, UK</span>
                 </div>
               </div>
@@ -104,8 +104,8 @@ const Contact = () => {
           <div className="space-y-6">
             <div className="bg-white rounded-lg p-6 shadow-md">
               <div className="flex items-center gap-2 mb-6">
-                <Users className="h-6 w-6 text-[#0D9488]" />
-                <h2 className="text-2xl font-semibold text-[#0D9488]">Our Team</h2>
+                <Users className="h-6 w-6 text-[#3d99be]" />
+                <h2 className="text-2xl font-semibold text-[#3d99be]">Our Team</h2>
               </div>
               <div className="space-y-6">
                 {teamMembers.map((member) => (
@@ -117,11 +117,11 @@ const Contact = () => {
                     <p className="text-sm text-gray-600 mb-2">{member.role}</p>
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Mail className="h-4 w-4 text-[#0D9488]" />
+                        <Mail className="h-4 w-4 text-[#3d99be]" />
                         <span>{member.email}</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Phone className="h-4 w-4 text-[#0D9488]" />
+                        <Phone className="h-4 w-4 text-[#3d99be]" />
                         <span>{member.phone}</span>
                       </div>
                     </div>
@@ -136,15 +136,15 @@ const Contact = () => {
             {!isChatOpen ? (
               <Button
                 onClick={() => setIsChatOpen(true)}
-                className="fixed bottom-6 right-6 bg-[#0D9488] hover:bg-[#0D9488]/90 rounded-full p-4 shadow-lg"
+                className="fixed bottom-6 right-6 rounded-full p-4 shadow-lg"
               >
                 <MessageCircle className="h-6 w-6" />
               </Button>
             ) : (
               <div className="fixed bottom-6 right-6 w-80 bg-white rounded-lg shadow-xl">
-                <div className="bg-[#0D9488] text-white p-4 rounded-t-lg flex justify-between items-center">
+                <div className="bg-[#FFC107] text-gray-900 p-4 rounded-t-lg flex justify-between items-center">
                   <h3 className="font-semibold">Live Chat</h3>
-                  <button onClick={() => setIsChatOpen(false)} className="text-white hover:text-gray-200">
+                  <button onClick={() => setIsChatOpen(false)} className="text-gray-900 hover:text-gray-700">
                     ×
                   </button>
                 </div>
@@ -155,8 +155,8 @@ const Contact = () => {
                 </div>
                 <div className="p-4 border-t">
                   <div className="flex gap-2">
-                    <Input placeholder="Type your message..." className="border-[#0D9488]/20" />
-                    <Button className="bg-[#0D9488] hover:bg-[#0D9488]/90">Send</Button>
+                    <Input placeholder="Type your message..." className="border-[#3d99be]/20" />
+                    <Button>Send</Button>
                   </div>
                 </div>
               </div>

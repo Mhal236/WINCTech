@@ -44,12 +44,10 @@ export const WelcomeScreen = ({ userName = "Alex Wonder" }: WelcomeScreenProps) 
         transition-opacity duration-[3000ms] ease-out`}
     >
       <div className="text-center scale-in">
-        <h1 className="text-4xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#0D9488] to-[#0D9488]/70 
-          animate-pulse shadow-glow"
-        >
+        <h1 className="text-4xl md:text-6xl font-bold text-[#3d99be] animate-pulse shadow-glow">
           Hello, {userName}
         </h1>
-        <div className="mt-4 text-[#0D9488]/50 text-lg md:text-xl animate-pulse">
+        <div className="mt-4 text-[#3d99be]/50 text-lg md:text-xl animate-pulse">
           Welcome to Windscreen Compare Technician Hub
         </div>
       </div>

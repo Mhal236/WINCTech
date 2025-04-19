@@ -47,7 +47,7 @@ const Reporting = () => {
     <DashboardLayout>
       <div className="space-y-8">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl md:text-3xl font-semibold text-[#0D9488]">Reports & Analytics</h1>
+          <h1 className="text-2xl md:text-3xl font-semibold text-[#3d99be]">Reports & Analytics</h1>
           <div className="text-sm text-gray-500">Last updated: {new Date().toLocaleDateString()}</div>
         </div>
 
@@ -62,21 +62,21 @@ const Reporting = () => {
                     <h3 className="text-2xl font-bold mt-2">{card.value}</h3>
                   </div>
                   <div className={`p-2 rounded-lg £{
-                    card.trend === 'up' ? 'bg-green-100' : 'bg-red-100'
+                    card.trend === 'up' ? 'bg-blue-100' : 'bg-red-100'
                   }`}>
                     <card.icon className={`w-5 h-5 £{
-                      card.trend === 'up' ? 'text-green-600' : 'text-red-600'
+                      card.trend === 'up' ? 'text-blue-600' : 'text-red-600'
                     }`} />
                   </div>
                 </div>
                 <div className="flex items-center mt-4">
                   {card.trend === 'up' ? (
-                    <ArrowUp className="w-4 h-4 text-green-600" />
+                    <ArrowUp className="w-4 h-4 text-blue-600" />
                   ) : (
                     <ArrowDown className="w-4 h-4 text-red-600" />
                   )}
                   <span className={`text-sm ml-1 £{
-                    card.trend === 'up' ? 'text-green-600' : 'text-red-600'
+                    card.trend === 'up' ? 'text-blue-600' : 'text-red-600'
                   }`}>
                     {card.change} vs last month
                   </span>
@@ -98,8 +98,8 @@ const Reporting = () => {
                 <AreaChart data={mockData}>
                   <defs>
                     <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0D9488" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#0D9488" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#3d99be" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#3d99be" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -115,7 +115,7 @@ const Reporting = () => {
                   <Area 
                     type="monotone" 
                     dataKey="revenue" 
-                    stroke="#0D9488" 
+                    stroke="#3d99be" 
                     fill="url(#revenueGradient)"
                   />
                 </AreaChart>
@@ -143,7 +143,7 @@ const Reporting = () => {
                   />
                   <Bar 
                     dataKey="jobs" 
-                    fill="#0D9488"
+                    fill="#3d99be"
                     radius={[4, 4, 0, 0]}
                   />
                 </BarChart>
@@ -175,9 +175,9 @@ const Reporting = () => {
                   <Line 
                     type="monotone" 
                     dataKey="satisfaction" 
-                    stroke="#0D9488"
+                    stroke="#3d99be"
                     strokeWidth={2}
-                    dot={{ fill: '#0D9488', strokeWidth: 2 }}
+                    dot={{ fill: '#3d99be', strokeWidth: 2 }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -199,7 +199,7 @@ const Reporting = () => {
                 ].map((service, index) => (
                   <div key={index} className="flex items-center justify-between">
                     <span className="text-sm font-medium">{service.name}</span>
-                    <span className="text-sm text-[#0D9488] font-semibold">{service.value}</span>
+                    <span className="text-sm text-[#3d99be] font-semibold">{service.value}</span>
                   </div>
                 ))}
               </div>

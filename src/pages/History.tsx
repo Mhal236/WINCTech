@@ -88,10 +88,10 @@ const History = () => {
       <div className="space-y-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-semibold text-[#0D9488]">Jobs Dashboard</h1>
+            <h1 className="text-2xl md:text-3xl font-semibold text-[#135084]">Jobs Dashboard</h1>
             <p className="text-gray-500 mt-1">Manage and track all jobs</p>
           </div>
-          <Button className="bg-[#0D9488] hover:bg-[#0D9488]/90">
+          <Button className="bg-[#135084] hover:bg-[#135084]/90">
             <Plus className="h-5 w-5 mr-2" />
             New Job
           </Button>
@@ -107,13 +107,13 @@ const History = () => {
                     <p className="text-sm font-medium text-gray-500">{stat.title}</p>
                     <h3 className="text-2xl font-bold mt-2">{stat.value}</h3>
                   </div>
-                  <div className={`p-2 rounded-lg ${stat.trend === "up" ? "bg-green-100" : "bg-gray-100"}`}>
-                    <stat.icon className={`w-5 h-5 ${stat.trend === "up" ? "text-green-600" : "text-gray-600"}`} />
+                  <div className={`p-2 rounded-lg ${stat.trend === "up" ? "bg-blue-100" : "bg-gray-100"}`}>
+                    <stat.icon className={`w-5 h-5 ${stat.trend === "up" ? "text-blue-600" : "text-gray-600"}`} />
                   </div>
                 </div>
                 <div className="flex items-center mt-4">
-                  {stat.trend === "up" && <ArrowUp className="w-4 h-4 text-green-600" />}
-                  <span className={`text-sm ml-1 ${stat.trend === "up" ? "text-green-600" : "text-gray-600"}`}>
+                  {stat.trend === "up" && <ArrowUp className="w-4 h-4 text-blue-600" />}
+                  <span className={`text-sm ml-1 ${stat.trend === "up" ? "text-blue-600" : "text-gray-600"}`}>
                     {stat.change}
                   </span>
                 </div>
@@ -123,7 +123,7 @@ const History = () => {
         </div>
 
         {/* Filters and Search */}
-        <Card className="border-[#0D9488]/20">
+        <Card className="border-[#3d99be]/20">
           <CardContent className="p-4">
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1 flex gap-4">
@@ -131,10 +131,10 @@ const History = () => {
                   placeholder="Search"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full md:w-64 border-[#0D9488] focus:ring-[#0D9488]"
+                  className="w-full md:w-64 border-[#3d99be] focus:ring-[#3d99be]"
                 />
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="w-[180px] border-[#0D9488]">
+                  <SelectTrigger className="w-[180px] border-[#3d99be]">
                     <SelectValue placeholder="Filter by status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -144,7 +144,7 @@ const History = () => {
                     <SelectItem value="completed">Completed</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="outline" className="border-[#0D9488] text-[#0D9488]">
+                <Button variant="outline" className="border-[#3d99be] text-[#3d99be]">
                   <Filter className="h-4 w-4 mr-2" />
                   More Filters
                 </Button>
@@ -156,12 +156,12 @@ const History = () => {
         {/* Jobs List */}
         <div className="grid gap-4">
           {jobs.map(job => (
-            <Card key={job.id} className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-[#0D9488]">
+            <Card key={job.id} className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-[#3d99be]">
               <CardContent className="p-6">
                 <div className="flex flex-col md:flex-row justify-between gap-4">
                   <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
-                      <h3 className="font-semibold text-lg text-[#0D9488]">{job.damage || "Service"}</h3>
+                      <h3 className="font-semibold text-lg text-[#3d99be]">{job.damage || "Service"}</h3>
                       <p className="text-sm text-gray-500">{job.vehicle || "Vehicle Info"}</p>
                       <p className="text-sm text-gray-500">Customer: {job.customer}</p>
                     </div>

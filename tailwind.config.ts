@@ -25,8 +25,8 @@ export default {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "#34C759",
-          foreground: "#FFFFFF",
+          DEFAULT: "#FFC107",
+          foreground: "#1D1D1F",
         },
         secondary: {
           DEFAULT: "#1D1D1F",
@@ -41,8 +41,8 @@ export default {
           foreground: "#1D1D1F",
         },
         accent: {
-          DEFAULT: "#34C759",
-          foreground: "#FFFFFF",
+          DEFAULT: "#FFC107",
+          foreground: "#1D1D1F",
         },
         card: {
           DEFAULT: "#FFFFFF",
@@ -77,10 +77,10 @@ export default {
         },
         glow: {
           '0%, 100%': {
-            textShadow: '0 0 20px rgba(13, 148, 136, 0.5), 0 0 40px rgba(13, 148, 136, 0.3)'
+            textShadow: '0 0 20px rgba(255, 193, 7, 0.5), 0 0 40px rgba(255, 193, 7, 0.3)'
           },
           '50%': {
-            textShadow: '0 0 40px rgba(13, 148, 136, 0.8), 0 0 80px rgba(13, 148, 136, 0.5)'
+            textShadow: '0 0 40px rgba(255, 193, 7, 0.8), 0 0 80px rgba(255, 193, 7, 0.5)'
           }
         },
         scaleIn: {
