@@ -10,20 +10,29 @@
     --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
-    --primary: 142.1 70.6% 45.3%;
-    --primary-foreground: 0 0% 98%;
+    --primary: 45 100% 51%;
+    --primary-foreground: 240 10% 3.9%;
     --secondary: 240 5.9% 10%;
     --secondary-foreground: 0 0% 98%;
     --muted: 240 4.8% 95.9%;
     --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+    --accent: 45 100% 51%;
+    --accent-foreground: 240 10% 3.9%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
-    --ring: 142.1 70.6% 45.3%;
+    --ring: 45 100% 51%;
     --radius: 0.75rem;
+    
+    /* CTA Button Colors */
+    --cta-primary: #FFC107;
+    --cta-primary-hover: #FFB300;
+    --cta-primary-text: #1D1D1F;
+    --cta-secondary: transparent;
+    --cta-secondary-hover: rgba(19, 80, 132, 0.1);
+    --cta-secondary-text: #135084;
+    --cta-secondary-border: #135084;
   }
 }
 
@@ -53,9 +62,18 @@
   @apply hover:shadow-md transition-all duration-200;
 }
 
+/* CTA Button Classes */
+.cta-primary {
+  @apply bg-[var(--cta-primary)] text-[var(--cta-primary-text)] hover:bg-[var(--cta-primary-hover)] shadow-md;
+}
+
+.cta-secondary {
+  @apply bg-[var(--cta-secondary)] text-[var(--cta-secondary-text)] border border-[var(--cta-secondary-border)] hover:bg-[var(--cta-secondary-hover)];
+}
+
 @layer utilities {
   .shadow-glow {
-    text-shadow: 0 0 20px rgba(13, 148, 136, 0.5),
-                 0 0 40px rgba(13, 148, 136, 0.3);
+    text-shadow: 0 0 20px rgba(255, 193, 7, 0.5),
+                 0 0 40px rgba(255, 193, 7, 0.3);
   }
 }

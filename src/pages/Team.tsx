@@ -9,13 +9,13 @@ const Team = () => {
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <h1 className="text-2xl md:text-3xl font-semibold text-[#0D9488]">Team Members</h1>
+          <h1 className="text-2xl md:text-3xl font-semibold text-[#135084]">Team Members</h1>
           <div className="flex items-center gap-4 w-full md:w-auto">
             <Input
               placeholder="Search team members..."
-              className="w-full md:w-64 border-[#0D9488] focus:ring-[#0D9488]"
+              className="w-full md:w-64 border-[#135084] focus:ring-[#135084]"
             />
-            <Button variant="secondary" size="icon" className="bg-[#0D9488] hover:bg-[#0D9488]/90">
+            <Button variant="secondary" size="icon" className="bg-[#135084] hover:bg-[#135084]/90">
               <Search className="h-4 w-4" />
             </Button>
           </div>
@@ -25,7 +25,7 @@ const Team = () => {
           {[1, 2, 3, 4, 5, 6].map((member) => (
             <Card key={member} className="hover:shadow-lg transition-shadow duration-200">
               <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-                <Users className="h-6 w-6 text-[#0D9488] mr-2" />
+                <Users className="h-6 w-6 text-[#3d99be] mr-2" />
                 <CardTitle className="text-lg font-semibold">Team Member {member}</CardTitle>
               </CardHeader>
               <CardContent>
@@ -39,7 +39,7 @@ const Team = () => {
                     <Phone className="h-4 w-4" />
                     <span>020 7946 0000</span>
                   </div>
-                  <Button className="w-full bg-[#0D9488] hover:bg-[#0D9488]/90">
+                  <Button className="w-full bg-[#3d99be] hover:bg-[#3d99be]/90">
                     Send Message
                   </Button>
                 </div>

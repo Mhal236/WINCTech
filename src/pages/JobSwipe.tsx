@@ -347,7 +347,7 @@ const JobSwipe = () => {
           serviceUrl: 'https://router.project-osrm.org/route/v1'
         }),
         lineOptions: {
-          styles: [{ color: '#0D9488', weight: 6 }]
+          styles: [{ color: '#3d99be', weight: 6 }]
         },
         show: false,
         addWaypoints: false,
@@ -568,7 +568,7 @@ const JobSwipe = () => {
                         onClick={handleAcceptJob}
                         className={`h-9 flex-1 text-xs font-medium rounded-lg transition-all duration-300 ${
                           isAccepted 
-                            ? 'bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 text-white shadow-lg shadow-green-500/20'
+                            ? 'bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-700 hover:to-sky-600 text-white shadow-lg shadow-blue-500/20'
                             : 'bg-gradient-to-r from-red-600 to-rose-500 hover:from-red-700 hover:to-rose-600 text-white shadow-lg shadow-red-500/20'
                         }`}
                         disabled={isAccepted}

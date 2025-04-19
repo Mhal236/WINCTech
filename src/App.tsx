@@ -15,6 +15,7 @@ import Calendar from "./pages/Calendar";
 import Reporting from "./pages/Reporting";
 import History from "./pages/History";
 import JobSwipe from "./pages/JobSwipe";
+import LandingPage from "./pages/LandingPage";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,7 @@ const App = () => (
               <Route path="/settings" element={<Settings />} />
               <Route path="/404" element={<NotFound />} />
               <Route path="/job-swipe" element={<JobSwipe />} />
+              <Route path="/landing-page" element={<LandingPage />} />
               <Route path="*" element={<Navigate to="/404" replace />} />
             </Routes>
           </Router>
