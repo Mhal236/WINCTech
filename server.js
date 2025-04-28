@@ -1,9 +1,11 @@
-const express = require('express');
-const path = require('path');
-const dotenv = require('dotenv');
-const cors = require('cors');
-const axios = require('axios');
-const https = require('https');
+import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+import cors from 'cors';
+import axios from 'axios';
+import https from 'https';
+import { getArgicFromVRN } from './src/lib/glass-api-service.js';
 
 // Load environment variables
 dotenv.config();
@@ -11,9 +13,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Import API routes from api-server.js
-// Since your api-server.js is using ES modules, we need to run this in a different way
-// We'll re-implement the critical endpoints here
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Middleware
 app.use(express.json());
@@ -110,6 +112,42 @@ app.get('/api/vehicle/:vrn', async (req, res) => {
       success: false,
       error: error.message || "Unknown error occurred",
       message: "Failed to fetch vehicle data"
+    });
+  }
+});
+
+// Glass API endpoint for VRN lookup
+app.get('/api/glass/vrn-lookup/:vrn', async (req, res) => {
+  try {
+    const { vrn } = req.params;
+    
+    if (!vrn) {
+      return res.status(400).json({
+        success: false,
+        error: "VRN parameter is required"
+      });
+    }
+    
+    console.log(`Processing glass VRN lookup for: ${vrn}`);
+    
+    // Call the glass API service function
+    const result = await getArgicFromVRN(vrn.trim());
+    
+    if (result.success && result.argicCode) {
+      console.log(`Successfully retrieved ARGIC code for ${vrn}: ${result.argicCode}`);
+      return res.json(result);
+    } else {
+      console.log(`No ARGIC code found for ${vrn}:`, result.error || 'Unknown error');
+      return res.status(404).json({
+        success: false,
+        error: result.error || "ARGIC code not found"
+      });
+    }
+  } catch (error) {
+    console.error('Error in glass VRN lookup:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Unknown error occurred"
     });
   }
 });
