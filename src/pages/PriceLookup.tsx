@@ -1310,7 +1310,7 @@ const PriceLookup = () => {
                               <div className="bg-[#135084]/10 rounded-lg p-2 w-16 h-16 flex items-center justify-center">
                                 {getGlassTypeIcon(quote, glassSelections[0])}
                               </div>
-                              <h3 className="font-semibold text-xl text-gray-900">{quote.company}</h3>
+                            <h3 className="font-semibold text-xl text-gray-900">{quote.company}</h3>
                             </div>
                             <div className="text-right">
                               <span className="text-2xl font-bold text-[#135084]">
