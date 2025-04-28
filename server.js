@@ -5,13 +5,12 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import axios from 'axios';
 import https from 'https';
-import { getArgicFromVRN } from './src/lib/glass-api-service.js';
 
 // Load environment variables
 dotenv.config();
 
+// Create Express app
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 // Get __dirname equivalent in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -22,15 +21,29 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 
-// Serve static files from the 'dist' directory (built frontend)
-app.use(express.static(path.join(__dirname, 'dist')));
+// Dynamically import glass-api-service functions to prevent import errors
+let getArgicFromVRN;
+try {
+  const glassApiService = await import('./src/lib/glass-api-service.js');
+  getArgicFromVRN = glassApiService.getArgicFromVRN;
+  console.log('Successfully imported glass-api-service');
+} catch (err) {
+  console.error('Error importing glass-api-service:', err);
+  getArgicFromVRN = async (vrn) => ({
+    success: false,
+    error: 'Glass API service unavailable',
+    message: 'Could not import glass-api-service module'
+  });
+}
 
 // API endpoints
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    message: 'API server is running'
+    message: 'API server is running',
+    node_version: process.version,
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
@@ -52,8 +65,9 @@ app.get('/api/vehicle/:vrn', async (req, res) => {
     
     if (!apiKey || !apiUrl) {
       console.error('Missing API key or URL in environment variables');
-      console.log('Available environment variables:', Object.keys(process.env).filter(key => 
-        key.includes('VEHICLE') || key.includes('API')).join(', '));
+      console.log('Available environment variables:', Object.keys(process.env)
+        .filter(key => key.includes('VEHICLE') || key.includes('API') || key.includes('VITE'))
+        .join(', '));
       return res.status(500).json({
         success: false,
         error: "Missing API configuration. Check server environment."
@@ -74,7 +88,16 @@ app.get('/api/vehicle/:vrn', async (req, res) => {
     
     console.log(`Calling external vehicle API at: ${apiUrl} (not showing full URL with key)`);
     
-    const response = await axios.get(url);
+    // Create a custom agent with longer timeout
+    const httpsAgent = new https.Agent({
+      timeout: 30000, // 30 seconds
+      keepAlive: true
+    });
+    
+    const response = await axios.get(url, { 
+      httpsAgent,
+      timeout: 30000 // 30 seconds
+    });
     
     // Add detailed logging about the response
     console.log("API Response status:", response.status);
@@ -107,7 +130,8 @@ app.get('/api/vehicle/:vrn', async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('Error fetching vehicle data:', error);
+    console.error('Error fetching vehicle data:', error.message);
+    console.error('Stack trace:', error.stack);
     res.status(500).json({
       success: false,
       error: error.message || "Unknown error occurred",
@@ -130,6 +154,15 @@ app.get('/api/glass/vrn-lookup/:vrn', async (req, res) => {
     
     console.log(`Processing glass VRN lookup for: ${vrn}`);
     
+    // Check if getArgicFromVRN is available
+    if (!getArgicFromVRN) {
+      console.error('getArgicFromVRN function not available');
+      return res.status(500).json({
+        success: false,
+        error: "Glass API service unavailable"
+      });
+    }
+    
     // Call the glass API service function
     const result = await getArgicFromVRN(vrn.trim());
     
@@ -144,7 +177,8 @@ app.get('/api/glass/vrn-lookup/:vrn', async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('Error in glass VRN lookup:', error);
+    console.error('Error in glass VRN lookup:', error.message);
+    console.error('Stack trace:', error.stack);
     return res.status(500).json({
       success: false,
       error: error.message || "Unknown error occurred"
@@ -152,17 +186,26 @@ app.get('/api/glass/vrn-lookup/:vrn', async (req, res) => {
   }
 });
 
-// Add more API endpoints as needed (you can add crucial ones from api-server.js)
+// For local development, add static file serving and catch-all route
+if (process.env.VERCEL !== '1') {
+  const PORT = process.env.PORT || 3000;
+  
+  // Serve static files from the 'dist' directory (built frontend)
+  app.use(express.static(path.join(__dirname, 'dist')));
+  
+  // For any other route, serve the frontend (SPA support)
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+  });
+  
+  // Start the server
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Frontend static files served from: ${path.join(__dirname, 'dist')}`);
+    console.log(`Environment variables loaded: VITE_VEHICLE_API_URL=${process.env.VITE_VEHICLE_API_URL ? 'defined' : 'undefined'}`);
+    console.log(`Environment variables loaded: VITE_VEHICLE_API_KEY=${process.env.VITE_VEHICLE_API_KEY ? 'defined' : 'undefined'}`);
+  });
+}
 
-// For any other route, serve the frontend (SPA support)
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
-
-// Start the server
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`Frontend static files served from: ${path.join(__dirname, 'dist')}`);
-  console.log(`Environment variables loaded: VITE_VEHICLE_API_URL=${process.env.VITE_VEHICLE_API_URL ? 'defined' : 'undefined'}`);
-  console.log(`Environment variables loaded: VITE_VEHICLE_API_KEY=${process.env.VITE_VEHICLE_API_KEY ? 'defined' : 'undefined'}`);
-}); 
+// Export for Vercel
+export default app; 
