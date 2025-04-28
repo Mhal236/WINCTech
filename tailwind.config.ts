@@ -26,7 +26,7 @@ export default {
         foreground: "hsl(var(--foreground))",
         primary: {
           DEFAULT: "#FFC107",
-          foreground: "#1D1D1F",
+          foreground: "#000000",
         },
         secondary: {
           DEFAULT: "#1D1D1F",
@@ -42,7 +42,7 @@ export default {
         },
         accent: {
           DEFAULT: "#FFC107",
-          foreground: "#1D1D1F",
+          foreground: "#000000",
         },
         card: {
           DEFAULT: "#FFFFFF",
@@ -72,8 +72,8 @@ export default {
           "100%": { transform: "translateX(0)" },
         },
         pulse: {
-          '0%, 100%': { opacity: 1 },
-          '50%': { opacity: 0.5 },
+          '0%, 100%': { opacity: "1" },
+          '50%': { opacity: "0.5" },
         },
         glow: {
           '0%, 100%': {

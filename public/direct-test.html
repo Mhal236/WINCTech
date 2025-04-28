@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Master Auto Glass Direct API Test</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; max-width: 1200px; margin: 0 auto; padding: 20px; }
+    h1 { color: #135084; }
+    h2 { color: #333; margin-top: 30px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+    pre { background: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto; white-space: pre-wrap; }
+    .success { color: green; font-weight: bold; }
+    .error { color: red; font-weight: bold; }
+    .pending { color: orange; font-weight: bold; }
+    .test-container { margin-bottom: 20px; border: 1px solid #ddd; padding: 15px; border-radius: 5px; }
+    .test-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
+    button { padding: 8px 15px; background: #135084; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #0e3b61; }
+    #manual-test { margin-top: 30px; padding: 20px; background: #f9f9f9; border-radius: 8px; }
+    form { margin-top: 15px; }
+    textarea { width: 100%; height: 200px; font-family: monospace; margin-bottom: 15px; padding: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Master Auto Glass API - Direct Test Page</h1>
+  <p>This page tests the connection to the Master Auto Glass API directly from your browser.</p>
+  
+  <div id="cors-warning" class="test-container error">
+    <h3>⚠️ CORS Warning</h3>
+    <p>SOAP API calls directly from browsers are often blocked by CORS security policies.</p>
+    <p>If the automatic tests fail with CORS errors, use the manual form below to test through a proxy.</p>
+  </div>
+  
+  <div id="results-container">
+    <h2>Automatic Tests</h2>
+    <button id="run-tests">Run API Tests</button>
+    <div id="test-results">
+      <p class="pending">Click "Run API Tests" to start...</p>
+    </div>
+  </div>
+  
+  <div id="manual-test">
+    <h2>Alternative: Manual SOAP Request Test</h2>
+    <p>You can use this form to test a SOAP request using a proxy technique (form submission).</p>
+    
+    <form id="soap-form" method="POST" action="https://www.master-auto-glass.co.uk/pdaservice.asmx" target="_blank">
+      <div>
+        <p><strong>SOAP Request:</strong></p>
+        <textarea id="soap-request" name="soapRequest"><?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <HelloWorld xmlns="https://www.master-auto-glass.co.uk/pdaservice.asmx" />
+  </soap:Body>
+</soap:Envelope></textarea>
+      </div>
+      
+      <div>
+        <label>
+          <input type="checkbox" id="include-soap-action" checked>
+          Include SOAPAction header (recommended)
+        </label>
+      </div>
+      
+      <div>
+        <button type="submit">Test Using Form Submission</button>
+        <span>(This will open results in a new tab)</span>
+      </div>
+    </form>
+  </div>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const resultsContainer = document.getElementById('test-results');
+      const runButton = document.getElementById('run-tests');
+      const soapForm = document.getElementById('soap-form');
+      const includeSoapAction = document.getElementById('include-soap-action');
+      
+      // Format XML for display
+      function formatXml(xml) {
+        return xml.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+      
+      // Handle running the automatic tests
+      runButton.addEventListener('click', async function() {
+        resultsContainer.innerHTML = '<p class="pending">Running tests...</p>';
+        
+        const testResults = [];
+        
+        // APPROACH 1: Simple direct call with minimal parameters
+        try {
+          console.log("Approach 1: Simple direct call");
+          resultsContainer.innerHTML += '<p>Testing direct simple call...</p>';
+          
+          const response1 = await fetch("https://www.master-auto-glass.co.uk/pdaservice.asmx/HelloWorld", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: "" // Empty body is fine for HelloWorld
+          });
+          
+          const text1 = await response1.text();
+          testResults.push({
+            approach: "Direct simple call",
+            status: response1.status,
+            statusText: response1.statusText,
+            success: response1.ok,
+            responsePreview: text1.substring(0, 150),
+            isXml: text1.includes('<?xml') || text1.includes('<string>'),
+            isHtml: text1.includes('<!DOCTYPE') || text1.includes('<html')
+          });
+        } catch (error1) {
+          testResults.push({
+            approach: "Direct simple call",
+            success: false,
+            error: error1.message
+          });
+        }
+        
+        // APPROACH 2: Standard SOAP envelope
+        try {
+          console.log("Approach 2: Standard SOAP envelope");
+          resultsContainer.innerHTML += '<p>Testing SOAP envelope approach...</p>';
+          
+          const soapEnvelope = document.getElementById('soap-request').value;
+          
+          const response2 = await fetch("https://www.master-auto-glass.co.uk/pdaservice.asmx", {
+            method: "POST",
+            headers: {
+              "Content-Type": "text/xml; charset=utf-8",
+              "SOAPAction": "https://www.master-auto-glass.co.uk/pdaservice.asmx/HelloWorld"
+            },
+            body: soapEnvelope
+          });
+          
+          const text2 = await response2.text();
+          testResults.push({
+            approach: "SOAP envelope",
+            status: response2.status,
+            statusText: response2.statusText,
+            success: response2.ok,
+            responsePreview: text2.substring(0, 150),
+            isXml: text2.includes('<?xml') || text2.includes('<soap:'),
+            isHtml: text2.includes('<!DOCTYPE') || text2.includes('<html')
+          });
+        } catch (error2) {
+          testResults.push({
+            approach: "SOAP envelope",
+            success: false,
+            error: error2.message
+          });
+        }
+        
+        // Display results
+        displayResults(testResults);
+      });
+      
+      // Handle form submission
+      soapForm.addEventListener('submit', function(event) {
+        if (includeSoapAction.checked) {
+          // Add a hidden field for SOAPAction
+          const hiddenField = document.createElement('input');
+          hiddenField.type = 'hidden';
+          hiddenField.name = 'SOAPAction';
+          hiddenField.value = 'https://www.master-auto-glass.co.uk/pdaservice.asmx/HelloWorld';
+          soapForm.appendChild(hiddenField);
+        }
+      });
+      
+      // Display the test results
+      function displayResults(results) {
+        let html = '<h3>Test Results</h3>';
+        
+        const anySuccess = results.some(result => result.success);
+        
+        if (anySuccess) {
+          html += '<div class="test-container success"><p>At least one method was successful!</p></div>';
+        } else {
+          html += '<div class="test-container error"><p>All methods failed. Try the manual form below.</p></div>';
+        }
+        
+        results.forEach(result => {
+          html += `
+            <div class="test-container ${result.success ? 'success' : 'error'}">
+              <div class="test-header">
+                <h4>${result.approach}</h4>
+                <span class="${result.success ? 'success' : 'error'}">
+                  ${result.success ? 'SUCCESS' : 'FAILED'}
+                </span>
+              </div>
+              
+              ${result.status ? `<p><strong>Status:</strong> ${result.status} ${result.statusText}</p>` : ''}
+              
+              ${result.error ? `
+                <p><strong>Error:</strong> ${result.error}</p>
+                ${result.error.includes('CORS') ? '<p class="error">This is a CORS error. The API is not allowing direct browser access.</p>' : ''}
+              ` : ''}
+              
+              ${result.responsePreview ? `
+                <p><strong>Response Preview:</strong></p>
+                <pre>${formatXml(result.responsePreview)}</pre>
+              ` : ''}
+            </div>
+          `;
+        });
+        
+        resultsContainer.innerHTML = html;
+      }
+    });
+  </script>
+</body>
+</html> 

@@ -9,22 +9,28 @@ interface FetchOptions {
   offset?: number;
 }
 
+// Simple user type for our custom authentication
+interface AppUser {
+  id: string;
+  email: string;
+  name: string;
+  user_role?: string;
+}
+
+interface AuthSession {
+  user: AppUser | null;
+}
+
 interface SupabaseAuth {
-  signIn: (email: string, password: string) => Promise<any>;
-  signUp: (email: string, password: string) => Promise<any>;
+  signInWithPassword: (credentials: { email: string; password: string }) => Promise<any>;
+  signUp: (credentials: { email: string; password: string }) => Promise<any>;
   signOut: () => Promise<void>;
+  getSession: () => Promise<{ data: { session: AuthSession | null }, error: any }>;
+  onAuthStateChange: (callback: (event: string, session: AuthSession | null) => void) => any;
 }
 
 interface SupabaseDB {
-  from: (table: string) => {
-    select: (columns?: string) => Promise<{ data: any[]; error: any }>;
-    insert: (data: any) => Promise<{ data: any; error: any }>;
-    update: (data: any) => Promise<{ data: any; error: any }>;
-    delete: () => Promise<{ error: any }>;
-    eq: (column: string, value: any) => any;
-    order: (column: string, options?: { ascending?: boolean }) => any;
-    limit: (count: number) => any;
-  };
+  from: (table: string) => any; // Use any to avoid type issues
 }
 
 // TEMPORARY SOLUTION FOR DEVELOPMENT
@@ -32,8 +38,7 @@ interface SupabaseDB {
 // In production, you should replace this with a proper server-side implementation
 import { createClient } from '@supabase/supabase-js';
 
-// For development, we'll revert to using environment variables
-// In production, this should be replaced with API calls to a secure backend
+// Use the actual values from our Supabase project
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://julpwjxzrlkbxdbphrdy.supabase.co";
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bHB3anh6cmxrYnhkYnBocmR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc0MTQ4NDUsImV4cCI6MjA1Mjk5MDg0NX0.rynZAq6bjPlpfyTaxHYcs8FdVdTo_gy95lazi2Kt5RY";
 
@@ -44,6 +49,8 @@ const directSupabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 class SecureSupabaseClient {
   auth: SupabaseAuth;
   db: SupabaseDB;
+  private currentSession: AuthSession | null = null;
+  private listeners: Array<(event: string, session: AuthSession | null) => void> = [];
 
   constructor() {
     this.auth = this.createAuthClient();
@@ -57,42 +64,157 @@ class SecureSupabaseClient {
 
   private createAuthClient(): SupabaseAuth {
     return {
-      signIn: async (email: string, password: string) => {
+      signInWithPassword: async (credentials: { email: string; password: string }) => {
         try {
-          // During development, use the direct Supabase client
-          return await directSupabase.auth.signInWithPassword({
-            email,
-            password,
-          });
+          // Use our custom app_users table for authentication
+          const { data, error } = await directSupabase
+            .from('app_users')
+            .select('*')
+            .eq('email', credentials.email)
+            .eq('password', credentials.password)
+            .single();
+
+          if (error || !data) {
+            return { 
+              data: { user: null, session: null },
+              error: { message: 'Invalid login credentials' } 
+            };
+          }
+
+          // Create a user session
+          const user: AppUser = {
+            id: data.id,
+            email: data.email,
+            name: data.name,
+            user_role: data.user_role || 'user' // Default to 'user' if no role is specified
+          };
+
+          // Save the session in localStorage for persistence
+          localStorage.setItem('user_session', JSON.stringify(user));
+          
+          // Set current session and notify listeners
+          this.currentSession = { user };
+          this.notifyListeners('SIGNED_IN', this.currentSession);
+
+          return { 
+            data: { user, session: { user } },
+            error: null 
+          };
         } catch (error) {
           console.error('Error signing in:', error);
-          throw error;
+          return { data: { user: null, session: null }, error };
         }
       },
 
-      signUp: async (email: string, password: string) => {
+      signUp: async (credentials: { email: string; password: string }) => {
         try {
-          // During development, use the direct Supabase client
-          return await directSupabase.auth.signUp({
-            email,
-            password,
-          });
+          // Check if user already exists
+          const { data: existingUser } = await directSupabase
+            .from('app_users')
+            .select('*')
+            .eq('email', credentials.email)
+            .single();
+
+          if (existingUser) {
+            return { 
+              data: { user: null, session: null },
+              error: { message: 'User already exists' } 
+            };
+          }
+
+          // Create new user
+          const { data, error } = await directSupabase
+            .from('app_users')
+            .insert([
+              { 
+                email: credentials.email, 
+                password: credentials.password,
+                name: 'New User',
+                user_role: 'user' // Default role for new users
+              }
+            ])
+            .select()
+            .single();
+
+          if (error || !data) {
+            return { 
+              data: { user: null, session: null },
+              error: error || { message: 'Failed to create user' } 
+            };
+          }
+
+          // Return user data without creating a session
+          return { 
+            data: { 
+              user: { 
+                id: data.id, 
+                email: data.email, 
+                name: data.name,
+                user_role: data.user_role
+              }, 
+              session: null 
+            },
+            error: null 
+          };
         } catch (error) {
           console.error('Error signing up:', error);
-          throw error;
+          return { data: { user: null, session: null }, error };
         }
       },
 
       signOut: async () => {
         try {
-          // During development, use the direct Supabase client
-          await directSupabase.auth.signOut();
+          // Remove session from localStorage
+          localStorage.removeItem('user_session');
+          
+          // Clear current session and notify listeners
+          this.currentSession = null;
+          this.notifyListeners('SIGNED_OUT', null);
         } catch (error) {
           console.error('Error signing out:', error);
-          throw error;
         }
       },
+
+      getSession: async () => {
+        try {
+          // Check for session in localStorage
+          const savedSession = localStorage.getItem('user_session');
+          if (savedSession) {
+            const user = JSON.parse(savedSession) as AppUser;
+            this.currentSession = { user };
+            return { data: { session: this.currentSession }, error: null };
+          }
+          return { data: { session: null }, error: null };
+        } catch (error) {
+          console.error('Error getting session:', error);
+          return { data: { session: null }, error };
+        }
+      },
+
+      onAuthStateChange: (callback) => {
+        // Add listener to the array
+        this.listeners.push(callback);
+        
+        // Return a subscription object with unsubscribe method
+        return {
+          subscription: {
+            unsubscribe: () => {
+              this.listeners = this.listeners.filter(listener => listener !== callback);
+            }
+          }
+        };
+      }
     };
+  }
+
+  private notifyListeners(event: string, session: AuthSession | null) {
+    this.listeners.forEach(listener => {
+      try {
+        listener(event, session);
+      } catch (error) {
+        console.error('Error in auth listener:', error);
+      }
+    });
   }
 
   private createDBClient(): SupabaseDB {
@@ -100,7 +222,7 @@ class SecureSupabaseClient {
       from: (table: string) => {
         // During development, we'll pass through to the direct Supabase client
         return directSupabase.from(table);
-      },
+      }
     };
   }
 }

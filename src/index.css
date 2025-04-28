@@ -10,29 +10,31 @@
     --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
-    --primary: 45 100% 51%;
-    --primary-foreground: 240 10% 3.9%;
+    --primary: 210 73% 29%;
+    --primary-foreground: 0 0% 98%;
     --secondary: 240 5.9% 10%;
     --secondary-foreground: 0 0% 98%;
     --muted: 240 4.8% 95.9%;
     --muted-foreground: 240 3.8% 46.1%;
-    --accent: 45 100% 51%;
-    --accent-foreground: 240 10% 3.9%;
+    --accent: 210 73% 29%;
+    --accent-foreground: 0 0% 98%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
-    --ring: 45 100% 51%;
+    --ring: 210 73% 29%;
     --radius: 0.75rem;
     
     /* CTA Button Colors */
     --cta-primary: #FFC107;
-    --cta-primary-hover: #FFB300;
-    --cta-primary-text: #1D1D1F;
+    --cta-primary-hover: #FFFFFF;
+    --cta-primary-text: #000000;
+    --cta-primary-hover-border: #FFC107;
     --cta-secondary: transparent;
-    --cta-secondary-hover: rgba(19, 80, 132, 0.1);
-    --cta-secondary-text: #135084;
-    --cta-secondary-border: #135084;
+    --cta-secondary-hover: #FFFFFF;
+    --cta-secondary-text: #000000;
+    --cta-secondary-border: #FFC107;
+    --cta-secondary-hover-border: #FFC107;
   }
 }
 
@@ -64,11 +66,11 @@
 
 /* CTA Button Classes */
 .cta-primary {
-  @apply bg-[var(--cta-primary)] text-[var(--cta-primary-text)] hover:bg-[var(--cta-primary-hover)] shadow-md;
+  @apply bg-[var(--cta-primary)] text-[var(--cta-primary-text)] hover:bg-[var(--cta-primary-hover)] hover:text-[#000000] hover:border hover:border-[var(--cta-primary-hover-border)] shadow-md transition-all duration-200;
 }
 
 .cta-secondary {
-  @apply bg-[var(--cta-secondary)] text-[var(--cta-secondary-text)] border border-[var(--cta-secondary-border)] hover:bg-[var(--cta-secondary-hover)];
+  @apply bg-[var(--cta-secondary)] text-[var(--cta-secondary-text)] border border-[var(--cta-secondary-border)] hover:bg-[var(--cta-secondary-hover)] hover:border-[var(--cta-secondary-hover-border)];
 }
 
 @layer utilities {

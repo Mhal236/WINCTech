@@ -36,13 +36,13 @@ const Contact = () => {
   return (
     <DashboardLayout>
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-[#3d99be] mb-8">Contact Us</h1>
+        <h1 className="text-3xl font-bold text-[#135084] mb-8">Contact Us</h1>
         
         <div className="grid md:grid-cols-2 gap-12">
           {/* Contact Form Section */}
           <div className="space-y-6">
             <div className="bg-white rounded-lg p-6 shadow-md">
-              <h2 className="text-2xl font-semibold mb-4 text-[#3d99be]">Send us a message</h2>
+              <h2 className="text-2xl font-semibold mb-4 text-[#135084]">Send us a message</h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <Label htmlFor="name">Name</Label>
@@ -51,7 +51,7 @@ const Contact = () => {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Your name"
-                    className="border-[#3d99be]/20"
+                    className="border-[#135084]/20"
                   />
                 </div>
                 <div>
@@ -62,7 +62,7 @@ const Contact = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Your email"
-                    className="border-[#3d99be]/20"
+                    className="border-[#135084]/20"
                   />
                 </div>
                 <div>
@@ -72,7 +72,7 @@ const Contact = () => {
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="Your message"
-                    className="min-h-[150px] border-[#3d99be]/20"
+                    className="min-h-[150px] border-[#135084]/20"
                   />
                 </div>
                 <Button type="submit" className="w-full">
@@ -82,18 +82,18 @@ const Contact = () => {
             </div>
 
             <div className="bg-white rounded-lg p-6 shadow-md">
-              <h2 className="text-2xl font-semibold mb-4 text-[#3d99be]">Contact Information</h2>
+              <h2 className="text-2xl font-semibold mb-4 text-[#135084]">Contact Information</h2>
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <Mail className="text-[#3d99be]" />
+                  <Mail className="text-[#135084]" />
                   <span>technician@windscreencompare.com</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Phone className="text-[#3d99be]" />
+                  <Phone className="text-[#135084]" />
                   <span>020 7946 0123</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <MapPin className="text-[#3d99be]" />
+                  <MapPin className="text-[#135084]" />
                   <span>221B Baker Street, London, NW1 6XE, UK</span>
                 </div>
               </div>
@@ -104,8 +104,8 @@ const Contact = () => {
           <div className="space-y-6">
             <div className="bg-white rounded-lg p-6 shadow-md">
               <div className="flex items-center gap-2 mb-6">
-                <Users className="h-6 w-6 text-[#3d99be]" />
-                <h2 className="text-2xl font-semibold text-[#3d99be]">Our Team</h2>
+                <Users className="h-6 w-6 text-[#135084]" />
+                <h2 className="text-2xl font-semibold text-[#135084]">Our Team</h2>
               </div>
               <div className="space-y-6">
                 {teamMembers.map((member) => (
@@ -117,11 +117,11 @@ const Contact = () => {
                     <p className="text-sm text-gray-600 mb-2">{member.role}</p>
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Mail className="h-4 w-4 text-[#3d99be]" />
+                        <Mail className="h-4 w-4 text-[#135084]" />
                         <span>{member.email}</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Phone className="h-4 w-4 text-[#3d99be]" />
+                        <Phone className="h-4 w-4 text-[#135084]" />
                         <span>{member.phone}</span>
                       </div>
                     </div>
@@ -155,7 +155,7 @@ const Contact = () => {
                 </div>
                 <div className="p-4 border-t">
                   <div className="flex gap-2">
-                    <Input placeholder="Type your message..." className="border-[#3d99be]/20" />
+                    <Input placeholder="Type your message..." className="border-[#135084]/20" />
                     <Button>Send</Button>
                   </div>
                 </div>
