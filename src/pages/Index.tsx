@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Search, Car, History, Heart, Receipt, Download, Printer, Star, CreditCard, Gift, Brain, Clock, Users, Check, Award } from "lucide-react";
 import { PricingPlans } from "@/components/pricing/PricingPlans";
-import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { Link } from "react-router-dom";
 
 const Index = () => {
@@ -26,27 +25,27 @@ const Index = () => {
 
   const features = [
     {
-      icon: <CreditCard className="h-6 w-6 text-[#3d99be]" />,
+      icon: <CreditCard className="h-6 w-6 text-[#145484]" />,
       title: "Membership-based Pricing & Discounts",
       description: "Exclusive discounts for members on all services"
     },
     {
-      icon: <Download className="h-6 w-6 text-[#3d99be]" />,
+      icon: <Download className="h-6 w-6 text-[#145484]" />,
       title: "Automated Invoicing",
       description: "Seamless billing with Stripe and GoCardless"
     },
     {
-      icon: <Gift className="h-6 w-6 text-[#3d99be]" />,
+      icon: <Gift className="h-6 w-6 text-[#145484]" />,
       title: "Loyalty Rewards & Cashback",
       description: "Earn points and get cashback on every order"
     },
     {
-      icon: <Brain className="h-6 w-6 text-[#3d99be]" />,
+      icon: <Brain className="h-6 w-6 text-[#145484]" />,
       title: "AI-powered Price Adjustments",
       description: "Dynamic pricing using AI"
     },
     {
-      icon: <Clock className="h-6 w-6 text-[#3d99be]" />,
+      icon: <Clock className="h-6 w-6 text-[#145484]" />,
       title: "Streamlined Quote Process",
       description: "Quick quotes and instant booking"
     }
@@ -54,19 +53,19 @@ const Index = () => {
 
   const loyaltyRewards = [
     {
-      icon: <Star className="h-5 w-5 text-[#135084]" />,
+      icon: <Star className="h-5 w-5 text-[#145484]" />,
       title: "10% Off Next Order",
       progress: 65,
       points: "650/1000"
     },
     {
-      icon: <Award className="h-5 w-5 text-[#135084]" />,
+      icon: <Award className="h-5 w-5 text-[#145484]" />,
       title: "Free Premium Service",
       progress: 30,
       points: "300/1000"
     },
     {
-      icon: <Gift className="h-5 w-5 text-[#135084]" />,
+      icon: <Gift className="h-5 w-5 text-[#145484]" />,
       title: "Birthday Reward",
       progress: 90,
       points: "900/1000"
@@ -75,22 +74,18 @@ const Index = () => {
 
   return (
     <DashboardLayout>
-      <WelcomeScreen />
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <h1 className="text-2xl md:text-3xl font-semibold text-[#135084]">Dashboard</h1>
+          <h1 className="text-2xl md:text-3xl font-semibold text-[#145484]">Dashboard</h1>
           <div className="flex items-center gap-2">
-            <Link to="/landing-page">
-              <Button variant="outline" className="mr-2">View Marketing Page</Button>
-            </Link>
             <div className="flex items-center gap-4 w-full md:w-1/3">
               <Input
                 placeholder="Search glass parts..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full border-[#135084] focus:ring-[#135084]"
+                className="w-full border-[#145484] focus:ring-[#145484]"
               />
-              <Button variant="secondary" size="icon" className="bg-[#135084] hover:bg-[#0e3b61] flex-shrink-0">
+              <Button variant="secondary" size="icon">
                 <Search className="h-4 w-4" />
               </Button>
             </div>
@@ -100,7 +95,7 @@ const Index = () => {
         {/* Features Section */}
         <section className="py-12 bg-gray-50 rounded-lg">
           <div className="container mx-auto px-4">
-            <h2 className="text-3xl font-bold text-center text-[#3d99be] mb-8">Our Features</h2>
+            <h2 className="text-3xl font-bold text-center text-[#145484] mb-8">Our Features</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {features.map((feature, index) => (
                 <Card key={index} className="hover:shadow-lg transition-all duration-300">
@@ -120,9 +115,9 @@ const Index = () => {
         <PricingPlans />
 
         <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="hover:shadow-lg transition-shadow duration-200 border-[#3d99be]/20">
+          <Card className="hover:shadow-lg transition-shadow duration-200 border-[#145484]/20">
             <CardHeader className="space-y-1">
-              <CardTitle className="text-xl md:text-2xl text-[#3d99be]">Recent Orders</CardTitle>
+              <CardTitle className="text-xl md:text-2xl text-[#145484]">Recent Orders</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -134,7 +129,7 @@ const Index = () => {
                   <span>Order #12344</span>
                   <span className="text-muted-foreground">£449.99</span>
                 </div>
-                <Button variant="outline" className="w-full border-[#3d99be] text-[#3d99be] hover:bg-[#3d99be] hover:text-white">
+                <Button variant="outline">
                   <History className="mr-2 h-4 w-4" />
                   View All Orders
                 </Button>
@@ -142,9 +137,9 @@ const Index = () => {
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-lg transition-shadow duration-200 border-[#3d99be]/20">
+          <Card className="hover:shadow-lg transition-shadow duration-200 border-[#145484]/20">
             <CardHeader className="space-y-1">
-              <CardTitle className="text-xl md:text-2xl text-[#3d99be]">Saved Quotes</CardTitle>
+              <CardTitle className="text-xl md:text-2xl text-[#145484]">Saved Quotes</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -156,7 +151,7 @@ const Index = () => {
                   <span>Honda Civic 2023</span>
                   <span className="text-muted-foreground">£249.99</span>
                 </div>
-                <Button variant="outline" className="w-full border-[#3d99be] text-[#3d99be] hover:bg-[#3d99be] hover:text-white">
+                <Button variant="outline">
                   <Heart className="mr-2 h-4 w-4" />
                   View Favorites
                 </Button>
@@ -169,15 +164,15 @@ const Index = () => {
         <section className="py-8">
           <div className="container mx-auto px-4">
             <div className="flex items-center gap-3 mb-6">
-              <Award className="h-8 w-8 text-[#3d99be]" />
+              <Award className="h-8 w-8 text-[#145484]" />
               <h2 className="text-2xl font-bold text-gray-800">Your Rewards</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {loyaltyRewards.map((reward, index) => (
-                <Card key={index} className="hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-white to-[#3d99be]/5">
+                <Card key={index} className="hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-white to-[#145484]/5">
                   <CardContent className="p-6">
                     <div className="flex items-center gap-4 mb-4">
-                      <div className="p-2 bg-[#3d99be]/10 rounded-lg">
+                      <div className="p-2 bg-[#145484]/10 rounded-lg">
                         {reward.icon}
                       </div>
                       <div>
@@ -187,7 +182,7 @@ const Index = () => {
                     </div>
                     <Progress 
                       value={reward.progress} 
-                      className="h-2 [&>div]:bg-[#3d99be] bg-[#3d99be]/10" 
+                      className="h-2 [&>div]:bg-[#145484] bg-[#145484]/10" 
                     />
                   </CardContent>
                 </Card>
