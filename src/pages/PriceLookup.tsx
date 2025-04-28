@@ -194,126 +194,23 @@ const PriceLookup = () => {
         description: "Retrieving vehicle information",
       });
       
-      // First try to get ARGIC code directly from Master Auto Glass API
-      try {
-        console.log("Attempting to get ARGIC code from Master Auto Glass API");
-        const glassApiResponse = await fetch(`/api/glass/vrn-lookup/${vrn.trim()}`);
-        
-        if (glassApiResponse.ok) {
-          const glassData = await glassApiResponse.json();
-          
-          if (glassData.success && glassData.argicCode) {
-            console.log(`Found ARGIC code from Glass API: ${glassData.argicCode}`);
-            
-            // Create vehicle data from Glass API response
-            const vehicleData: VehicleDetails = {
-              make: glassData.vehicleDetails.make || "",
-              model: glassData.vehicleDetails.model || "",
-              year: glassData.vehicleDetails.year || "",
-              argicCode: glassData.argicCode,
-              vrn: vrn.trim()
-            };
-            
-            setVehicleDetails(vehicleData);
-            
-            // Set glass type to Windscreen by default if no selections exist
-            if (glassSelections.length === 0) {
-              setGlassSelections([{
-                type: "Windscreen",
-                quantity: 1,
-                features: {
-                  sensor: false,
-                  devapour: false,
-                  vinNotch: false,
-                  hrf: false,
-                  isOE: false
-                }
-              }]);
-            }
-            
-            toast({ 
-              title: "Success", 
-              description: "Vehicle data loaded successfully with ARGIC code" 
-            });
-            
-            setLoading(false);
-            
-            // After successful vehicle lookup, if we have depot selected, automatically fetch glass options
-            if (selectedDepots.length > 0 && vehicleData.make && vehicleData.model) {
-              // Short delay before fetching glass options to ensure UI updates first
-              setTimeout(() => {
-                fetchGlassOptions();
-              }, 500);
-            }
-            
-            return true;
-          }
-        }
-        
-        console.log("ARGIC code not found through Glass API, falling back to vehicle API");
-      } catch (error) {
-        console.error("Error fetching ARGIC from Glass API:", error);
-        // Continue with normal vehicle data retrieval if Glass API fails
-      }
-      
-      // Use secure server endpoint that handles the API call
+      // Using the existing backend API endpoint which handles the external API call properly
       const response = await fetch(`/api/vehicle/${vrn.trim()}`);
       
       // Log response status for debugging
       console.log(`Vehicle API response status: ${response.status}`);
       
-      // Check if response is JSON or text to better handle errors
-      const contentType = response.headers.get("content-type") || "";
-      const isJson = contentType.includes("application/json");
-      
       if (!response.ok) {
-        let errorMessage = "Unknown error";
-        
-        try {
-          if (isJson) {
-            const errorData = await response.json();
-            console.error("API error response:", errorData);
-            errorMessage = errorData.message || errorData.error || JSON.stringify(errorData);
-          } else {
-            errorMessage = await response.text();
-            console.error("API error text:", errorMessage);
-          }
-        } catch (e) {
-          errorMessage = `Failed to parse error (${response.status})`;
-        }
-        
-        throw new Error(`API request failed: ${errorMessage}`);
-      }
-      
-      if (!isJson) {
-        console.warn("API did not return JSON content");
-        const text = await response.text();
-        console.log("API response text:", text);
-        throw new Error("Vehicle API did not return JSON data");
+        throw new Error(`Vehicle API request failed with status ${response.status}`);
       }
       
       const data = await response.json();
       console.log("Vehicle data received:", data);
       
-      // Try to handle different response formats
+      // Process the API response
       let vehicleData: VehicleDetails;
       
-      if (data && data.make) {
-        // Direct format - enhanced with additional fields
-        vehicleData = {
-          make: data.make || "",
-          model: data.model || "",
-          year: data.year || "",
-          bodyStyle: data.bodyStyle || data.body || "",
-          doors: data.doors || "",
-          variant: data.variant || "",
-          fuel: data.fuel || data.fuelType || "",
-          transmission: data.transmission || "",
-          vin: data.vin || "",
-          argicCode: data.argicCode || "",
-          vrn: vrn.trim() // Store the VRN we used for this lookup
-        };
-      } else if (data?.Response?.DataItems?.VehicleRegistration) {
+      if (data?.Response?.DataItems?.VehicleRegistration) {
         // API original format
         const reg = data.Response.DataItems.VehicleRegistration;
         vehicleData = {
@@ -329,42 +226,30 @@ const PriceLookup = () => {
           argicCode: reg.ArgicCode || "",
           vrn: vrn.trim() // Store the VRN we used for this lookup
         };
+      } else if (data && data.make) {
+        // Direct response format from our backend
+        vehicleData = {
+          make: data.make || "",
+          model: data.model || "",
+          year: data.year || "",
+          bodyStyle: data.bodyStyle || data.body || "",
+          doors: data.doors || "",
+          variant: data.variant || "",
+          fuel: data.fuel || data.fuelType || "",
+          transmission: data.transmission || "",
+          vin: data.vin || "",
+          argicCode: data.argicCode || "",
+          vrn: vrn.trim() // Store the VRN we used for this lookup
+        };
+      } else if (data?.Response?.StatusCode === 'KeyInvalid') {
+        // Handle invalid VRN case
+        throw new Error(`Invalid vehicle registration number: ${data.Response.StatusMessage || 'Please check the registration and try again'}`);
       } else {
         console.error("Could not find vehicle data in response:", data);
         throw new Error("Vehicle data not found in API response");
       }
       
-      // After receiving vehicle data, try to get the Argic code if not provided
-      if (!vehicleData.argicCode && vehicleData.make) {
-        try {
-          // Make a call to our Glass API to get the Argic code
-          const glassLookupResponse = await fetch('/api/glass/argic-lookup', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              make: vehicleData.make,
-              model: vehicleData.model,
-              year: vehicleData.year,
-              bodyStyle: vehicleData.bodyStyle,
-              doors: vehicleData.doors
-            })
-          });
-          
-          if (glassLookupResponse.ok) {
-            const glassData = await glassLookupResponse.json();
-            if (glassData.success && glassData.argicCode) {
-              vehicleData.argicCode = glassData.argicCode;
-              console.log(`Found Argic code: ${glassData.argicCode}`);
-            }
-          }
-        } catch (error) {
-          console.error("Error fetching Argic code:", error);
-          // We can continue without Argic code, it's not critical
-        }
-      }
-      
+      // Set vehicle details from the API response
       setVehicleDetails(vehicleData);
       
       // Set glass type to Windscreen by default if no selections exist
@@ -382,7 +267,7 @@ const PriceLookup = () => {
         }]);
       }
       
-      toast({ 
+      toast({
         title: "Success", 
         description: "Vehicle data loaded successfully" 
       });
@@ -397,16 +282,19 @@ const PriceLookup = () => {
         }, 500);
       }
       
-      return true; // Return success
-    } catch (error: any) {
-      console.error("Vehicle data fetch error:", error);
+      return true;
+      
+    } catch (error) {
+      console.error("Error fetching vehicle data:", error);
+      setLoading(false);
+      
       toast({
-        title: "Error fetching vehicle data",
-        description: error.message || "Unknown error occurred",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to fetch vehicle data",
         variant: "destructive",
       });
-      setLoading(false);
-      return false; // Return failure
+      
+      return false;
     }
   };
 
