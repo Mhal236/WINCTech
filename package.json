@@ -10,7 +10,8 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "node server.js"
+    "start": "node server.js",
+    "vercel-build": "vite build"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
