@@ -96,7 +96,7 @@ const PriceLookup = () => {
   const damageType = searchParams.get('damage');
   const vehicleInfo = searchParams.get('vrn');
   const isScheduleTab = location.search.includes('tab=schedule');
-  const [vrn, setVrn] = useState("");
+  const [vrn, setVrn] = useState<string>("");
   const [availableDepots, setAvailableDepots] = useState<Depot[]>([
     { DepotCode: 'BIR', DepotName: 'Birmingham' },
     { DepotCode: 'CMB', DepotName: 'Cambridge' },
@@ -117,14 +117,22 @@ const PriceLookup = () => {
   const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
   const { toast } = useToast();
   const [vehicleDetails, setVehicleDetails] = useState<VehicleDetails>({
-    make: '',
-    model: '',
-    year: '',
-    vrn: ''
+    make: "",
+    model: "",
+    year: "",
+    vrn: ""
   });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [loading, setLoading] = useState(false);
   const [vrnValidForLookup, setVrnValidForLookup] = useState(false);
+
+  // Define the Railway API URL - must be at component scope
+  const RAILWAY_API_URL = 'https://function-bun-production-7f7b.up.railway.app';
+  
+  // Utility function to get the appropriate API URL
+  const getApiUrl = (endpoint: string): string => {
+    return `${RAILWAY_API_URL}${endpoint}`;
+  };
 
   // Add useEffect to get depots from API if needed
   // Currently we're using the hardcoded list
@@ -194,9 +202,99 @@ const PriceLookup = () => {
         description: "Retrieving vehicle information",
       });
       
-      // Try to use the server endpoint first - this works in local development
+      // Try the Railway-hosted server first
       try {
-        const response = await fetch(`/api/vehicle/${vrn.trim()}`);
+        console.log(`Attempting to fetch vehicle data from Railway server for VRN: ${vrn.trim()}`);
+        const railwayResponse = await fetch(getApiUrl(`/api/vehicle/${vrn.trim()}`));
+        console.log(`Railway API response status: ${railwayResponse.status}`);
+        
+        if (railwayResponse.ok) {
+          const data = await railwayResponse.json();
+          console.log("Vehicle data received from Railway server:", data);
+          
+          // Process the API response
+          let vehicleData: VehicleDetails;
+          
+          if (data?.Response?.DataItems?.VehicleRegistration) {
+            // API original format
+            const reg = data.Response.DataItems.VehicleRegistration;
+            vehicleData = {
+              make: reg.Make || "",
+              model: reg.Model || "",
+              year: reg.YearOfManufacture || "",
+              bodyStyle: reg.BodyStyle || "",
+              doors: reg.NumberOfDoors || "",
+              fuel: reg.FuelType || "",
+              transmission: reg.Transmission || "",
+              vin: reg.Vin || "",
+              argicCode: reg.ArgicCode || "",
+              vrn: vrn.trim()
+            };
+          } else if (data && data.make) {
+            // Direct response format from our backend
+            vehicleData = {
+              make: data.make || "",
+              model: data.model || "",
+              year: data.year || "",
+              bodyStyle: data.bodyStyle || data.body || "",
+              doors: data.doors || "",
+              variant: data.variant || "",
+              fuel: data.fuel || data.fuelType || "",
+              transmission: data.transmission || "",
+              vin: data.vin || "",
+              argicCode: data.argicCode || "",
+              vrn: vrn.trim()
+            };
+          } else if (data?.Response?.StatusCode === 'KeyInvalid') {
+            throw new Error(`Invalid vehicle registration number: ${data.Response.StatusMessage || 'Please check the registration and try again'}`);
+          } else {
+            throw new Error("Vehicle data not found in API response");
+          }
+          
+          // Set vehicle details from the API response
+          setVehicleDetails(vehicleData);
+          
+          // Set glass type to Windscreen by default if no selections exist
+          if (glassSelections.length === 0) {
+            setGlassSelections([{
+              type: "Windscreen",
+              quantity: 1,
+              features: {
+                sensor: false,
+                devapour: false,
+                vinNotch: false,
+                hrf: false,
+                isOE: false
+              }
+            }]);
+          }
+          
+          toast({
+            title: "Success", 
+            description: "Vehicle data loaded successfully from Railway server" 
+          });
+          
+          setLoading(false);
+          
+          // After successful vehicle lookup, if we have depot selected, automatically fetch glass options
+          if (selectedDepots.length > 0 && vehicleData.make && vehicleData.model) {
+            // Short delay before fetching glass options to ensure UI updates first
+            setTimeout(() => {
+              fetchGlassOptions();
+            }, 500);
+          }
+          
+          return true;
+        }
+        console.log("Railway API request failed, falling back to local server");
+      } catch (railwayError) {
+        console.error("Railway API error:", railwayError);
+        console.log("Falling back to local server");
+      }
+      
+      // Try to use the local server endpoint if Railway failed
+      try {
+        const response = await fetch(getApiUrl(`/api/vehicle/${vrn.trim()}`));
         console.log(`Vehicle API response status: ${response.status}`);
         
         if (response.ok) {
@@ -278,11 +376,11 @@ const PriceLookup = () => {
           return true;
         }
       } catch (apiError) {
-        console.log("Server API error or not available, using fallback:", apiError);
+        console.log("Local server API error or not available, using fallback:", apiError);
         // Continue to fallback method if the server endpoint fails or is not available
       }
       
-      // Fallback method for Vercel deployment or when API is unavailable:
+      // Fallback method for when neither Railway nor local API is available:
       // Generate consistent mock data based on the VRN
       console.log("Using fallback method to generate vehicle data");
       
@@ -413,7 +511,7 @@ const PriceLookup = () => {
       // First test API connectivity
       console.log("Testing API connectivity before making quote request...");
       try {
-        const apiHealthCheck = await fetch('/api/health');
+        const apiHealthCheck = await fetch(getApiUrl('/api/health'));
         if (!apiHealthCheck.ok) {
           throw new Error(`API server not responding: ${apiHealthCheck.status}`);
         }
@@ -465,7 +563,7 @@ const PriceLookup = () => {
       const depotQueries = selectedDepots.map(async (depotCode) => {
         try {
           console.log(`Making API request to /api/glass/stock-query for depot: ${depotCode}`);
-          const apiResponse = await fetch('/api/glass/stock-query', {
+          const apiResponse = await fetch(getApiUrl('/api/glass/stock-query'), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
