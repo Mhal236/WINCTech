@@ -1,9 +1,5 @@
 import express from 'express';
-import https from 'node:https';
 import axios from 'axios';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 
 // Load environment variables from .env files
@@ -11,10 +7,6 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-// Handle ES modules dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Middleware
 app.use(express.json());
@@ -32,73 +24,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// SOAP request helper function (kept for reference, but not directly used)
-const sendSoapRequest = async (url, options) => {
-  return new Promise((resolve) => {
-    const urlObj = new URL(url);
-    
-    const reqOptions = {
-      hostname: urlObj.hostname,
-      path: urlObj.pathname,
-      method: options.method,
-      headers: options.headers,
-      timeout: 30000 // 30 seconds timeout
-    };
-    
-    console.log(`Sending SOAP request to ${urlObj.hostname}${urlObj.pathname}`);
-    
-    const req = https.request(reqOptions, (res) => {
-      let data = '';
-      
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
-      
-      res.on('end', () => {
-        console.log(`SOAP response status: ${res.statusCode}`);
-        
-        const success = res.statusCode >= 200 && res.statusCode < 300;
-        
-        if (success) {
-          console.log(`SOAP response data (first 200 chars): ${data.substring(0, 200)}`);
-        } else {
-          console.error(`SOAP error response: ${data.substring(0, 500)}`);
-        }
-        
-        resolve({
-          success,
-          statusCode: res.statusCode,
-          data,
-          error: success ? undefined : `HTTP Error: ${res.statusCode}`
-        });
-      });
-    });
-    
-    req.on('error', (error) => {
-      console.error(`SOAP request error:`, error);
-      resolve({
-        success: false,
-        error: `Request error: ${error.message}`
-      });
-    });
-    
-    req.on('timeout', () => {
-      console.error(`SOAP request timed out`);
-      req.destroy();
-      resolve({
-        success: false,
-        error: 'Request timed out after 30 seconds'
-      });
-    });
-    
-    if (options.body) {
-      req.write(options.body);
-    }
-    
-    req.end();
-  });
-};
-
 // Example API endpoint
 app.get('/api/health', (req, res) => {
   res.json({
@@ -108,19 +33,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Test endpoint for the direct-test
-app.get('/api/direct-test', (req, res) => {
-  res.json({
-    status: 'ok',
-    message: 'Direct test endpoint reached successfully',
-    headers: req.headers,
-    method: req.method,
-    url: req.url,
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Vehicle data API endpoint
+// Vehicle data API endpoint - this is the main endpoint needed for PriceLookup.tsx
 app.get('/api/vehicle/:vrn', async (req, res) => {
   try {
     const { vrn } = req.params;
@@ -132,14 +45,13 @@ app.get('/api/vehicle/:vrn', async (req, res) => {
       });
     }
     
-    // Get API credentials from environment or use defaults
+    // Get API credentials - hardcoded for simplicity in this example
+    // In production, use environment variables
     const apiUrl = process.env.VITE_VEHICLE_API_URL || 'https://legacy.api.vehicledataglobal.com/api/datapackage/VehicleData';
     const apiKey = process.env.VITE_VEHICLE_API_KEY || '6193cc7a-c1b2-469c-ad41-601c6faa294c';
     
     if (!apiKey || !apiUrl) {
       console.error('Missing API key or URL in environment variables');
-      console.log('Available environment variables:', Object.keys(process.env).filter(key => 
-        key.includes('VEHICLE') || key.includes('API')).join(', '));
       return res.status(500).json({
         success: false,
         error: "Missing API configuration. Check server environment."
@@ -164,7 +76,6 @@ app.get('/api/vehicle/:vrn', async (req, res) => {
     
     // Add detailed logging about the response
     console.log("API Response status:", response.status);
-    console.log("API Response structure:", Object.keys(response.data));
     
     // Check if response contains valid data
     if (
@@ -187,18 +98,6 @@ app.get('/api/vehicle/:vrn', async (req, res) => {
     } else {
       console.log("API response did not contain expected vehicle data");
       console.log("Raw response data (partial):", JSON.stringify(response.data).substring(0, 500));
-      
-      // Try to log specific details about what's missing
-      if (!response.data?.Response) {
-        console.log("Missing Response property");
-      } else if (response.data.Response.StatusCode !== "Success") {
-        console.log(`StatusCode not Success: ${response.data.Response.StatusCode}`);
-      } else if (!response.data.Response.DataItems) {
-        console.log("Missing DataItems property");
-      } else if (!response.data.Response.DataItems.VehicleRegistration) {
-        console.log("Missing VehicleRegistration property");
-        console.log("DataItems contains:", Object.keys(response.data.Response.DataItems));
-      }
       
       res.status(404).json({
         success: false,
