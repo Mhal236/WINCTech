@@ -67,12 +67,12 @@ function ErrorFallback() {
         </div>
         <h2 className="text-2xl font-bold text-red-600">Something went wrong</h2>
         <p className="text-gray-600 max-w-md">There was an error loading the application. Please try refreshing the page.</p>
-        <button
-          onClick={() => window.location.reload()}
+      <button
+        onClick={() => window.location.reload()}
           className="px-6 py-3 bg-[#135084] text-white rounded-lg hover:bg-[#0e3b61] transition-colors duration-200 font-medium"
-        >
-          Try again
-        </button>
+      >
+        Try again
+      </button>
       </div>
     </div>
   );

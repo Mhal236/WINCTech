@@ -89,10 +89,14 @@ export function ProtectedRoute({ children, requiredRole = 'user' }: ProtectedRou
     }
 
     // Special case: Block Mehrdad and Master Auto Glass staff from accessing History and Reports pages
+    // BUT allow admin role to override this restriction
     const isMasterAutoGlassEmail = user.email.endsWith('@master-auto-glass.com');
-    if ((user.name === 'Mehrdad' || isMasterAutoGlassEmail) && 
-        (location.pathname === '/history' || location.pathname === '/reporting')) {
-      console.log('Access blocked for restricted user to', location.pathname);
+    const isRestrictedUser = user.name === 'Mehrdad' || isMasterAutoGlassEmail;
+    const isRestrictedPage = location.pathname === '/history' || location.pathname === '/reporting';
+    
+    // Only block if user is restricted AND not an admin
+    if (isRestrictedUser && isRestrictedPage && user.user_role !== 'admin') {
+      console.log('Access blocked for non-admin restricted user to', location.pathname);
       return <Navigate to="/" replace />;
     }
   } catch (error) {
@@ -117,12 +121,12 @@ export function ProtectedRoute({ children, requiredRole = 'user' }: ProtectedRou
           </div>
           <h1 className="text-2xl font-bold text-red-600">Something went wrong</h1>
           <p className="text-gray-600 max-w-md">We encountered an error while loading the page. Please try again.</p>
-          <button 
-            onClick={() => window.location.href = '/'}
+        <button 
+          onClick={() => window.location.href = '/'}
             className="px-6 py-3 bg-[#135084] text-white rounded-lg hover:bg-[#0e3b61] transition-colors duration-200 font-medium"
-          >
-            Return to Home
-          </button>
+        >
+          Return to Home
+        </button>
         </div>
       </div>
     );
