@@ -3,14 +3,28 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Coins, Plus } from "lucide-react";
+import { Coins, Plus, LogOut } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
-export function UserProfile({ className, collapsed = false }: { className?: string; collapsed?: boolean }) {
+export function UserProfile({ 
+  className, 
+  collapsed = false, 
+  showLogout = false 
+}: { 
+  className?: string; 
+  collapsed?: boolean;
+  showLogout?: boolean;
+}) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   
   const handleTopUp = () => {
     // TODO: Implement top-up functionality
     console.log('Top-up credits clicked');
+  };
+
+  const handleLogout = () => {
+    navigate('/login');
   };
   
   // Error prevention - if no user, show a default avatar
@@ -88,23 +102,36 @@ export function UserProfile({ className, collapsed = false }: { className?: stri
         </Avatar>
         
         {!collapsed && (
-          <div className="flex flex-col text-sm min-w-0">
-            <span className="font-medium truncate">{displayName}</span>
-            {user.email && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="text-xs text-muted-foreground truncate">
-                      {formatEmail(user.email)}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{user.email}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+          <>
+            <div className="flex flex-col text-sm min-w-0 flex-1">
+              <span className="font-medium truncate">{displayName}</span>
+              {user.email && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="text-xs text-muted-foreground truncate">
+                        {formatEmail(user.email)}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{user.email}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+            
+            {/* Logout Icon */}
+            {showLogout && (
+              <button
+                onClick={handleLogout}
+                className="p-1.5 rounded-md hover:bg-red-50 transition-colors text-red-500 hover:text-red-600 flex-shrink-0"
+                title="Logout"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
             )}
-          </div>
+          </>
         )}
       </div>
 

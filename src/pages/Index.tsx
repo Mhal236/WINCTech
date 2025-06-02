@@ -101,12 +101,6 @@ const Index = () => {
 
         {/* Subscription Plans - Main Focus for Verified Users */}
         <section className="py-8">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-[#145484] mb-4">Choose Your Plan</h2>
-            <p className="text-lg text-muted-foreground">
-              Select the perfect subscription plan for your business needs
-            </p>
-          </div>
           <PricingPlans />
         </section>
 

@@ -14,6 +14,7 @@ import {
   ArrowRight,
   LockIcon,
   ShoppingCart,
+  DollarSign,
 } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -34,23 +35,85 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
   const isMobile = useIsMobile();
   const { hasPermission, isAdmin, user } = useRoleBasedAccess();
 
-  // Define navigation items with their required roles
+  // Define navigation items with their required roles - organized like Calendly
   const navigation = [
     { name: "Dashboard", href: "/", icon: Home, requiredRole: "user" },
-    { name: "ARGIC Search", href: "/glass-search", icon: Search, requiredRole: "admin" },
     { name: "Jobs", href: "/job-swipe", icon: Briefcase, requiredRole: "admin" },
-    { name: "Glass Order", href: "/price-lookup", icon: ShoppingCart, requiredRole: "admin" },
     { name: "Calendar", href: "/calendar", icon: Calendar, requiredRole: "admin" },
-    { name: "History", href: "/history", icon: ClipboardList, requiredRole: "admin" },
-    { name: "Reports", href: "/reporting", icon: BarChart, requiredRole: "admin" },
-    { name: "Contact Us", href: "/contact", icon: MessageCircle, requiredRole: "user" },
   ];
 
-  const settingsNav = {
-    name: "Settings",
-    href: "/settings",
-    icon: Settings,
-    requiredRole: "user"
+  const bottomNavigation = [
+    { name: "ARGIC Search", href: "/glass-search", icon: Search, requiredRole: "admin" },
+    { name: "Glass Order", href: "/price-lookup", icon: ShoppingCart, requiredRole: "admin" },
+    { name: "History", href: "/history", icon: ClipboardList, requiredRole: "admin" },
+  ];
+
+  const renderNavItem = (item: any, isUpgrade = false) => {
+    const isMasterAutoGlassEmail = user?.email?.endsWith('@master-auto-glass.com') || false;
+    const isRestrictedPage = item.href === '/history' || item.href === '/reporting';
+    const isRestrictedUser = user?.name === 'Mehrdad' || isMasterAutoGlassEmail;
+    // Only restrict if user is restricted AND not an admin
+    const isRestricted = isRestrictedUser && isRestrictedPage && user?.user_role !== 'admin';
+    const hasAccess = hasPermission(item.requiredRole) && !isRestricted;
+
+    return (
+      <TooltipProvider key={item.name}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {hasAccess ? (
+              <Link
+                to={item.href}
+                className={cn(
+                  "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                  "hover:bg-gray-100 hover:text-gray-900",
+                  location.pathname === item.href 
+                    ? "bg-blue-50 text-blue-700 border-r-2 border-blue-700" 
+                    : "text-gray-700",
+                  isUpgrade && "bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100",
+                  collapsed && "justify-center px-2"
+                )}
+              >
+                <item.icon className={cn(
+                  "h-5 w-5 flex-shrink-0 transition-colors",
+                  location.pathname === item.href ? "text-blue-700" : "text-gray-500 group-hover:text-gray-700"
+                )} />
+                {!collapsed && (
+                  <span className="truncate">{item.name}</span>
+                )}
+                {isUpgrade && !collapsed && (
+                  <DollarSign className="ml-auto h-4 w-4 text-blue-600" />
+                )}
+              </Link>
+            ) : (
+              <div
+                className={cn(
+                  "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium cursor-not-allowed",
+                  "text-gray-400 bg-gray-50",
+                  collapsed && "justify-center px-2"
+                )}
+              >
+                <item.icon className="h-5 w-5 flex-shrink-0 text-gray-400" />
+                {!collapsed && (
+                  <>
+                    <span className="truncate">{item.name}</span>
+                    <LockIcon className="ml-auto h-4 w-4" />
+                  </>
+                )}
+              </div>
+            )}
+          </TooltipTrigger>
+          {!hasAccess && (
+            <TooltipContent side="right">
+              <p>
+                {isRestricted
+                  ? "This feature is not available for your account" 
+                  : "You don't have permission to access this page"}
+              </p>
+            </TooltipContent>
+          )}
+        </Tooltip>
+      </TooltipProvider>
+    );
   };
 
   return (
@@ -58,20 +121,21 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
       {/* Sidebar */}
       <div
         className={cn(
-          "fixed top-0 left-0 z-40 h-screen transition-all bg-card border-r",
+          "fixed top-0 left-0 z-40 h-screen transition-all duration-300 bg-white border-r border-gray-200",
           collapsed ? "w-16" : "w-64",
-          isMobile && !collapsed && "backdrop-blur-sm bg-background/80"
+          isMobile && !collapsed && "backdrop-blur-sm bg-white/95"
         )}
       >
-        <div className="flex flex-col h-full px-3 py-4">
-          <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col h-full">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b border-gray-100">
             {!collapsed ? (
               <div className="flex items-center gap-2">
-                <div className="relative h-12 transition-all duration-300 overflow-hidden py-1">
+                <div className="relative h-8 transition-all duration-300 overflow-hidden">
                   <img
                     src={logo}
-                    alt="Windscreen Compare Technician"
-                    className="h-full object-contain max-w-[180px]"
+                    alt="Windscreen Compare"
+                    className="h-full object-contain max-w-[140px]"
                   />
                 </div>
               </div>
@@ -79,122 +143,76 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
               <div className="relative h-8 w-8 overflow-hidden mx-auto">
                 <img
                   src={logo}
-                  alt="Windscreen Compare Technician"
+                  alt="WC"
                   className="h-full w-full object-contain"
                 />
               </div>
             )}
+            
+            {/* Hamburger menu - always visible, works for both expand and collapse */}
             <button
               onClick={() => setCollapsed(!collapsed)}
-              className="p-2 rounded-lg hover:bg-accent"
+              className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
             >
-              <Menu className="h-5 w-5" />
+              <Menu className="h-4 w-4 text-gray-500" />
             </button>
           </div>
-          
+
           {/* User Profile */}
-          <UserProfile collapsed={collapsed} className="px-2" />
-          <Separator className="my-2" />
+          {!collapsed && (
+            <div className="p-4 border-b border-gray-100">
+              <UserProfile collapsed={collapsed} className="px-0" showLogout={true} />
+            </div>
+          )}
 
-          <nav className="space-y-1 mt-6">
-            {navigation.map((item) => {
-              // Special check for restricted users - block History and Reports
-              const isMasterAutoGlassEmail = user?.email?.endsWith('@master-auto-glass.com') || false;
-              const isRestrictedPage = item.href === '/history' || item.href === '/reporting';
-              const isRestrictedUser = user?.name === 'Mehrdad' || isMasterAutoGlassEmail;
-              
-              const isRestricted = isRestrictedUser && isRestrictedPage;
-              
-              // User has access if they have the required role AND aren't restricted from this page
-              const hasAccess = hasPermission(item.requiredRole) && !isRestricted;
-              
-              return (
-                <TooltipProvider key={item.name}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      {hasAccess ? (
-                        <Link
-                          to={item.href}
-                          className={cn(
-                            "flex items-center px-2 py-2 text-sm rounded-md transition-colors",
-                            location.pathname === item.href && "ring-2 ring-accent",
-                            collapsed && "justify-center",
-                            "hover:bg-accent/50"
-                          )}
-                        >
-                          <item.icon className="h-5 w-5 min-w-5" />
-                          {!collapsed && <span className="ml-3">{item.name}</span>}
-                        </Link>
-                      ) : (
-                        <div
-                          className={cn(
-                            "flex items-center px-2 py-2 text-sm rounded-md cursor-not-allowed",
-                            collapsed && "justify-center",
-                            "text-gray-400 bg-gray-100"
-                          )}
-                        >
-                          <item.icon className="h-5 w-5 min-w-5" />
-                          {!collapsed && (
-                            <>
-                              <span className="ml-3">{item.name}</span>
-                              <LockIcon className="ml-auto h-4 w-4" />
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </TooltipTrigger>
-                    {!hasAccess && (
-                      <TooltipContent side="right">
-                        <p>
-                          {isRestricted
-                            ? "This feature is not available for your account" 
-                            : "You don't have permission to access this page"}
-                        </p>
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
-                </TooltipProvider>
-              );
-            })}
-          </nav>
+          {/* Main Navigation */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-3 space-y-1">
+              {navigation.map((item) => renderNavItem(item))}
+            </div>
 
-          {/* Bottom section with Settings and Logout */}
-          <div className="mt-auto pt-4 border-t space-y-2">
-            {hasPermission(settingsNav.requiredRole) ? (
-              <Link
-                to={settingsNav.href}
-                className={cn(
-                  "flex items-center p-2 rounded-lg hover:bg-accent",
-                  location.pathname === settingsNav.href && "ring-2 ring-accent",
-                  collapsed ? "justify-center" : "space-x-3"
-                )}
-              >
-                <settingsNav.icon className="h-5 w-5 min-w-5" />
-                {!collapsed && <span className="ml-3">{settingsNav.name}</span>}
-              </Link>
-            ) : (
-              <div
-                className={cn(
-                  "flex items-center p-2 rounded-lg cursor-not-allowed text-gray-400",
-                  collapsed ? "justify-center" : "space-x-3"
-                )}
-              >
-                <settingsNav.icon className="h-5 w-5 min-w-5" />
-                {!collapsed && <span className="ml-3">{settingsNav.name}</span>}
-              </div>
-            )}
-            
-            {collapsed ? (
+            {/* Separator */}
+            <div className="mx-3 my-4">
+              <Separator className="bg-gray-200" />
+            </div>
+
+            {/* Bottom Navigation */}
+            <div className="p-3 space-y-1">
+              {bottomNavigation.map((item) => renderNavItem(item))}
+            </div>
+          </div>
+
+          {/* Contact Us & Settings Section */}
+          <div className="border-t border-gray-100 p-3">
+            <Link
+              to="/contact"
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+            >
+              <MessageCircle className="h-5 w-5 text-gray-500" />
+              {!collapsed && (
+                <span>Contact Us</span>
+              )}
+            </Link>
+
+            {/* Settings */}
+            <Link
+              to="/settings"
+              className="mt-2 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+            >
+              <Settings className="h-5 w-5 text-gray-500" />
+              {!collapsed && (
+                <span>Settings</span>
+              )}
+            </Link>
+
+            {/* Logout when collapsed */}
+            {collapsed && (
               <button
-                className="flex justify-center items-center p-2 rounded-lg hover:bg-accent w-full text-red-500"
+                className="mt-2 flex justify-center items-center p-2.5 rounded-lg hover:bg-gray-100 w-full text-red-500 transition-colors"
                 onClick={() => navigate('/login')}
               >
-                <LogOut className="h-5 w-5 min-w-5" />
+                <LogOut className="h-5 w-5" />
               </button>
-            ) : (
-              <div className="px-2">
-                <LogoutButton />
-              </div>
             )}
           </div>
         </div>
@@ -211,7 +229,7 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
       {/* Main content */}
       <main
         className={cn(
-          "flex-1 w-full transition-all duration-200 overflow-y-auto",
+          "flex-1 w-full transition-all duration-300 overflow-y-auto bg-gray-50",
           collapsed ? "pl-16" : "pl-64",
           isMobile && "pl-0"
         )}
