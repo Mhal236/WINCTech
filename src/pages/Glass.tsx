@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Glass = () => {
   const { toast } = useToast();
-  const [searchTerm, setSearchTerm] = useState("");
+  const [vrnVin, setVrnVin] = useState("");
   const [loading, setLoading] = useState(false);
   const [availableGlass, setAvailableGlass] = useState<PriceRecord[]>([]);
   const [credentials] = useState<SecureHeader>({
@@ -62,10 +62,10 @@ const Glass = () => {
   }, []);
 
   const handleSearch = async () => {
-    if (!searchTerm.trim()) {
+    if (!vrnVin.trim()) {
       toast({
         title: "Search Error",
-        description: "Please enter a search term",
+        description: "Please enter a VRN or VIN",
         variant: "destructive",
       });
       return;
@@ -74,11 +74,11 @@ const Glass = () => {
     setLoading(true);
     try {
       // Search for glass with the provided term
-      const result = await searchStock(searchTerm, selectedDepot, credentials);
+      const result = await searchStock(vrnVin, selectedDepot, credentials);
       
       if (result.error) {
         toast({
-          title: "Search Error",
+          title: "VRN/VIN Search Error",
           description: result.error,
           variant: "destructive",
         });
@@ -90,19 +90,19 @@ const Glass = () => {
       if (result.priceRecords.length === 0) {
         toast({
           title: "No Results",
-          description: "No glass products found matching your search",
+          description: "No glass products found for this VRN/VIN",
           variant: "destructive",
         });
       } else {
         toast({
-          title: "Search Complete",
-          description: `Found ${result.priceRecords.length} glass products`,
+          title: "VRN/VIN Search Complete",
+          description: `Found ${result.priceRecords.length} glass products for this vehicle`,
         });
       }
     } catch (error) {
       toast({
-        title: "Search Error",
-        description: "An error occurred during the search",
+        title: "VRN/VIN Search Error",
+        description: "An error occurred during the VRN/VIN search",
         variant: "destructive",
       });
     } finally {
@@ -244,18 +244,18 @@ const Glass = () => {
           )}
         </div>
 
-        <Tabs defaultValue="search" className="w-full">
+        <Tabs defaultValue="vrn-vin" className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="search">Search by ARGIC Code</TabsTrigger>
+            <TabsTrigger value="vrn-vin">Search by VRN/VIN</TabsTrigger>
             <TabsTrigger value="vehicle">Search by Vehicle</TabsTrigger>
           </TabsList>
-          <TabsContent value="search" className="space-y-4">
+          <TabsContent value="vrn-vin" className="space-y-4">
             <div className="flex items-center gap-4 w-full">
               <Input
-                placeholder="Enter ARGIC code or description..."
+                placeholder="Enter VRN or VIN..."
                 className="w-full border-[#3d99be] focus:ring-[#3d99be]"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={vrnVin}
+                onChange={(e) => setVrnVin(e.target.value)}
               />
               <Button 
                 variant="secondary" 

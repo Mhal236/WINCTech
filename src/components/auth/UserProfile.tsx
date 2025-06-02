@@ -1,15 +1,26 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Coins, Plus } from "lucide-react";
 
 export function UserProfile({ className, collapsed = false }: { className?: string; collapsed?: boolean }) {
   const { user } = useAuth();
   
+  const handleTopUp = () => {
+    // TODO: Implement top-up functionality
+    console.log('Top-up credits clicked');
+  };
+  
   // Error prevention - if no user, show a default avatar
   if (!user) {
     return (
-      <div className={cn("flex items-center gap-3 py-4", className)}>
+      <div className={cn(
+        "flex items-center py-4", 
+        collapsed ? "justify-center" : "gap-3",
+        className
+      )}>
         <Avatar className="h-10 w-10 flex-shrink-0">
           <AvatarFallback>?</AvatarFallback>
         </Avatar>
@@ -55,31 +66,90 @@ export function UserProfile({ className, collapsed = false }: { className?: stri
     }
   };
 
+  // Format credits for display
+  const formatCredits = (credits: number | undefined) => {
+    if (credits === undefined || credits === null) return '0.00';
+    return credits.toFixed(2);
+  };
+
   return (
-    <div className={cn("flex items-center gap-3 py-4", className)}>
-      <Avatar className="h-10 w-10 flex-shrink-0">
-        <AvatarImage src="" alt={displayName} />
-        <AvatarFallback>{getInitials()}</AvatarFallback>
-      </Avatar>
-      
+    <div className={cn(
+      "flex flex-col py-4", 
+      className
+    )}>
+      {/* User Info Section */}
+      <div className={cn(
+        "flex items-center", 
+        collapsed ? "justify-center" : "gap-3"
+      )}>
+        <Avatar className="h-10 w-10 flex-shrink-0">
+          <AvatarImage src="" alt={displayName} />
+          <AvatarFallback>{getInitials()}</AvatarFallback>
+        </Avatar>
+        
+        {!collapsed && (
+          <div className="flex flex-col text-sm min-w-0">
+            <span className="font-medium truncate">{displayName}</span>
+            {user.email && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-xs text-muted-foreground truncate">
+                      {formatEmail(user.email)}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{user.email}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Credits Section */}
       {!collapsed && (
-        <div className="flex flex-col text-sm min-w-0">
-          <span className="font-medium truncate">{displayName}</span>
-          {user.email && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="text-xs text-muted-foreground truncate">
-                    {formatEmail(user.email)}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{user.email}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
+        <div className="mt-3 pt-3 border-t border-border/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Coins className="h-4 w-4 text-[#145484]" />
+              <div className="flex flex-col">
+                <span className="text-xs font-medium text-muted-foreground">Credits</span>
+                <span className="text-sm font-semibold text-[#145484]">
+                  {formatCredits(user.credits)}
+                </span>
+              </div>
+            </div>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={handleTopUp}
+              className="h-7 px-2 text-xs border-[#145484] text-[#145484] hover:bg-[#145484] hover:text-white"
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              Top Up
+            </Button>
+          </div>
         </div>
+      )}
+
+      {/* Collapsed Credits Display */}
+      {collapsed && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="mt-2 flex justify-center">
+                <div className="flex items-center justify-center w-8 h-6 bg-[#145484]/10 rounded text-xs font-semibold text-[#145484]">
+                  {formatCredits(user.credits)}
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p>Credits: {formatCredits(user.credits)}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       )}
     </div>
   );

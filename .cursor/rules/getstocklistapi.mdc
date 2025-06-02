@@ -1,0 +1,160 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+PdaService
+
+
+Click here for a complete list of operations.
+
+getStockList
+Search stock ARGIC codes.
+
+Test
+The test form is only available for requests from the local machine.
+SOAP 1.1
+The following is a sample SOAP 1.1 request and response. The placeholders shown need to be replaced with actual values.
+
+POST /pdaservice.asmx HTTP/1.1
+Host: www.master-auto-glass.co.uk
+Content-Type: text/xml; charset=utf-8
+Content-Length: length
+SOAPAction: "https://www.master-auto-glass.co.uk/pdaservice.asmx/getStockList"
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Header>
+    <SecureHeader xmlns="https://www.master-auto-glass.co.uk/pdaservice.asmx">
+      <Login>string</Login>
+      <Password>string</Password>
+      <UserID>short</UserID>
+    </SecureHeader>
+  </soap:Header>
+  <soap:Body>
+    <getStockList xmlns="https://www.master-auto-glass.co.uk/pdaservice.asmx">
+      <make>string</make>
+      <model>string</model>
+      <modelType>string</modelType>
+      <year>int</year>
+      <callResult>
+        <Status>None or NoneStatus or Success or SystemError or ArgicCodesNotFound or AuthorisationFailed or NotEnoughStock or InvalidUser or InvalidPassword or LoggedOn or sqlFailed</Status>
+        <ErrorMessage>string</ErrorMessage>
+      </callResult>
+    </getStockList>
+  </soap:Body>
+</soap:Envelope>
+HTTP/1.1 200 OK
+Content-Type: text/xml; charset=utf-8
+Content-Length: length
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Header>
+    <SecureHeader xmlns="https://www.master-auto-glass.co.uk/pdaservice.asmx">
+      <Login>string</Login>
+      <Password>string</Password>
+      <UserID>short</UserID>
+    </SecureHeader>
+  </soap:Header>
+  <soap:Body>
+    <getStockListResponse xmlns="https://www.master-auto-glass.co.uk/pdaservice.asmx">
+      <getStockListResult>
+        <PriceRecord>
+          <MagCode>string</MagCode>
+          <ArgicCode>string</ArgicCode>
+          <Price>decimal</Price>
+          <Qty>int</Qty>
+          <Make>string</Make>
+          <Description>string</Description>
+          <PriceInfo>string</PriceInfo>
+        </PriceRecord>
+        <PriceRecord>
+          <MagCode>string</MagCode>
+          <ArgicCode>string</ArgicCode>
+          <Price>decimal</Price>
+          <Qty>int</Qty>
+          <Make>string</Make>
+          <Description>string</Description>
+          <PriceInfo>string</PriceInfo>
+        </PriceRecord>
+      </getStockListResult>
+      <callResult>
+        <Status>None or NoneStatus or Success or SystemError or ArgicCodesNotFound or AuthorisationFailed or NotEnoughStock or InvalidUser or InvalidPassword or LoggedOn or sqlFailed</Status>
+        <ErrorMessage>string</ErrorMessage>
+      </callResult>
+    </getStockListResponse>
+  </soap:Body>
+</soap:Envelope>
+SOAP 1.2
+The following is a sample SOAP 1.2 request and response. The placeholders shown need to be replaced with actual values.
+
+POST /pdaservice.asmx HTTP/1.1
+Host: www.master-auto-glass.co.uk
+Content-Type: application/soap+xml; charset=utf-8
+Content-Length: length
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
+  <soap12:Header>
+    <SecureHeader xmlns="https://www.master-auto-glass.co.uk/pdaservice.asmx">
+      <Login>string</Login>
+      <Password>string</Password>
+      <UserID>short</UserID>
+    </SecureHeader>
+  </soap12:Header>
+  <soap12:Body>
+    <getStockList xmlns="https://www.master-auto-glass.co.uk/pdaservice.asmx">
+      <make>string</make>
+      <model>string</model>
+      <modelType>string</modelType>
+      <year>int</year>
+      <callResult>
+        <Status>None or NoneStatus or Success or SystemError or ArgicCodesNotFound or AuthorisationFailed or NotEnoughStock or InvalidUser or InvalidPassword or LoggedOn or sqlFailed</Status>
+        <ErrorMessage>string</ErrorMessage>
+      </callResult>
+    </getStockList>
+  </soap12:Body>
+</soap12:Envelope>
+HTTP/1.1 200 OK
+Content-Type: application/soap+xml; charset=utf-8
+Content-Length: length
+
+<?xml version="1.0" encoding="utf-8"?>
+<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
+  <soap12:Header>
+    <SecureHeader xmlns="https://www.master-auto-glass.co.uk/pdaservice.asmx">
+      <Login>string</Login>
+      <Password>string</Password>
+      <UserID>short</UserID>
+    </SecureHeader>
+  </soap12:Header>
+  <soap12:Body>
+    <getStockListResponse xmlns="https://www.master-auto-glass.co.uk/pdaservice.asmx">
+      <getStockListResult>
+        <PriceRecord>
+          <MagCode>string</MagCode>
+          <ArgicCode>string</ArgicCode>
+          <Price>decimal</Price>
+          <Qty>int</Qty>
+          <Make>string</Make>
+          <Description>string</Description>
+          <PriceInfo>string</PriceInfo>
+        </PriceRecord>
+        <PriceRecord>
+          <MagCode>string</MagCode>
+          <ArgicCode>string</ArgicCode>
+          <Price>decimal</Price>
+          <Qty>int</Qty>
+          <Make>string</Make>
+          <Description>string</Description>
+          <PriceInfo>string</PriceInfo>
+        </PriceRecord>
+      </getStockListResult>
+      <callResult>
+        <Status>None or NoneStatus or Success or SystemError or ArgicCodesNotFound or AuthorisationFailed or NotEnoughStock or InvalidUser or InvalidPassword or LoggedOn or sqlFailed</Status>
+        <ErrorMessage>string</ErrorMessage>
+      </callResult>
+    </getStockListResponse>
+  </soap12:Body>
+</soap12:Envelope>

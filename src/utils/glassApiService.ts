@@ -154,9 +154,17 @@ async function makeGlassSoapRequest(
 }
 
 /**
- * Get credentials from environment variables
+ * Get credentials from environment variables or MAG authenticated user
  */
-export const getGlassApiCredentials = (): SecureHeader => {
+export const getGlassApiCredentials = (magCredentials?: { email: string; password: string }): SecureHeader => {
+  // If MAG credentials are provided and user is authenticated with MAG, use those
+  // TODO: Map MAG credentials to actual Glass API credentials when API is implemented
+  if (magCredentials && magCredentials.email === 'admin@windscreencompare.com') {
+    console.log("Using MAG authenticated credentials for Glass API");
+    // For now, return the same default credentials
+    // In the future, this would map the MAG user to their specific Glass API credentials
+  }
+  
   const credentials = {
     Login: import.meta.env.VITE_GLASS_API_LOGIN || "Q-100",
     Password: import.meta.env.VITE_GLASS_API_PASSWORD || "b048c57a",
@@ -166,7 +174,8 @@ export const getGlassApiCredentials = (): SecureHeader => {
   console.log("Using API credentials:", {
     login: credentials.Login,
     passwordLength: credentials.Password?.length || 0,
-    userID: credentials.UserID
+    userID: credentials.UserID,
+    authenticatedWithMAG: !!magCredentials
   });
   
   return credentials;
