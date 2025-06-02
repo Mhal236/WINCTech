@@ -1,27 +1,36 @@
 import { useState } from "react";
-import { AuthLayout } from "@/components/layout/AuthLayout";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { LoginForm } from "@/components/auth/LoginForm";
+import { VerificationForm } from "@/components/auth/VerificationForm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Search, Car, History, Heart, Receipt, Download, Printer, Star, CreditCard, Gift, Brain, Clock, Users, Check, Award } from "lucide-react";
+import { History, Heart, CreditCard, Download, Gift, Brain, Clock, Star, Award } from "lucide-react";
 import { PricingPlans } from "@/components/pricing/PricingPlans";
-import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
-  const [isAuthenticated] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [progress] = useState(65);
+  const { user } = useAuth();
 
-  if (!isAuthenticated) {
+  // Show verification form for users who haven't completed verification
+  // Priority: verification_status takes precedence over user_role
+  const needsVerification = !user || 
+    (user.verification_status === 'non-verified' || 
+     user.verification_status === 'pending' || 
+     user.verification_status === 'rejected') ||
+    // Only check user_role if verification_status is not set
+    (!user.verification_status && 
+     (user.user_role === 'non-verified' || 
+      (!user.user_role && user.user_role !== 'admin')));
+
+  if (needsVerification) {
     return (
-      <AuthLayout>
-        <LoginForm />
-      </AuthLayout>
+      <DashboardLayout>
+        <VerificationForm />
+      </DashboardLayout>
     );
   }
+
+  // If we reach here, user is verified and should see the main dashboard
 
   const features = [
     {
@@ -76,26 +85,35 @@ const Index = () => {
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <h1 className="text-2xl md:text-3xl font-semibold text-[#145484]">Dashboard</h1>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-4 w-full md:w-1/3">
-              <Input
-                placeholder="Search glass parts..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full border-[#145484] focus:ring-[#145484]"
-              />
-              <Button variant="secondary" size="icon">
-                <Search className="h-4 w-4" />
-              </Button>
-            </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-semibold text-[#145484]">
+              Welcome back, {user?.name}!
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Status: <span className="font-medium text-green-600 capitalize">
+                {user?.user_role === 'admin' ? 'Admin' : 
+                 user?.verification_status === 'verified' ? 'Verified' : 
+                 'Verified'}
+              </span>
+            </p>
           </div>
         </div>
+
+        {/* Subscription Plans - Main Focus for Verified Users */}
+        <section className="py-8">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-[#145484] mb-4">Choose Your Plan</h2>
+            <p className="text-lg text-muted-foreground">
+              Select the perfect subscription plan for your business needs
+            </p>
+          </div>
+          <PricingPlans />
+        </section>
 
         {/* Features Section */}
         <section className="py-12 bg-gray-50 rounded-lg">
           <div className="container mx-auto px-4">
-            <h2 className="text-3xl font-bold text-center text-[#145484] mb-8">Our Features</h2>
+            <h2 className="text-3xl font-bold text-center text-[#145484] mb-8">Platform Features</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {features.map((feature, index) => (
                 <Card key={index} className="hover:shadow-lg transition-all duration-300">
@@ -111,8 +129,6 @@ const Index = () => {
             </div>
           </div>
         </section>
-
-        <PricingPlans />
 
         <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
           <Card className="hover:shadow-lg transition-shadow duration-200 border-[#145484]/20">

@@ -13,6 +13,7 @@ import {
   ChevronDown,
   ArrowRight,
   LockIcon,
+  ShoppingCart,
 } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -36,11 +37,12 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
   // Define navigation items with their required roles
   const navigation = [
     { name: "Dashboard", href: "/", icon: Home, requiredRole: "user" },
+    { name: "ARGIC Search", href: "/glass-search", icon: Search, requiredRole: "admin" },
     { name: "Jobs", href: "/job-swipe", icon: Briefcase, requiredRole: "admin" },
+    { name: "Glass Order", href: "/price-lookup", icon: ShoppingCart, requiredRole: "admin" },
     { name: "Calendar", href: "/calendar", icon: Calendar, requiredRole: "admin" },
-    { name: "Glass Order", href: "/price-lookup", icon: Search, requiredRole: "user" },
-    { name: "History", href: "/history", icon: ClipboardList, requiredRole: "user" },
-    { name: "Reports", href: "/reporting", icon: BarChart, requiredRole: "user" },
+    { name: "History", href: "/history", icon: ClipboardList, requiredRole: "admin" },
+    { name: "Reports", href: "/reporting", icon: BarChart, requiredRole: "admin" },
     { name: "Contact Us", href: "/contact", icon: MessageCircle, requiredRole: "user" },
   ];
 

@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { GoogleLoginButton } from '@/components/auth/GoogleLoginButton';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email.'),
@@ -59,61 +59,94 @@ export function LoginForm() {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader>
-        <CardTitle className="text-xl">Log In</CardTitle>
-        <CardDescription>
-          Enter your credentials to access your account
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
+    <div className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        {error && (
+          <Alert variant="destructive" className="border-red-200 bg-red-50/50">
+            <AlertDescription className="text-red-700">{error}</AlertDescription>
+          </Alert>
+        )}
+        
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-sm font-medium text-gray-700">
+            Email Address
+          </Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="Enter your email"
+            className="h-12 px-4 border-gray-200 focus:border-[#FFC107] focus:ring-[#FFC107]/20 rounded-xl transition-all duration-200"
+            {...register('email')}
+          />
+          {errors.email && (
+            <p className="text-sm text-red-500 mt-1">{errors.email.message}</p>
           )}
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@example.com"
-              {...register('email')}
-            />
-            {errors.email && (
-              <p className="text-sm text-red-500">{errors.email.message}</p>
-            )}
+        </div>
+        
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password" className="text-sm font-medium text-gray-700">
+              Password
+            </Label>
+            <Button 
+              variant="link" 
+              className="p-0 h-auto text-sm text-blue-600 hover:text-blue-800 transition-colors" 
+              type="button"
+            >
+              Forgot password?
+            </Button>
           </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
-              <Button variant="link" className="p-0 h-auto" type="button">
-                Forgot password?
-              </Button>
+          <Input
+            id="password"
+            type="password"
+            placeholder="Enter your password"
+            className="h-12 px-4 border-gray-200 focus:border-[#FFC107] focus:ring-[#FFC107]/20 rounded-xl transition-all duration-200"
+            {...register('password')}
+          />
+          {errors.password && (
+            <p className="text-sm text-red-500 mt-1">{errors.password.message}</p>
+          )}
+        </div>
+        
+        <Button 
+          type="submit" 
+          className="w-full h-12 !bg-[#135084] hover:!bg-[#0e3b61] !text-white !border-[#135084] hover:!border-[#0e3b61] font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]" 
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              <span>Signing in...</span>
             </div>
-            <Input
-              id="password"
-              type="password"
-              {...register('password')}
-            />
-            {errors.password && (
-              <p className="text-sm text-red-500">{errors.password.message}</p>
-            )}
-          </div>
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? 'Signing in...' : 'Sign In'}
-          </Button>
-        </form>
-      </CardContent>
-      <CardFooter className="flex justify-center">
-        <p className="text-sm text-gray-500">
+          ) : (
+            'Sign In'
+          )}
+        </Button>
+      </form>
+      
+      <div className="relative my-6">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t border-gray-200" />
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="bg-white px-4 text-gray-500 font-medium">Or continue with</span>
+        </div>
+      </div>
+      
+      <GoogleLoginButton disabled={isLoading} />
+      
+      <div className="text-center pt-4">
+        <p className="text-sm text-gray-600">
           Don't have an account?{' '}
-          <Button variant="link" className="p-0" onClick={() => navigate('/signup')}>
-            Sign up
+          <Button 
+            variant="link" 
+            className="p-0 text-blue-600 hover:text-blue-800 font-medium transition-colors" 
+            onClick={() => navigate('/signup')}
+          >
+            Create one here
           </Button>
         </p>
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   );
 }

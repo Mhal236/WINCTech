@@ -1,5 +1,18 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+// Use direct Supabase client for better OAuth support
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://julpwjxzrlkbxdbphrdy.supabase.co";
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bHB3anh6cmxrYnhkYnBocmR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc0MTQ4NDUsImV4cCI6MjA1Mjk5MDg0NX0.rynZAq6bjPlpfyTaxHYcs8FdVdTo_gy95lazi2Kt5RY";
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+    flowType: 'pkce'
+  }
+});
 
 // Simpler User type matching our app_users table
 interface User {
@@ -7,12 +20,17 @@ interface User {
   email: string;
   name: string;
   user_role?: string;
+  verification_status?: string;
+  verification_form_data?: any;
+  submitted_at?: string;
+  verified_at?: string;
+  verified_by?: string;
+  rejection_reason?: string;
+  credits?: number;
 }
 
-// Simpler Session type
-interface Session {
-  user: User | null;
-}
+// Use Supabase Session type directly
+type Session = import('@supabase/supabase-js').Session;
 
 type AuthContextType = {
   user: User | null;
@@ -20,6 +38,7 @@ type AuthContextType = {
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string) => Promise<{ error: any }>;
+  signInWithGoogle: () => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   hasPermission: (requiredRole: string) => boolean;
 };
@@ -31,6 +50,7 @@ const defaultContextValue: AuthContextType = {
   isLoading: true,
   signIn: async () => ({ error: new Error('Not implemented') }),
   signUp: async () => ({ error: new Error('Not implemented') }),
+  signInWithGoogle: async () => ({ error: new Error('Not implemented') }),
   signOut: async () => {},
   hasPermission: () => false
 };
@@ -43,24 +63,113 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for active session
+    // Safety timeout to ensure loading never gets stuck
+    const safetyTimeout = setTimeout(() => {
+      console.log('🔴 Safety timeout triggered - forcing loading to false');
+      setIsLoading(false);
+    }, 10000); // 10 second safety timeout
+
     const getInitialSession = async () => {
       setIsLoading(true);
       try {
+        console.log('🔵 Checking for initial session...');
+        
+        console.log('🔵 Getting session...');
         const { data, error } = await supabase.auth.getSession();
         
+        console.log('🔵 Session check result:', { hasData: !!data, hasSession: !!data?.session, error });
+        
         if (error) {
-          console.error("Session retrieval error:", error);
+          console.error("🔴 Session retrieval error:", error);
+          clearTimeout(safetyTimeout);
+          setIsLoading(false);
           return;
         }
         
         if (data?.session) {
+          console.log('🟢 Found existing session');
+          console.log('🔵 Session user ID:', data.session.user?.id);
+          
+          // Create user object from session
+          const sessionUser = data.session.user as any;
+          
+          let userObject: User = {
+            id: sessionUser.id,
+            email: sessionUser.email || '',
+            name: sessionUser.user_metadata?.full_name || sessionUser.email || 'User',
+            user_role: 'user'
+          };
+          
+          console.log('🔵 Initial user object from session:', userObject);
+          
+          // Try to fetch complete user data with timeout
+          try {
+            console.log('🔵 Fetching complete user data for ID:', sessionUser.id);
+            
+            // Add a timeout to prevent hanging
+            const fetchPromise = supabase
+              .from('app_users')
+              .select('*')
+              .eq('id', sessionUser.id)
+              .single();
+            
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('User data fetch timeout')), 5000)
+            );
+            
+            const { data: userData, error: fetchError } = await Promise.race([
+              fetchPromise,
+              timeoutPromise
+            ]) as any;
+            
+            console.log('🔵 User data fetch result:', { hasUserData: !!userData, fetchError });
+            
+            if (userData && !fetchError) {
+              console.log('🟢 Found complete user data');
+              userObject = {
+                id: userData.id,
+                email: userData.email,
+                name: userData.name,
+                user_role: userData.user_role,
+                verification_status: userData.verification_status,
+                verification_form_data: userData.verification_form_data,
+                submitted_at: userData.submitted_at,
+                verified_at: userData.verified_at,
+                verified_by: userData.verified_by,
+                rejection_reason: userData.rejection_reason,
+                credits: userData.credits
+              };
+            } else {
+              console.log('🔵 User not found in app_users or timeout, using session data only');
+            }
+          } catch (error) {
+            console.error('🔴 Error fetching user data on initial load:', error);
+            // Continue with basic user object
+          }
+          
+          console.log('🟢 Final user object for initial session:', userObject);
+          
+          setUser(userObject);
           setSession(data.session);
-          setUser(data.session.user || null);
+          
+          // If we're on login page and have a session, redirect to dashboard
+          const currentPath = window.location.pathname;
+          if (currentPath === '/login' || currentPath === '/signup') {
+            console.log('🔵 Found session on auth page, redirecting to dashboard');
+            setTimeout(() => {
+              if (data?.session && data.session.user) {
+                window.location.href = '/';
+              }
+            }, 100);
+          }
+        } else {
+          console.log('🔵 No existing session found');
         }
       } catch (error) {
-        console.error('Error checking auth session:', error);
+        console.error('🔴 Error checking auth session:', error);
       } finally {
+        console.log('🔵 Setting initial loading to false');
+        clearTimeout(safetyTimeout);
         setIsLoading(false);
       }
     };
@@ -70,26 +179,121 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Set up auth change listener
     let subscription = { unsubscribe: () => {} };
     try {
-      const authListener = supabase.auth.onAuthStateChange((_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setIsLoading(false);
+      const authListener = supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('🔵 Auth state changed:', event);
+        console.log('🔵 Session exists:', !!session);
+        
+        if (session?.user) {
+          console.log('🔵 Session user ID:', session.user.id);
+          console.log('🔵 Session user email:', session.user.email);
+        }
+        
+        try {
+          if (event === 'SIGNED_IN' && session?.user) {
+            console.log('🟢 Processing SIGNED_IN event...');
+            
+            const sessionUser = session.user;
+            
+            // Create basic user object
+            let userObject: User = {
+              id: sessionUser.id,
+              email: sessionUser.email || '',
+              name: (sessionUser as any)?.user_metadata?.full_name || sessionUser.email || 'User',
+              user_role: 'user'
+            };
+            
+            console.log('🔵 Basic user object created:', userObject);
+          
+            // Try to fetch additional data from app_users table with timeout
+            try {
+              console.log('🔵 Querying app_users table for user:', sessionUser.id);
+              
+              const fetchPromise = supabase
+                .from('app_users')
+                .select('*')
+                .eq('id', sessionUser.id)
+                .single();
+              
+              const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Database query timeout')), 3000)
+              );
+              
+              const { data: userData, error: dbError } = await Promise.race([
+                fetchPromise,
+                timeoutPromise
+              ]) as any;
+              
+              console.log('🔵 Database query result:', { hasUserData: !!userData, dbError: dbError?.message });
+              
+              if (userData && !dbError) {
+                console.log('🟢 Using database user data');
+                userObject = {
+                  id: userData.id,
+                  email: userData.email,
+                  name: userData.name,
+                  user_role: userData.user_role,
+                  verification_status: userData.verification_status,
+                  verification_form_data: userData.verification_form_data,
+                  submitted_at: userData.submitted_at,
+                  verified_at: userData.verified_at,
+                  verified_by: userData.verified_by,
+                  rejection_reason: userData.rejection_reason,
+                  credits: userData.credits
+                };
+              } else {
+                console.log('🔵 No database record found or timeout, using OAuth data');
+                // For OAuth users without database record, set as non-verified
+                userObject.user_role = 'non-verified';
+                userObject.verification_status = 'non-verified';
+              }
+            } catch (dbError) {
+              console.log('🔴 Database query failed:', dbError);
+              // Continue with basic user object
+              userObject.user_role = 'non-verified';
+              userObject.verification_status = 'non-verified';
+            }
+            
+            console.log('🟢 Final user object:', userObject);
+            console.log('🔵 Updating auth state...');
+            
+            setUser(userObject);
+            setSession(session);
+            
+            console.log('🟢 Auth state updated successfully');
+            
+          } else if (event === 'SIGNED_OUT') {
+            console.log('🔴 Processing SIGNED_OUT event...');
+            setUser(null);
+            setSession(null);
+          } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+            console.log('🔵 Processing TOKEN_REFRESHED event...');
+            // Don't clear the user state on token refresh, just update session
+            setSession(session);
+          }
+        } catch (error) {
+          console.error('🔴 Error in auth state change handler:', error);
+        } finally {
+          // Always set loading to false after processing auth events
+          console.log('🔵 Setting loading to false after auth change');
+          setIsLoading(false);
+        }
       });
       
-      if (authListener && authListener.subscription) {
-        subscription = authListener.subscription;
+      if (authListener?.data?.subscription) {
+        subscription = authListener.data.subscription;
       }
     } catch (error) {
-      console.error('Error setting up auth listener:', error);
+      console.error('🔴 Error setting up auth listener:', error);
       setIsLoading(false);
     }
 
     return () => {
       // Clean up auth listener on unmount
       try {
+        clearTimeout(safetyTimeout);
         subscription.unsubscribe();
       } catch (error) {
-        console.error('Error unsubscribing:', error);
+        console.error('🔴 Error unsubscribing:', error);
       }
     };
   }, []);
@@ -119,11 +323,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const signInWithGoogle = async () => {
+    try {
+      console.log('🔵 AuthContext: Starting Google OAuth...');
+      console.log('🔵 Current window location:', window.location.origin);
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/`
+        }
+      });
+      
+      console.log('🔵 OAuth response:', { data, error });
+      
+      if (error) {
+        console.error('🔴 OAuth error:', error);
+        return { error };
+      }
+      
+      console.log('🟢 OAuth initiated successfully');
+      return { error: null };
+    } catch (error) {
+      console.error('🔴 OAuth catch error:', error);
+      return { error };
+    }
+  };
+
   const signOut = async () => {
     try {
+      console.log('🔵 Starting sign out process');
+      setIsLoading(true);
+      
+      // Sign out from Supabase
       await supabase.auth.signOut();
+      
+      // Clear local state immediately
+      setSession(null);
+      setUser(null);
+      
+      console.log('🟢 Sign out completed');
+      
+      // Force navigation to login page
+      window.location.href = '/login';
     } catch (error) {
       console.error('Error signing out:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -131,12 +377,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hasPermission = (requiredRole: string): boolean => {
     if (!user) return false;
     
-    // Role hierarchy: admin > staff > user
+    // Role hierarchy: admin > staff > verified > user
     const userRole = user.user_role || 'user';
+    const verificationStatus = user.verification_status || 'verified';
     
+    // Admin can access everything
     if (userRole === 'admin') return true;
+    
+    // Staff can access staff and below
     if (requiredRole === 'staff' && userRole === 'staff') return true;
-    if (requiredRole === 'user' && ['user', 'staff', 'admin'].includes(userRole)) return true;
+    
+    // For "user" level access (Contact, Settings, Dashboard), allow all authenticated users including non-verified
+    if (requiredRole === 'user') {
+      return ['verified', 'user', 'staff', 'admin', 'non-verified'].includes(userRole);
+    }
+    
+    // For "verified" and above, require proper verification status
+    if (userRole === 'non-verified' || verificationStatus === 'non-verified') return false;
+    if (verificationStatus === 'pending' || verificationStatus === 'rejected') return false;
+    
+    // Verified users can access verified-level content
+    if (requiredRole === 'verified' && ['verified', 'user', 'staff', 'admin'].includes(userRole)) return true;
     
     return false;
   };
@@ -147,6 +408,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading,
     signIn,
     signUp,
+    signInWithGoogle,
     signOut,
     hasPermission
   };

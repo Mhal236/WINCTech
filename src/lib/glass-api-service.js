@@ -578,6 +578,7 @@ export const API_CONSTANTS = {
  * @param {string} [params.argicCode] - ARGIC code to search
  * @param {string} [params.model] - Vehicle model
  * @param {string} [params.location] - Stock location
+ * @param {string} [params.vrn] - Vehicle Registration Number
  * @returns {Promise<Object>} Response from the API
  */
 export async function stockQuery(params = {}) {
@@ -588,6 +589,17 @@ export async function stockQuery(params = {}) {
   }
 
   try {
+    // If this is a new look-up (not using an existing ARGIC code), make sure to include VRN for uniqueness
+    if (!argicCode && !magCode) {
+      // Check if we can get VRN from sessionStorage if not in params
+      if (!params.vrn) {
+        const storedVrn = typeof window !== 'undefined' ? sessionStorage.getItem('current_vrn') : null;
+        if (storedVrn) {
+          params.vrn = storedVrn;
+        }
+      }
+    }
+
     const response = await fetch('/api/glass/stock-query', {
       method: 'POST',
       headers: {

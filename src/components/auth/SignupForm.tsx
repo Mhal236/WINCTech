@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { GoogleLoginButton } from '@/components/auth/GoogleLoginButton';
 
 const signupSchema = z.object({
   email: z.string().email('Please enter a valid email.'),
@@ -72,87 +72,113 @@ export function SignupForm() {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader>
-        <CardTitle className="text-xl">Create an Account</CardTitle>
-        <CardDescription>
-          Sign up for access to our services
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-          
-          {success && (
-            <Alert>
-              <AlertDescription>
-                Account created successfully! Check your email to confirm your account.
-                You will be redirected to the login page shortly...
-              </AlertDescription>
-            </Alert>
-          )}
-          
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@example.com"
-              {...register('email')}
-              disabled={isLoading || success}
-            />
-            {errors.email && (
-              <p className="text-sm text-red-500">{errors.email.message}</p>
-            )}
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              {...register('password')}
-              disabled={isLoading || success}
-            />
-            {errors.password && (
-              <p className="text-sm text-red-500">{errors.password.message}</p>
-            )}
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              {...register('confirmPassword')}
-              disabled={isLoading || success}
-            />
-            {errors.confirmPassword && (
-              <p className="text-sm text-red-500">{errors.confirmPassword.message}</p>
-            )}
-          </div>
-          
-          <Button 
-            type="submit" 
-            className="w-full" 
+    <div className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        {error && (
+          <Alert variant="destructive" className="border-red-200 bg-red-50/50">
+            <AlertDescription className="text-red-700">{error}</AlertDescription>
+          </Alert>
+        )}
+        
+        {success && (
+          <Alert className="border-green-200 bg-green-50/50">
+            <AlertDescription className="text-green-700">
+              Account created successfully! Check your email to confirm your account.
+              You will be redirected to the login page shortly...
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-sm font-medium text-gray-700">
+            Email Address
+          </Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="Enter your email"
+            className="h-12 px-4 border-gray-200 focus:border-[#FFC107] focus:ring-[#FFC107]/20 rounded-xl transition-all duration-200"
+            {...register('email')}
             disabled={isLoading || success}
-          >
-            {isLoading ? 'Creating Account...' : 'Sign Up'}
-          </Button>
-        </form>
-      </CardContent>
-      <CardFooter className="flex justify-center">
-        <p className="text-sm text-gray-500">
+          />
+          {errors.email && (
+            <p className="text-sm text-red-500 mt-1">{errors.email.message}</p>
+          )}
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="password" className="text-sm font-medium text-gray-700">
+            Password
+          </Label>
+          <Input
+            id="password"
+            type="password"
+            placeholder="Create a password"
+            className="h-12 px-4 border-gray-200 focus:border-[#FFC107] focus:ring-[#FFC107]/20 rounded-xl transition-all duration-200"
+            {...register('password')}
+            disabled={isLoading || success}
+          />
+          {errors.password && (
+            <p className="text-sm text-red-500 mt-1">{errors.password.message}</p>
+          )}
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700">
+            Confirm Password
+          </Label>
+          <Input
+            id="confirmPassword"
+            type="password"
+            placeholder="Confirm your password"
+            className="h-12 px-4 border-gray-200 focus:border-[#FFC107] focus:ring-[#FFC107]/20 rounded-xl transition-all duration-200"
+            {...register('confirmPassword')}
+            disabled={isLoading || success}
+          />
+          {errors.confirmPassword && (
+            <p className="text-sm text-red-500 mt-1">{errors.confirmPassword.message}</p>
+          )}
+        </div>
+        
+        <Button 
+          type="submit" 
+          className="w-full h-12 !bg-[#135084] hover:!bg-[#0e3b61] !text-white !border-[#135084] hover:!border-[#0e3b61] font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]" 
+          disabled={isLoading || success}
+        >
+          {isLoading ? (
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              <span>Creating Account...</span>
+            </div>
+          ) : (
+            'Create Account'
+          )}
+        </Button>
+      </form>
+      
+      <div className="relative my-6">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t border-gray-200" />
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="bg-white px-4 text-gray-500 font-medium">Or sign up with</span>
+        </div>
+      </div>
+      
+      <GoogleLoginButton disabled={isLoading || success} />
+      
+      <div className="text-center pt-4">
+        <p className="text-sm text-gray-600">
           Already have an account?{' '}
-          <Button variant="link" className="p-0" onClick={() => navigate('/login')}>
-            Log in
+          <Button 
+            variant="link" 
+            className="p-0 text-blue-600 hover:text-blue-800 font-medium transition-colors" 
+            onClick={() => navigate('/login')}
+          >
+            Sign in here
           </Button>
         </p>
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   );
 } 

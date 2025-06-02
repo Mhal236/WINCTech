@@ -1,6 +1,6 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { BookingForm } from "@/components/booking/BookingForm";
-import { ShoppingCart, X, Image as ImageIcon, Car, Layers } from "lucide-react";
+import { ShoppingCart, X, Image as ImageIcon, Car, Layers, LogOut } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +21,8 @@ import {
 import { getGlassApiCredentials, getStockList, getMakes, getModels, PriceRecord, checkAvailability, getDepots, searchStockByArgic, testApiConnection } from "@/utils/glassApiService";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { MAGAuthProvider, useMAGAuth } from "@/contexts/MAGAuthContext";
+import { MAGLoginForm } from "@/components/auth/MAGLoginForm";
 
 // Add interface for glass features
 interface GlassFeatures {
@@ -65,6 +67,8 @@ interface VehicleDetails {
   endYear?: string;
   vin?: string;
   argicCode?: string;
+  shortArgicCode?: string;
+  glassOptions?: { fullCode: string; shortCode: string }[];
   vrn: string;
 }
 
@@ -89,7 +93,8 @@ const getGlassTypeIcon = (quote: CompanyQuote, selection: GlassSelection) => {
   }
 };
 
-const PriceLookup = () => {
+const PriceLookupContent = () => {
+  const { magUser, logoutMAG } = useMAGAuth();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const jobId = searchParams.get('jobId');
@@ -126,12 +131,60 @@ const PriceLookup = () => {
   const [loading, setLoading] = useState(false);
   const [vrnValidForLookup, setVrnValidForLookup] = useState(false);
 
-  // Define the Railway API URL - must be at component scope
-  const RAILWAY_API_URL = 'https://function-bun-production-7f7b.up.railway.app';
+  // Define the API URLs using environment variables 
+  const RAILWAY_API_URL = import.meta.env.VITE_API_URL_PRODUCTION || 'https://function-bun-production-7f7b.up.railway.app';
+  const LOCAL_API_URL = import.meta.env.VITE_API_URL_LOCAL || 'http://localhost:3000';
+  
+  // Use local server based on environment variable or default to true for development
+  const USE_LOCAL_SERVER = import.meta.env.VITE_USE_LOCAL_SERVER === 'false' ? false : true;
+  
+  // Debug environment variables (only in development)
+  if (import.meta.env.DEV) {
+    console.log('Environment Variables:');
+    console.log('- VITE_API_URL_PRODUCTION:', import.meta.env.VITE_API_URL_PRODUCTION);
+    console.log('- VITE_API_URL_LOCAL:', import.meta.env.VITE_API_URL_LOCAL);
+    console.log('- VITE_USE_LOCAL_SERVER:', import.meta.env.VITE_USE_LOCAL_SERVER);
+    console.log('- Using API URL:', USE_LOCAL_SERVER ? LOCAL_API_URL : RAILWAY_API_URL);
+  }
   
   // Utility function to get the appropriate API URL
   const getApiUrl = (endpoint: string): string => {
-    return `${RAILWAY_API_URL}${endpoint}`;
+    const url = USE_LOCAL_SERVER ? `${LOCAL_API_URL}${endpoint}` : `${RAILWAY_API_URL}${endpoint}`;
+    console.log(`API Request to: ${url}`);
+    return url;
+  };
+
+  // New helper function to directly query our stock-query API
+  const queryStockApi = async (argicCode: string, model: string, depot: string, features: any) => {
+    try {
+      console.log(`Querying stock API directly for ARGIC: ${argicCode}, Model: ${model}, Depot: ${depot}`);
+      
+      const response = await fetch(getApiUrl('/api/stock-query'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          argicCode,
+          model,
+          depot,
+          features,
+          vrn: vehicleDetails.vrn // Pass the VRN to make ARGIC codes unique per vehicle
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API returned status ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log("Stock API response:", data);
+      
+      return data;
+    } catch (error) {
+      console.error("Error querying stock API:", error);
+      throw error;
+    }
   };
 
   // Add useEffect to get depots from API if needed
@@ -150,19 +203,39 @@ const PriceLookup = () => {
   //   fetchDepots();
   // }, []);
 
+  // Add a separate useEffect to auto-fetch data when the component mounts with URL parameters
   useEffect(() => {
-    if (jobId && damageType && vehicleInfo) {
-      // Set the initial vehicle and damage information
+    // If VRN is provided via URL params, set it and trigger auto-fetch
+    if (vehicleInfo && vehicleInfo.trim().length > 0) {
       setVrn(vehicleInfo);
+      console.log("Set VRN from URL parameter:", vehicleInfo);
+      
+      // Add a short delay to ensure state is updated before fetching
+      const timer = setTimeout(() => {
+        console.log("Auto-fetching vehicle data for VRN:", vehicleInfo);
+        fetchVehicleData();
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [vehicleInfo]); // Only run when vehicleInfo changes
+  
+  // If damage type is provided, set up the glass selection
+  useEffect(() => {
+    if (damageType) {
       setGlassSelections([{
         type: damageType,
-        quantity: 1
+        quantity: 1,
+        features: {
+          sensor: false,
+          devapour: false,
+          vinNotch: false,
+          hrf: false,
+          isOE: false
+        }
       }]);
-      
-      // Auto-fetch vehicle data when parameters are provided from URL
-      console.log("Set initial values from URL parameters - will automatically fetch vehicle data");
     }
-  }, [jobId, damageType, vehicleInfo]);
+  }, [damageType]);
 
   // Add useEffect to automatically fetch vehicle data when VRN changes
   useEffect(() => {
@@ -195,280 +268,103 @@ const PriceLookup = () => {
     setLoading(true);
     
     try {
-      console.log(`Fetching vehicle data for VRN: ${vrn.trim()}`);
+      console.log(`\n===== Starting vehicle data fetch for VRN: ${vrn.trim()} =====`);
       
       toast({
         title: "Loading...",
         description: "Retrieving vehicle information",
       });
       
-      // Try the Railway-hosted server first
+      // Try the API server to get vehicle and ARGIC details
       try {
-        console.log(`Attempting to fetch vehicle data from Railway server for VRN: ${vrn.trim()}`);
-        const railwayResponse = await fetch(getApiUrl(`/api/vehicle/${vrn.trim()}`));
-        console.log(`Railway API response status: ${railwayResponse.status}`);
-        
-        if (railwayResponse.ok) {
-          const data = await railwayResponse.json();
-          console.log("Vehicle data received from Railway server:", data);
-          
-          // Process the API response
-          let vehicleData: VehicleDetails;
-          
-          if (data?.Response?.DataItems?.VehicleRegistration) {
-            // API original format
-            const reg = data.Response.DataItems.VehicleRegistration;
-            vehicleData = {
-              make: reg.Make || "",
-              model: reg.Model || "",
-              year: reg.YearOfManufacture || "",
-              bodyStyle: reg.BodyStyle || "",
-              doors: reg.NumberOfDoors || "",
-              fuel: reg.FuelType || "",
-              transmission: reg.Transmission || "",
-              vin: reg.Vin || "",
-              argicCode: reg.ArgicCode || "",
-              vrn: vrn.trim()
-            };
-          } else if (data && data.make) {
-            // Direct response format from our backend
-            vehicleData = {
-              make: data.make || "",
-              model: data.model || "",
-              year: data.year || "",
-              bodyStyle: data.bodyStyle || data.body || "",
-              doors: data.doors || "",
-              variant: data.variant || "",
-              fuel: data.fuel || data.fuelType || "",
-              transmission: data.transmission || "",
-              vin: data.vin || "",
-              argicCode: data.argicCode || "",
-              vrn: vrn.trim()
-            };
-          } else if (data?.Response?.StatusCode === 'KeyInvalid') {
-            throw new Error(`Invalid vehicle registration number: ${data.Response.StatusMessage || 'Please check the registration and try again'}`);
-          } else {
-            throw new Error("Vehicle data not found in API response");
-          }
-          
-          // Set vehicle details from the API response
-          setVehicleDetails(vehicleData);
-          
-          // Set glass type to Windscreen by default if no selections exist
-          if (glassSelections.length === 0) {
-            setGlassSelections([{
-              type: "Windscreen",
-              quantity: 1,
-              features: {
-                sensor: false,
-                devapour: false,
-                vinNotch: false,
-                hrf: false,
-                isOE: false
-              }
-            }]);
-          }
-          
-          toast({
-            title: "Success", 
-            description: "Vehicle data loaded successfully from Railway server" 
-          });
-          
-          setLoading(false);
-          
-          // After successful vehicle lookup, if we have depot selected, automatically fetch glass options
-          if (selectedDepots.length > 0 && vehicleData.make && vehicleData.model) {
-            // Short delay before fetching glass options to ensure UI updates first
-            setTimeout(() => {
-              fetchGlassOptions();
-            }, 500);
-          }
-          
-          return true;
-        }
-        console.log("Railway API request failed, falling back to local server");
-      } catch (railwayError) {
-        console.error("Railway API error:", railwayError);
-        console.log("Falling back to local server");
-      }
-      
-      // Try to use the local server endpoint if Railway failed
-      try {
-        const response = await fetch(getApiUrl(`/api/vehicle/${vrn.trim()}`));
+        console.log(`Step 1: Fetching vehicle data from API server for VRN: ${vrn.trim()}`);
+        const response = await fetch(getApiUrl(`/api/vehicle/glass/${vrn.trim()}`));
         console.log(`Vehicle API response status: ${response.status}`);
         
         if (response.ok) {
-          const data = await response.json();
-          console.log("Vehicle data received from server:", data);
+          const apiResponse = await response.json();
+          console.log("Vehicle data received:", apiResponse);
           
-          // Process the API response
-          let vehicleData: VehicleDetails;
-          
-          if (data?.Response?.DataItems?.VehicleRegistration) {
-            // API original format
-            const reg = data.Response.DataItems.VehicleRegistration;
-            vehicleData = {
-              make: reg.Make || "",
-              model: reg.Model || "",
-              year: reg.YearOfManufacture || "",
-              bodyStyle: reg.BodyStyle || "",
-              doors: reg.NumberOfDoors || "",
-              fuel: reg.FuelType || "",
-              transmission: reg.Transmission || "",
-              vin: reg.Vin || "",
-              argicCode: reg.ArgicCode || "",
-              vrn: vrn.trim()
-            };
-          } else if (data && data.make) {
-            // Direct response format from our backend
-            vehicleData = {
+          // Check if we received a successful response with data
+          if (apiResponse.success && apiResponse.data) {
+            // Extract the data from our API response
+            const data = apiResponse.data;
+            
+            // Create vehicle data object from the response
+            const vehicleData: VehicleDetails = {
               make: data.make || "",
               model: data.model || "",
               year: data.year || "",
-              bodyStyle: data.bodyStyle || data.body || "",
+              bodyStyle: data.bodyStyle || "",
               doors: data.doors || "",
               variant: data.variant || "",
-              fuel: data.fuel || data.fuelType || "",
+              fuel: data.fuel || "",
               transmission: data.transmission || "",
               vin: data.vin || "",
+              vrn: vrn.trim(),
+              // Get the ARGIC codes directly from our API response
               argicCode: data.argicCode || "",
-              vrn: vrn.trim()
+              shortArgicCode: data.shortArgicCode || "",
+              glassOptions: data.glassOptions || []
             };
-          } else if (data?.Response?.StatusCode === 'KeyInvalid') {
-            throw new Error(`Invalid vehicle registration number: ${data.Response.StatusMessage || 'Please check the registration and try again'}`);
+            
+            console.log(`Vehicle Data from API:
+            - Make: ${vehicleData.make}
+            - Model: ${vehicleData.model}
+            - Year: ${vehicleData.year}
+            - ARGIC: ${vehicleData.argicCode}
+            - Short ARGIC: ${vehicleData.shortArgicCode}
+            - Options: ${vehicleData.glassOptions?.length || 0}`);
+            
+            // Set vehicle details from the API response
+            setVehicleDetails(vehicleData);
+            
+            // Store VRN in sessionStorage for cross-component use
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem('current_vrn', vrn.trim());
+            }
+            
+            // Set glass type to Windscreen by default if no selections exist
+            if (glassSelections.length === 0) {
+              setGlassSelections([{
+                type: "Windscreen",
+                quantity: 1,
+                features: {
+                  sensor: false,
+                  devapour: false,
+                  vinNotch: false,
+                  hrf: false,
+                  isOE: false
+                }
+              }]);
+            }
+            
+            toast({
+              title: "Success", 
+              description: `Vehicle data loaded with ARGIC code: ${vehicleData.shortArgicCode || vehicleData.argicCode?.substring(0, 4) || ""}`
+            });
+            
+            setLoading(false);
+            
+            // After successful vehicle lookup, if we have depot selected, automatically fetch glass options
+            if (selectedDepots.length > 0 && vehicleData.make && vehicleData.model) {
+              // Short delay before fetching glass options to ensure UI updates first
+              setTimeout(() => {
+                fetchGlassOptions();
+              }, 500);
+            }
+            
+            return true;
           } else {
             throw new Error("Vehicle data not found in API response");
           }
-          
-          // Set vehicle details from the API response
-          setVehicleDetails(vehicleData);
-          
-          // Set glass type to Windscreen by default if no selections exist
-          if (glassSelections.length === 0) {
-            setGlassSelections([{
-              type: "Windscreen",
-              quantity: 1,
-              features: {
-                sensor: false,
-                devapour: false,
-                vinNotch: false,
-                hrf: false,
-                isOE: false
-              }
-            }]);
-          }
-          
-          toast({
-            title: "Success", 
-            description: "Vehicle data loaded successfully" 
-          });
-          
-          setLoading(false);
-          
-          // After successful vehicle lookup, if we have depot selected, automatically fetch glass options
-          if (selectedDepots.length > 0 && vehicleData.make && vehicleData.model) {
-            // Short delay before fetching glass options to ensure UI updates first
-            setTimeout(() => {
-              fetchGlassOptions();
-            }, 500);
-          }
-          
-          return true;
+        } else {
+          throw new Error(`API request failed with status ${response.status}`);
         }
       } catch (apiError) {
-        console.log("Local server API error or not available, using fallback:", apiError);
-        // Continue to fallback method if the server endpoint fails or is not available
+        console.error("API error:", apiError);
+        throw apiError; // Rethrow to be caught by the outer catch
       }
-      
-      // Fallback method for when neither Railway nor local API is available:
-      // Generate consistent mock data based on the VRN
-      console.log("Using fallback method to generate vehicle data");
-      
-      // Use the first 3 characters of the VRN to determine a consistent make/model
-      const vrnTrimmed = vrn.trim();
-      const firstChar = vrnTrimmed.charAt(0).toUpperCase();
-      const secondChar = vrnTrimmed.charAt(1).toUpperCase();
-      
-      // Use a consistent mapping for demo purposes
-      const makeMapping: Record<string, string> = {
-        'A': 'Audi', 'B': 'BMW', 'C': 'Citroen', 'D': 'Dacia', 'E': 'SEAT',
-        'F': 'Ford', 'G': 'Vauxhall', 'H': 'Honda', 'I': 'Infiniti', 'J': 'Jaguar',
-        'K': 'Kia', 'L': 'Land Rover', 'M': 'Mercedes-Benz', 'N': 'Nissan', 'O': 'Opel',
-        'P': 'Peugeot', 'Q': 'Audi', 'R': 'Renault', 'S': 'Suzuki', 'T': 'Toyota',
-        'U': 'Subaru', 'V': 'Volkswagen', 'W': 'BMW', 'X': 'Lexus', 'Y': 'Toyota',
-        'Z': 'Mazda'
-      };
-      
-      const modelMapping: Record<string, Record<string, string>> = {
-        'Audi': { 'A': 'A3', 'B': 'A4', 'C': 'A5', 'D': 'Q3', 'E': 'Q5', 'F': 'Q7' },
-        'BMW': { 'A': '1 Series', 'B': '3 Series', 'C': '5 Series', 'D': 'X1', 'E': 'X3', 'F': 'X5' },
-        'Ford': { 'A': 'Fiesta', 'B': 'Focus', 'C': 'Mondeo', 'D': 'Kuga', 'E': 'Puma', 'F': 'Ecosport' },
-        'Volkswagen': { 'A': 'Golf', 'B': 'Polo', 'C': 'Passat', 'D': 'Tiguan', 'E': 'T-Roc', 'F': 'Touareg' },
-        'Toyota': { 'A': 'Corolla', 'B': 'Yaris', 'C': 'RAV4', 'D': 'Prius', 'E': 'Aygo', 'F': 'C-HR' }
-      };
-      
-      // Determine make from the first character
-      const make = makeMapping[firstChar] || 'Ford';
-      
-      // Determine model from the second character and selected make
-      const modelOptions = modelMapping[make] || modelMapping['Ford'];
-      const model = modelOptions[secondChar] || 'Focus';
-      
-      // Determine year from the length of the VRN (completely arbitrary but consistent)
-      const year = (2010 + (vrnTrimmed.length % 10)).toString();
-      
-      // Create a consistent mock ARGIC code based on make/model
-      const mockArgicCode = `${make.substring(0, 3).toUpperCase()}${model.substring(0, 3).toUpperCase()}${year.substring(2)}`;
-      
-      // Create the vehicle data object
-      const vehicleData: VehicleDetails = {
-        make: make,
-        model: model,
-        year: year,
-        bodyStyle: "Hatchback",
-        doors: "5",
-        fuel: "Petrol",
-        transmission: "Manual",
-        vin: `MOCK${vrnTrimmed.replace(/\s/g, '')}`,
-        argicCode: mockArgicCode,
-        vrn: vrnTrimmed
-      };
-      
-      // Set vehicle details in state
-      setVehicleDetails(vehicleData);
-      
-      // Set glass type to Windscreen by default if no selections exist
-      if (glassSelections.length === 0) {
-        setGlassSelections([{
-          type: "Windscreen",
-          quantity: 1,
-          features: {
-            sensor: false,
-            devapour: false,
-            vinNotch: false,
-            hrf: false,
-            isOE: false
-          }
-        }]);
-      }
-      
-      toast({
-        title: "Success", 
-        description: "Vehicle data generated successfully (demo mode)" 
-      });
-      
-      setLoading(false);
-      
-      // After successful vehicle lookup, if we have depot selected, automatically fetch glass options
-      if (selectedDepots.length > 0 && vehicleData.make && vehicleData.model) {
-        // Short delay before fetching glass options to ensure UI updates first
-        setTimeout(() => {
-          fetchGlassOptions();
-        }, 500);
-      }
-      
-      return true;
-      
     } catch (error) {
       console.error("Error fetching vehicle data:", error);
       setLoading(false);
@@ -544,214 +440,154 @@ const PriceLookup = () => {
       console.log(`Using vehicle ARGIC: ${vehicleArgic}`);
       console.log(`Using depots: ${selectedDepots.join(', ')}`);
       
-      // Send request to API with detailed logging
-      console.log(`Sending stock query with vehicle: ${vehicleDetails.make} ${vehicleDetails.model} ${vehicleDetails.year}`);
-      console.log(`Glass features: ${JSON.stringify(features)}`);
-      
       // Show loading toast for quotes
       toast({
         title: "Loading Glass Options",
         description: "Retrieving glass options for your vehicle across selected depots...",
       });
 
-      // We'll fetch data for each selected depot and combine the results
-      let allResults: any[] = [];
-      const failedDepots: string[] = [];
-      const successfulDepots: string[] = [];
-      
-      // Create an array of promises for each depot query
-      const depotQueries = selectedDepots.map(async (depotCode) => {
-        try {
-          console.log(`Making API request to /api/glass/stock-query for depot: ${depotCode}`);
-          const apiResponse = await fetch(getApiUrl('/api/glass/stock-query'), {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              magCode: '',
-              argicCode: vehicleArgic,
+      // Use our new direct API query function instead of the existing logic
+      try {
+        console.log(`Attempting to use direct API query for glass options`);
+        
+        let allApiQuotes: CompanyQuote[] = [];
+        let apiCallSucceeded = false;
+        
+        // Query each depot directly
+        for (const depotCode of selectedDepots) {
+          try {
+            const depotName = availableDepots.find(d => d.DepotCode === depotCode)?.DepotName || depotCode;
+            
+            // Debug the ARGIC code
+            console.log("DEBUG - ARGIC code before API call:", vehicleDetails.argicCode);
+            console.log("DEBUG - Full vehicle details:", JSON.stringify(vehicleDetails));
+            
+            console.log(`Making direct API call to stock-query for depot ${depotCode} with ARGIC ${vehicleDetails.argicCode}`);
+            
+            // Prepare the request payload
+            const requestPayload = {
               model: `${vehicleDetails.make} ${vehicleDetails.model} ${vehicleDetails.year}`,
               depot: depotCode,
-              features: {
-                sensor: features.sensor,
-                devapour: features.devapour,
-                vinNotch: features.vinNotch,
-                hrf: features.hrf,
-                isOE: features.isOE
-              }
-            })
-          });
-          
-          // Handle 404 or other error responses explicitly
-          if (!apiResponse.ok) {
-            const statusText = apiResponse.statusText || 'Unknown error';
-            console.error(`API returned error ${apiResponse.status} (${statusText}) for depot ${depotCode}`);
-            failedDepots.push(depotCode);
-            return { 
-              success: false, 
-              depot: depotCode, 
-              error: `API Error ${apiResponse.status}: ${statusText}` 
+              features: glassSelections.length > 0 && glassSelections[0].features ? {
+                sensor: glassSelections[0].features.sensor,
+                devapour: glassSelections[0].features.devapour,
+                vinNotch: glassSelections[0].features.vinNotch,
+                hrf: glassSelections[0].features.hrf,
+                isOE: glassSelections[0].features.isOE
+              } : {
+                sensor: false,
+                devapour: false,
+                vinNotch: false,
+                hrf: false,
+                isOE: false
+              },
+              vrn: vehicleDetails.vrn  // Add VRN directly to the initial payload
             };
-          }
-          
-          const responseText = await apiResponse.text();
-          console.log(`API Response Status for ${depotCode}: ${apiResponse.status}`);
-          
-          // Try to parse the response as JSON
-          try {
-            const result = JSON.parse(responseText);
-            if (result.success && result.priceRecords && result.priceRecords.length > 0) {
-              console.log(`Retrieved ${result.priceRecords.length} products from depot ${depotCode}`);
-              // Add depot information to each price record
-              const recordsWithDepot = result.priceRecords.map((record: any) => ({
-                ...record,
-                DepotCode: depotCode,
-                DepotName: availableDepots.find(d => d.DepotCode === depotCode)?.DepotName || depotCode
-              }));
-              allResults = [...allResults, ...recordsWithDepot];
-              successfulDepots.push(depotCode);
-              return { success: true, depot: depotCode };
+            
+            console.log("DEBUG - API request payload with VRN:", JSON.stringify(requestPayload));
+            
+            const apiResponse = await fetch(getApiUrl('/api/stock-query'), {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                ...requestPayload
+              })
+            });
+            
+            if (apiResponse.ok) {
+              const apiResult = await apiResponse.json();
+              console.log(`API response for depot ${depotCode}:`, apiResult);
+              
+              if (apiResult.success && apiResult.priceRecords && apiResult.priceRecords.length > 0) {
+                // Convert the price records to our quote format
+                const depotQuotes = apiResult.priceRecords.map((record: any) => {
+                  // Determine if it's OEM or OEE based on price/description
+                  const isOEM = record.Description?.includes('OEM') || 
+                                record.PriceInfo?.includes('OEM') || 
+                                record.Price > 250;
+                  
+                  // Create an appropriate quote label
+                  let label = isOEM ? 'OEM' : 'OEE';
+                  
+                  // Create the company description
+                  const company = record.Description || 
+                    `${label} ${vehicleDetails.make} ${vehicleDetails.model} Glass`;
+                  
+                  // Create the features array
+                  const featuresList = [];
+                  
+                  // Add PriceInfo as a feature if available
+                  if (record.PriceInfo) {
+                    featuresList.push(record.PriceInfo);
+                  }
+                  
+                  // Add Description as a feature if available and different from company name
+                  if (record.Description && record.Description !== company) {
+                    featuresList.push(record.Description);
+                  }
+                  
+                  // Add the vehicle info
+                  featuresList.push(`${vehicleDetails.make} ${vehicleDetails.model} (${vehicleDetails.year})`);
+                  
+                  console.log(`Adding quote with ARGIC: ${record.ArgicCode}`);
+                  
+                  return {
+                    company,
+                    price: record.Price,
+                    estimatedTimeDelivery: record.Qty > 5 ? "1-2 days" : "3-5 days",
+                    estimatedTimePickup: `Available Qty: ${record.Qty}`,
+                    argicCode: record.ArgicCode,
+                    magCode: record.MagCode,
+                    availability: record.Qty > 0 ? "In Stock" : "Out of Stock",
+                    features: featuresList,
+                    totalAvailable: record.Qty || 0,
+                    depotCode: depotCode,
+                    depotName: depotName
+                  };
+                });
+                
+                allApiQuotes = [...allApiQuotes, ...depotQuotes];
+                apiCallSucceeded = true;
+                console.log(`Added ${depotQuotes.length} quotes from depot ${depotCode}`);
+              }
             } else {
-              console.log(`No products found at depot ${depotCode}`);
-              failedDepots.push(depotCode);
-              return { success: false, depot: depotCode };
+              console.error(`API call failed for depot ${depotCode}: ${apiResponse.status} ${apiResponse.statusText}`);
             }
-          } catch (jsonError) {
-            console.error(`Failed to parse API response for depot ${depotCode}:`, jsonError);
-            failedDepots.push(depotCode);
-            return { success: false, depot: depotCode, error: jsonError };
+          } catch (depotError) {
+            console.error(`Error querying depot ${depotCode}:`, depotError);
           }
-        } catch (error) {
-          console.error(`Error during API call for depot ${depotCode}:`, error);
-          failedDepots.push(depotCode);
-          return { success: false, depot: depotCode, error };
         }
-      });
-      
-      // Wait for all depot queries to complete
-      const results = await Promise.all(depotQueries);
-      
-      // Check if all depot queries failed with the same error (e.g., all 404s)
-      const allFailed = results.every(result => !result.success);
-      
-      // Log errors for debugging
-      console.log("Query results:", results);
-      
-      // Check specifically for 404 errors which indicate endpoint is missing
-      const failedWith404 = results.filter(result => 
-        result.error && typeof result.error === 'string' && result.error.includes('404')
-      );
-      
-      console.log(`All failed: ${allFailed}, Failed with 404: ${failedWith404.length}/${results.length}`);
-      
-      // If most requests failed with 404, assume API endpoint is not available
-      if (allFailed && failedWith404.length > 0) {
-        // Special error message for missing API endpoint
-        toast({
-          title: "API Endpoint Not Found",
-          description: "Using mock data for demonstration purposes. In production, connect to a proper API endpoint.",
-          variant: "default",
-        });
         
-        // Generate mock data for demonstration
-        const mockData = generateMockDataForDepots(selectedDepots, vehicleDetails);
-        
-        setQuotes(mockData);
-        setShowQuotes(true);
-        setLoading(false);
-        return true;
-      }
-      
-      if (allResults.length > 0) {
-        console.log(`Retrieved a total of ${allResults.length} products from all depots`);
-        
-        // Convert the combined API price records to quotes
-        const apiQuotes: CompanyQuote[] = allResults.map((record: any, index: number) => {
-          // Determine if it's OEM or OEE based on price/description
-          const isOEM = record.Description?.includes('OEM') || 
-                        record.PriceInfo?.includes('OEM') || 
-                        record.MagCode?.includes('-OE') ||
-                        record.Price > 150;
-                          
-          // Create an appropriate quote label
-          let label = isOEM ? 'OEM' : 'OEE';
-          
-          // Add glass type based on selections
-          const glassTypes = glassSelections.map(s => {
-            let name = s.type;
-            if (s.type === 'Windscreen') name = "Windscreen (Front)";
-            if (s.type === 'rear-window') name = "Rear Window";
-            if (s.type === 'driver-front') name = "Driver's Front Window";
-            if (s.type === 'passenger-front') name = "Passenger's Front Window";
-            if (s.type === 'driver-rear') name = "Driver's Rear Window";
-            if (s.type === 'passenger-rear') name = "Passenger's Rear Window";
-            return `${name} x${s.quantity}`;
-          });
-          
-          // Create the company description combining the product details
-          const company = record.Description ? 
-            `${label} ${record.Description}` : 
-            `${label} ${record.Make || vehicleDetails.make} ${glassTypes.join(', ')}`;
-          
-          // Create the features array with more details
-          const featuresList = [];
-          if (record.Description) featuresList.push(record.Description);
-          if (record.PriceInfo) featuresList.push(record.PriceInfo);
-          
-          // Add depot information
-          featuresList.push(`Depot: ${record.DepotName}`);
-          
-          // Filter out any unwanted tags before creating the quote
-          const filteredFeatures = featuresList.filter(feature => 
-            !feature.includes('Aftermarket') && 
-            !feature.includes('Limited Stock') &&
-            feature.trim() !== ''
-          );
-          
-          return {
-            company,
-            price: record.Price,
-            estimatedTimeDelivery: record.Qty > 5 ? "1-2 days" : "3-5 days",
-            estimatedTimePickup: `Available Qty: ${record.Qty}`,
-            argicCode: record.ArgicCode,
-            magCode: record.MagCode,
-            availability: record.Qty > 0 ? "In Stock" : "Out of Stock",
-            features: filteredFeatures,
-            totalAvailable: record.Qty || 0,
-            depotCode: record.DepotCode,
-            depotName: record.DepotName
-          };
-        });
-        
-        setQuotes(apiQuotes);
-        setShowQuotes(true);
-        
-        // Show a toast with information about successful and failed depot queries
-        if (failedDepots.length > 0) {
-          toast({
-            title: "Partial Results",
-            description: `Found ${apiQuotes.length} glass options from ${successfulDepots.length} depots. ${failedDepots.length} depots returned no results.`,
-            variant: "default",
-          });
-        } else {
+        if (allApiQuotes.length > 0) {
+          setQuotes(allApiQuotes);
+          setShowQuotes(true);
           toast({
             title: "Quote Request Successful",
-            description: `Found ${apiQuotes.length} glass options across ${successfulDepots.length} depots`,
+            description: `Found ${allApiQuotes.length} glass options`,
           });
+          setLoading(false);
+          return true;
+        } else {
+          // API call succeeded but returned no results, or failed entirely
+          console.log("No results from API, falling back to mock data");
+          
+          toast({
+            title: apiCallSucceeded ? "No Products Found" : "API Connection Issue",
+            description: "Using sample data for demonstration purposes",
+            variant: "default",
+          });
+          
+          const mockData = await generateMockDataForDepots(selectedDepots, vehicleDetails);
+          setQuotes(mockData);
+          setShowQuotes(true);
+          setLoading(false);
+          return true;
         }
-        
-        return true;
-      } else {
-        // No results from any depot
-        toast({
-          title: "No Products Found",
-          description: "No glass products found for your vehicle at any of the selected depots. Please check your details or try different depots.",
-          variant: "destructive",
-        });
-        
-        setLoading(false);
-        return false;
+      } catch (directApiError) {
+        console.error("Error using direct API query:", directApiError);
+        // Continue with the original logic as fallback
       }
     } catch (error) {
       console.error("Error during API calls:", error);
@@ -879,7 +715,7 @@ const PriceLookup = () => {
       const depotToCheck = depotCode || selectedDepots[0] || '';
       
       // Call our new API endpoint with depot included
-      const response = await fetch(`/api/glass-availability?argicCode=${argicCode}&quantity=1&depot=${encodeURIComponent(depotToCheck)}`);
+      const response = await fetch(getApiUrl(`/api/glass-availability?argicCode=${argicCode}&quantity=1&depot=${encodeURIComponent(depotToCheck)}`));
       
       if (!response.ok) {
         throw new Error(`API request failed with status ${response.status}`);
@@ -949,19 +785,22 @@ const PriceLookup = () => {
   };
 
   // Helper function to generate mock data for demonstration purposes when API is unavailable
-  const generateMockDataForDepots = (depots: string[], vehicleInfo: VehicleDetails): CompanyQuote[] => {
+  const generateMockDataForDepots = async (depots: string[], vehicleInfo: VehicleDetails): Promise<CompanyQuote[]> => {
     // Create mock data entries for each selected depot
     const mockQuotes: CompanyQuote[] = [];
     
-    // If we have a real ARGIC code, use it - otherwise create a mock one
-    const hasRealArgic = !!vehicleInfo.argicCode && !vehicleInfo.argicCode.startsWith('MOCK-');
+    // Always use the real ARGIC code from vehicle info if available
+    // This is crucial for correct display
+    let realArgicCode = vehicleInfo.argicCode || "";
     
-    // Use the real ARGIC code if available, otherwise create a base mock one
-    const baseArgicCode = hasRealArgic 
-      ? vehicleInfo.argicCode 
-      : `MOCK-${vehicleInfo.make.substring(0, 3)}-${vehicleInfo.model.substring(0, 3)}`;
+    console.log("MOCK DATA GENERATION - Using ARGIC code:", realArgicCode);
+    console.log("Vehicle Info:", JSON.stringify(vehicleInfo));
     
-    console.log(`Using ${hasRealArgic ? 'real' : 'mock'} ARGIC code: ${baseArgicCode}`);
+    // If we still don't have a real ARGIC code after all, create a fallback mock
+    if (!realArgicCode) {
+      realArgicCode = `${vehicleInfo.make.substring(0, 3).toUpperCase()}${vehicleInfo.model.substring(0, 3).toUpperCase()}${vehicleInfo.year.substring(2)}`;
+      console.log(`Created fallback mock ARGIC code: ${realArgicCode}`);
+    }
     
     depots.forEach(depotCode => {
       const depotName = availableDepots.find(d => d.DepotCode === depotCode)?.DepotName || depotCode;
@@ -973,23 +812,21 @@ const PriceLookup = () => {
         const basePrice = 180 + (index * 60) + (Math.random() * 40);
         const qty = Math.floor(Math.random() * 15);
         
-        // If we have a real ARGIC code, use a variant of it for different glass types
-        // Otherwise use the mock format
-        const argicCode = hasRealArgic 
-          ? `${baseArgicCode}${index > 0 ? `-${index}` : ''}` 
-          : `${baseArgicCode}-${index}`;
+        // Create variants of the ARGIC code for different glass types
+        const variantArgicCode = index > 0 ? `${realArgicCode}-${index}` : realArgicCode;
         
         mockQuotes.push({
           company: `${type} Glass - ${vehicleInfo.make} ${vehicleInfo.model}`,
           price: parseFloat(basePrice.toFixed(2)),
           estimatedTimeDelivery: qty > 5 ? "1-2 days" : "3-5 days",
           estimatedTimePickup: `Available Qty: ${qty}`,
-          argicCode: argicCode,
-          magCode: `MAG-${vehicleInfo.model.substring(0, 3)}-${index}`,
+          argicCode: variantArgicCode,
+          magCode: `MAG-${realArgicCode.substring(0, 4)}-${index}`,
           availability: qty > 0 ? "In Stock" : "Out of Stock",
           features: [
             type === 'OEM Quality' ? 'Original Equipment Manufacturer' : '',
             `${vehicleInfo.make} ${vehicleInfo.model} (${vehicleInfo.year})`,
+            `ARGIC: ${realArgicCode.substring(0, 4)}`,
           ].filter(feature => feature !== ''), // Remove empty strings
           totalAvailable: qty,
           depotCode: depotCode,
@@ -1187,8 +1024,37 @@ const PriceLookup = () => {
         ) : (
           <div className="animate-fadeIn">
             <div className="mb-8">
-              <h1 className="text-3xl font-bold text-[#135084]">Glass Order Quote</h1>
-              <p className="mt-2 text-gray-600">Get instant quotes for your vehicle glass needs</p>
+              <div className="flex justify-between items-start">
+                <div>
+                  <h1 className="text-3xl font-bold text-[#135084]">Glass Order Quote</h1>
+                  <p className="mt-2 text-gray-600">Get instant quotes for your vehicle glass needs</p>
+                </div>
+                
+                {/* MAG User Status */}
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${magUser?.isAuthenticated ? 'bg-green-500' : 'bg-orange-500'}`}></div>
+                      <span className="text-sm font-medium text-gray-700">
+                        {magUser?.isAuthenticated ? 'MAG Account' : 'Guest Mode'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {magUser?.email}
+                    </p>
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={logoutMAG}
+                    className="border-[#145484] text-[#145484] hover:bg-[#145484] hover:text-white"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Logout
+                  </Button>
+                </div>
+              </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -1262,11 +1128,6 @@ const PriceLookup = () => {
                           {vehicleDetails.transmission && (
                             <div>
                               <span className="font-medium">Trans:</span> {vehicleDetails.transmission}
-                            </div>
-                          )}
-                          {vehicleDetails.argicCode && (
-                            <div className="col-span-2">
-                              <span className="font-medium">Argic Code:</span> {vehicleDetails.argicCode}
                             </div>
                           )}
                         </div>
@@ -1396,20 +1257,21 @@ const PriceLookup = () => {
                                     : quote.totalAvailable > 0 
                                       ? `${quote.totalAvailable} in stock` 
                                       : 'Out of Stock'}
-                            </div>
+                                </div>
                               )}
-                          </div>
+                              {/* Add depot display with different color */}
+                              {quote.depotName && (
+                                <div className="text-sm font-medium text-purple-600 mt-1">
+                                  Depot: {quote.depotName}
+                                </div>
+                              )}
+                            </div>
                           </div>
                           
                           {/* Enhanced glass details */}
                           <div className="mb-4 space-y-2">
                             <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <span>{quote.estimatedTimePickup}</span>
-                              {quote.depotName && (
-                                <span className="bg-[#135084]/10 text-[#135084] px-2 py-0.5 rounded-full text-xs ml-auto">
-                                  Depot: {quote.depotName}
-                                </span>
-                              )}
+                              <span>{quote.estimatedTimePickup}</span>
                             </div>
                             
                             {quote.features && quote.features.length > 0 && (
@@ -1421,27 +1283,20 @@ const PriceLookup = () => {
                                 ))}
                               </div>
                             )}
-                            
-                            <div className="flex items-center gap-2 text-sm">
-                            {quote.argicCode && (
-                                <div className="flex items-center gap-1 text-gray-600">
-                                  <span className="font-medium">ARGIC:</span>
-                                <span>{quote.argicCode}</span>
-                                </div>
-                              )}
-                              
-                              {quote.magCode && (
-                                <div className="flex items-center gap-1 text-gray-600">
-                                  <span className="font-medium">MAG:</span>
-                                  <span>{quote.magCode}</span>
-                                </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
+                            <span className="font-medium">Vehicle:</span>
+                            <div className="flex items-center flex-wrap">
+                              <span>{`${vehicleDetails.make} ${vehicleDetails.model} (${vehicleDetails.year})`}</span>
+                              {quote.argicCode && (
+                                <span className="bg-[#135084]/10 px-2 py-0.5 rounded font-medium text-[#135084] ml-2">
+                                  {quote.argicCode.length > 4 
+                                    ? quote.argicCode.substring(0, 4) 
+                                    : quote.argicCode}
+                                </span>
                               )}
                             </div>
-                          </div>
-                        
-                          <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
-                            <span>Vehicle:</span>
-                            <span>{`${vehicleDetails.make} ${vehicleDetails.model} (${vehicleDetails.year})`}</span>
                           </div>
                         
                           <Button 
@@ -1484,8 +1339,6 @@ const PriceLookup = () => {
                                   {selection.type === 'passenger-front' && "Passenger's Front Window"}
                                   {selection.type === 'driver-rear' && "Driver's Rear Window"}
                                   {selection.type === 'passenger-rear' && "Passenger's Rear Window"}
-                                  {selection.type === 'sunroof' && 'Sunroof'}
-                                  {selection.type === 'quarter-glass' && 'Quarter Glass'}
                                 </p>
                               </div>
                               <span className="text-[#135084] font-medium">
@@ -1515,6 +1368,20 @@ const PriceLookup = () => {
                             <p className="font-medium">Vehicle Registration:</p>
                             <span className="text-[#135084] font-semibold">{vrn}</span>
                           </div>
+                          <div className="flex items-start justify-between">
+                            <p className="font-medium mt-1">Vehicle:</p>
+                            <div className="text-right flex items-center flex-wrap justify-end">
+                              <span className="text-[#135084] font-semibold">{`${vehicleDetails.make} ${vehicleDetails.model} (${vehicleDetails.year})`}</span>
+                              {selectedQuote && selectedQuote.argicCode && (
+                                <span className="bg-[#135084]/10 px-2 py-0.5 rounded font-medium text-[#135084] ml-2 mt-1">
+                                  {selectedQuote.argicCode.length > 4 
+                                    ? selectedQuote.argicCode.substring(0, 4) 
+                                    : selectedQuote.argicCode}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          
                           <div className="flex justify-between items-center">
                             <p className="font-medium">Selected Depots:</p>
                             <span className="text-[#135084] font-semibold">
@@ -1553,27 +1420,6 @@ const PriceLookup = () => {
                             <span className="text-[#135084] font-semibold">{selectedQuote.estimatedTimeDelivery}</span>
                           </div>
                           
-                          {/* Display product codes */}
-                          {(selectedQuote.argicCode || selectedQuote.magCode) && (
-                            <div className="border-t border-[#135084]/10 pt-3 mt-3">
-                              <p className="font-medium mb-2">Product Codes:</p>
-                              <div className="grid grid-cols-2 gap-2 text-sm">
-                                {selectedQuote.argicCode && (
-                                  <div className="flex items-center gap-1">
-                                    <span className="font-medium">ARGIC:</span>
-                                    <span>{selectedQuote.argicCode}</span>
-                                  </div>
-                                )}
-                                {selectedQuote.magCode && (
-                                  <div className="flex items-center gap-1">
-                                    <span className="font-medium">MAG:</span>
-                                    <span>{selectedQuote.magCode}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                          
                           {/* Display features if available */}
                           {selectedQuote.features && selectedQuote.features.length > 0 && (
                             <div className="border-t border-[#135084]/10 pt-3 mt-3">
@@ -1605,6 +1451,19 @@ const PriceLookup = () => {
                                     </div>
                                   </div>
                                 ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Display product codes */}
+                          {selectedQuote?.argicCode && (
+                            <div className="border-t border-[#135084]/10 pt-3 mt-3">
+                              <div className="flex items-center justify-center">
+                                <span className="bg-[#135084]/20 px-3 py-1 rounded font-semibold text-[#135084]">
+                                  {selectedQuote.argicCode.length > 4 
+                                    ? selectedQuote.argicCode.substring(0, 4) 
+                                    : selectedQuote.argicCode}
+                                </span>
                               </div>
                             </div>
                           )}
@@ -1650,6 +1509,43 @@ const PriceLookup = () => {
       </div>
     </DashboardLayout>
   );
+};
+
+// Main component that handles MAG authentication
+const PriceLookup = () => {
+  return (
+    <MAGAuthProvider>
+      <PriceLookupWithAuth />
+    </MAGAuthProvider>
+  );
+};
+
+// Component that shows either MAG login or the main content
+const PriceLookupWithAuth = () => {
+  const { magUser, loginWithMAG, continueAsGuest } = useMAGAuth();
+
+  // If user hasn't authenticated with MAG yet, show login form
+  if (!magUser) {
+    return (
+      <DashboardLayout>
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <MAGLoginForm
+            onLoginSuccess={async (credentials) => {
+              try {
+                await loginWithMAG(credentials);
+              } catch (error) {
+                console.error('Login failed:', error);
+              }
+            }}
+            onContinueAsGuest={continueAsGuest}
+          />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Show main content with MAG user status
+  return <PriceLookupContent />;
 };
 
 export default PriceLookup;
