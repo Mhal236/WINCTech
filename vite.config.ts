@@ -21,6 +21,20 @@ export default defineConfig(({ mode }) => {
   console.log('VITE_VEHICLE_API_KEY:', env.VITE_VEHICLE_API_KEY ? '[hidden for security]' : 'not defined');
 
   return {
+    base: './',
+    build: {
+      outDir: 'dist',
+      assetsDir: 'assets',
+      sourcemap: false,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vendor: ['react', 'react-dom'],
+            router: ['react-router-dom']
+          }
+        }
+      }
+    },
     server: {
       host: "::",
       port: 8080,

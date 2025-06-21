@@ -2,12 +2,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Suspense, lazy, useState, useEffect } from "react";
 import { DebugInfo } from "@/components/DebugInfo";
+import { AnimatePresence } from "framer-motion";
 
 // Eager load critical pages
 import Login from "./pages/Login";
@@ -80,6 +81,84 @@ function ErrorFallback() {
 
 const queryClient = new QueryClient();
 
+// Add AnimatedRoutes component to handle location-based animations
+const AnimatedRoutes = () => {
+  const location = useLocation();
+  const { isLoading, user } = useAuth();
+  
+  // Prevent route changes during auth loading to avoid flashing
+  if (isLoading) {
+    return <LoadingFallback />;
+  }
+  
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        {/* Public Routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/404" element={<NotFound />} />
+        
+        {/* Basic Protected Route */}
+        <Route path="/" element={
+          <ProtectedRoute>
+            <Index />
+          </ProtectedRoute>
+        } />
+
+        {/* Settings - Available to all authenticated users */}
+        <Route path="/settings" element={
+          <ProtectedRoute>
+            <Settings />
+          </ProtectedRoute>
+        } />
+        
+        {/* Admin-only routes */}
+        <Route path="/job-swipe" element={
+          <ProtectedRoute requiredRole="admin">
+            <JobSwipe />
+          </ProtectedRoute>
+        } />
+        <Route path="/calendar" element={
+          <ProtectedRoute requiredRole="admin">
+            <Calendar />
+          </ProtectedRoute>
+        } />
+        
+        {/* Premium features - require higher subscription level (for now admin) */}
+        <Route path="/price-lookup" element={
+          <ProtectedRoute requiredRole="admin">
+            <PriceLookup />
+          </ProtectedRoute>
+        } />
+        <Route path="/glass-search" element={
+          <ProtectedRoute requiredRole="admin">
+            <Glass />
+          </ProtectedRoute>
+        } />
+        <Route path="/history" element={
+          <ProtectedRoute requiredRole="admin">
+            <History />
+          </ProtectedRoute>
+        } />
+        <Route path="/reporting" element={
+          <ProtectedRoute requiredRole="admin">
+            <Reporting />
+          </ProtectedRoute>
+        } />
+        <Route path="/contact" element={
+          <ProtectedRoute>
+            <Contact />
+          </ProtectedRoute>
+        } />
+        
+        {/* Catch all route */}
+        <Route path="*" element={<Navigate to="/404" replace />} />
+      </Routes>
+    </AnimatePresence>
+  );
+};
+
 const App = () => {
   const [error, setError] = useState<Error | null>(null);
 
@@ -115,73 +194,12 @@ const App = () => {
               <Sonner />
               <Router>
                 <Suspense fallback={<LoadingFallback />}>
-                  <Routes>
-                    {/* Public Routes */}
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/signup" element={<Signup />} />
-                    <Route path="/404" element={<NotFound />} />
-                    
-                    {/* Basic Protected Route */}
-                    <Route path="/" element={
-                      <ProtectedRoute>
-                        <Index />
-                      </ProtectedRoute>
-                    } />
-
-                    {/* Settings - Available to all authenticated users */}
-                    <Route path="/settings" element={
-                      <ProtectedRoute>
-                        <Settings />
-                      </ProtectedRoute>
-                    } />
-                    
-                    {/* Admin-only routes */}
-                    <Route path="/job-swipe" element={
-                      <ProtectedRoute requiredRole="admin">
-                        <JobSwipe />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/calendar" element={
-                      <ProtectedRoute requiredRole="admin">
-                        <Calendar />
-                      </ProtectedRoute>
-                    } />
-                    
-                    {/* Premium features - require higher subscription level (for now admin) */}
-                    <Route path="/price-lookup" element={
-                      <ProtectedRoute requiredRole="admin">
-                        <PriceLookup />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/glass-search" element={
-                      <ProtectedRoute requiredRole="admin">
-                        <Glass />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/history" element={
-                      <ProtectedRoute requiredRole="admin">
-                        <History />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/reporting" element={
-                      <ProtectedRoute requiredRole="admin">
-                        <Reporting />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/contact" element={
-                      <ProtectedRoute>
-                        <Contact />
-                      </ProtectedRoute>
-                    } />
-                    
-                    {/* Catch all route */}
-                    <Route path="*" element={<Navigate to="/404" replace />} />
-                  </Routes>
+                  <AnimatedRoutes />
                 </Suspense>
+                
+                {/* Debug info overlay - only shown in development - moved inside Router */}
+                <DebugInfo />
               </Router>
-              
-              {/* Debug info overlay - only shown in development */}
-              <DebugInfo />
             </div>
           </SidebarProvider>
         </TooltipProvider>
