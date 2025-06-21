@@ -37,7 +37,7 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
 
   // Define navigation items with their required roles - organized like Calendly
   const navigation = [
-    { name: "Dashboard", href: "/", icon: Home, requiredRole: "user" },
+    { name: "Home", href: "/", icon: Home, requiredRole: "user" },
     { name: "Jobs", href: "/job-swipe", icon: Briefcase, requiredRole: "admin" },
     { name: "Calendar", href: "/calendar", icon: Calendar, requiredRole: "admin" },
   ];

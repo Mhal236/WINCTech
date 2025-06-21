@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const safetyTimeout = setTimeout(() => {
       console.log('🔴 Safety timeout triggered - forcing loading to false');
       setIsLoading(false);
-    }, 10000); // 10 second safety timeout
+    }, 10000);
 
     const getInitialSession = async () => {
       setIsLoading(true);
@@ -176,6 +176,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     getInitialSession();
 
+    // Debounce auth state changes to prevent rapid transitions
+    let authChangeTimeout: NodeJS.Timeout | null = null;
+    
     // Set up auth change listener
     let subscription = { unsubscribe: () => {} };
     try {
@@ -183,100 +186,108 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('🔵 Auth state changed:', event);
         console.log('🔵 Session exists:', !!session);
         
-        if (session?.user) {
-          console.log('🔵 Session user ID:', session.user.id);
-          console.log('🔵 Session user email:', session.user.email);
+        // Clear any pending auth change timeout
+        if (authChangeTimeout) {
+          clearTimeout(authChangeTimeout);
         }
         
-        try {
-          if (event === 'SIGNED_IN' && session?.user) {
-            console.log('🟢 Processing SIGNED_IN event...');
-            
-            const sessionUser = session.user;
-            
-            // Create basic user object
-            let userObject: User = {
-              id: sessionUser.id,
-              email: sessionUser.email || '',
-              name: (sessionUser as any)?.user_metadata?.full_name || sessionUser.email || 'User',
-              user_role: 'user'
-            };
-            
-            console.log('🔵 Basic user object created:', userObject);
+        // Debounce auth state changes to prevent flashing during navigation
+        authChangeTimeout = setTimeout(async () => {
+          if (session?.user) {
+            console.log('🔵 Session user ID:', session.user.id);
+            console.log('🔵 Session user email:', session.user.email);
+          }
           
-            // Try to fetch additional data from app_users table with timeout
-            try {
-              console.log('🔵 Querying app_users table for user:', sessionUser.id);
+          try {
+            if (event === 'SIGNED_IN' && session?.user) {
+              console.log('🟢 Processing SIGNED_IN event...');
               
-              const fetchPromise = supabase
-                .from('app_users')
-                .select('*')
-                .eq('id', sessionUser.id)
-                .single();
+              const sessionUser = session.user;
               
-              const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Database query timeout')), 3000)
-              );
+              // Create basic user object
+              let userObject: User = {
+                id: sessionUser.id,
+                email: sessionUser.email || '',
+                name: (sessionUser as any)?.user_metadata?.full_name || sessionUser.email || 'User',
+                user_role: 'user'
+              };
               
-              const { data: userData, error: dbError } = await Promise.race([
-                fetchPromise,
-                timeoutPromise
-              ]) as any;
-              
-              console.log('🔵 Database query result:', { hasUserData: !!userData, dbError: dbError?.message });
-              
-              if (userData && !dbError) {
-                console.log('🟢 Using database user data');
-                userObject = {
-                  id: userData.id,
-                  email: userData.email,
-                  name: userData.name,
-                  user_role: userData.user_role,
-                  verification_status: userData.verification_status,
-                  verification_form_data: userData.verification_form_data,
-                  submitted_at: userData.submitted_at,
-                  verified_at: userData.verified_at,
-                  verified_by: userData.verified_by,
-                  rejection_reason: userData.rejection_reason,
-                  credits: userData.credits
-                };
-              } else {
-                console.log('🔵 No database record found or timeout, using OAuth data');
-                // For OAuth users without database record, set as non-verified
+              console.log('🔵 Basic user object created:', userObject);
+            
+              // Try to fetch additional data from app_users table with timeout
+              try {
+                console.log('🔵 Querying app_users table for user:', sessionUser.id);
+                
+                const fetchPromise = supabase
+                  .from('app_users')
+                  .select('*')
+                  .eq('id', sessionUser.id)
+                  .single();
+                
+                const timeoutPromise = new Promise((_, reject) => 
+                  setTimeout(() => reject(new Error('Database query timeout')), 3000)
+                );
+                
+                const { data: userData, error: dbError } = await Promise.race([
+                  fetchPromise,
+                  timeoutPromise
+                ]) as any;
+                
+                console.log('🔵 Database query result:', { hasUserData: !!userData, dbError: dbError?.message });
+                
+                if (userData && !dbError) {
+                  console.log('🟢 Using database user data');
+                  userObject = {
+                    id: userData.id,
+                    email: userData.email,
+                    name: userData.name,
+                    user_role: userData.user_role,
+                    verification_status: userData.verification_status,
+                    verification_form_data: userData.verification_form_data,
+                    submitted_at: userData.submitted_at,
+                    verified_at: userData.verified_at,
+                    verified_by: userData.verified_by,
+                    rejection_reason: userData.rejection_reason,
+                    credits: userData.credits
+                  };
+                } else {
+                  console.log('🔵 No database record found or timeout, using OAuth data');
+                  // For OAuth users without database record, set as non-verified
+                  userObject.user_role = 'non-verified';
+                  userObject.verification_status = 'non-verified';
+                }
+              } catch (dbError) {
+                console.log('🔴 Database query failed:', dbError);
+                // Continue with basic user object
                 userObject.user_role = 'non-verified';
                 userObject.verification_status = 'non-verified';
               }
-            } catch (dbError) {
-              console.log('🔴 Database query failed:', dbError);
-              // Continue with basic user object
-              userObject.user_role = 'non-verified';
-              userObject.verification_status = 'non-verified';
+              
+              console.log('🟢 Final user object:', userObject);
+              console.log('🔵 Updating auth state...');
+              
+              setUser(userObject);
+              setSession(session);
+              
+              console.log('🟢 Auth state updated successfully');
+              
+            } else if (event === 'SIGNED_OUT') {
+              console.log('🔴 Processing SIGNED_OUT event...');
+              setUser(null);
+              setSession(null);
+            } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+              console.log('🔵 Processing TOKEN_REFRESHED event...');
+              // Don't clear the user state on token refresh, just update session
+              setSession(session);
             }
-            
-            console.log('🟢 Final user object:', userObject);
-            console.log('🔵 Updating auth state...');
-            
-            setUser(userObject);
-            setSession(session);
-            
-            console.log('🟢 Auth state updated successfully');
-            
-          } else if (event === 'SIGNED_OUT') {
-            console.log('🔴 Processing SIGNED_OUT event...');
-            setUser(null);
-            setSession(null);
-          } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-            console.log('🔵 Processing TOKEN_REFRESHED event...');
-            // Don't clear the user state on token refresh, just update session
-            setSession(session);
+          } catch (error) {
+            console.error('🔴 Error in auth state change handler:', error);
+          } finally {
+            // Always set loading to false after processing auth events
+            console.log('🔵 Setting loading to false after auth change');
+            setIsLoading(false);
           }
-        } catch (error) {
-          console.error('🔴 Error in auth state change handler:', error);
-        } finally {
-          // Always set loading to false after processing auth events
-          console.log('🔵 Setting loading to false after auth change');
-          setIsLoading(false);
-        }
+        }, 150); // 150ms debounce delay
       });
       
       if (authListener?.data?.subscription) {
@@ -291,6 +302,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Clean up auth listener on unmount
       try {
         clearTimeout(safetyTimeout);
+        if (authChangeTimeout) {
+          clearTimeout(authChangeTimeout);
+        }
         subscription.unsubscribe();
       } catch (error) {
         console.error('🔴 Error unsubscribing:', error);

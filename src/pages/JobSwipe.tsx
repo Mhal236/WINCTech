@@ -11,6 +11,7 @@ import 'leaflet-routing-machine';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { SlidePageTransition } from "@/components/PageTransition";
 
 // Add at the top of the file, after imports
 declare module 'leaflet' {
@@ -439,156 +440,158 @@ const JobSwipe = () => {
 
   return (
     <DashboardLayout>
-      <div className="h-[calc(100vh-6rem)] relative">
-        {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <p>Loading jobs...</p>
-          </div>
-        ) : (
-          <>
-            <MapContainer
-              center={userLocation || [51.5074, -0.1278]}
-              zoom={13}
-              style={{ height: '100%', width: '100%' }}
-              ref={mapRef as any}
-            >
-              <MapClickHandler onMapClick={handleMapClick} />
-              <MapComponent 
-                userLocation={userLocation} 
-                jobsData={jobs} 
-                handleMarkerClick={handleMarkerClick} 
-                isAccepted={isAccepted}
-                acceptedJob={acceptedJob}
-              />
-            </MapContainer>
+      <SlidePageTransition>
+        <div className="h-[calc(100vh-6rem)] relative">
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <p>Loading jobs...</p>
+            </div>
+          ) : (
+            <>
+              <MapContainer
+                center={userLocation || [51.5074, -0.1278]}
+                zoom={13}
+                style={{ height: '100%', width: '100%' }}
+                ref={mapRef as any}
+              >
+                <MapClickHandler onMapClick={handleMapClick} />
+                <MapComponent 
+                  userLocation={userLocation} 
+                  jobsData={jobs} 
+                  handleMarkerClick={handleMarkerClick} 
+                  isAccepted={isAccepted}
+                  acceptedJob={acceptedJob}
+                />
+              </MapContainer>
 
-            {/* Card with visibility and transition */}
-            <div className={`absolute bottom-24 sm:bottom-6 left-1/2 transform -translate-x-1/2 w-[90%] max-w-lg z-[1000] transition-all duration-300 ease-in-out ${
-              isCardVisible 
-                ? 'opacity-100 translate-y-0' 
-                : 'opacity-0 translate-y-8 pointer-events-none'
-            }`}>
-              <div className="bg-gradient-to-br from-white/95 to-white/75 backdrop-blur-xl rounded-2xl shadow-lg border border-white/20 overflow-hidden">
-                {/* Image Section - New */}
-                <div className="relative w-full h-32 bg-gradient-to-r from-gray-100 to-gray-200">
-                  {jobs[currentIndex].image_url ? (
-                    <img
-                      src={jobs[currentIndex].image_url}
-                      alt="Vehicle damage"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Car className="w-8 h-8 text-gray-400" />
-                    </div>
-                  )}
-                </div>
-
-                <div className="p-3.5">
-                  {/* Header Section */}
-                  <div className="flex justify-between items-start mb-2.5">
-                    <div>
-                      <h2 className="text-sm font-semibold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600">
-                        {getVehicleDisplay(jobs[currentIndex])}
-                      </h2>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="px-1.5 py-0.5 bg-gradient-to-r from-gray-100 to-gray-50 rounded-full text-[10px] font-medium text-gray-600">
-                          {jobs[currentIndex].vehicle_reg}
-                        </span>
-                        <span className="px-1.5 py-0.5 bg-gradient-to-r from-red-50 to-orange-50 rounded-full text-[10px] font-medium text-red-600">
-                          {jobs[currentIndex].covertype}
-                        </span>
+              {/* Card with visibility and transition */}
+              <div className={`absolute bottom-24 sm:bottom-6 left-1/2 transform -translate-x-1/2 w-[90%] max-w-lg z-[1000] transition-all duration-300 ease-in-out ${
+                isCardVisible 
+                  ? 'opacity-100 translate-y-0' 
+                  : 'opacity-0 translate-y-8 pointer-events-none'
+              }`}>
+                <div className="bg-gradient-to-br from-white/95 to-white/75 backdrop-blur-xl rounded-2xl shadow-lg border border-white/20 overflow-hidden">
+                  {/* Image Section - New */}
+                  <div className="relative w-full h-32 bg-gradient-to-r from-gray-100 to-gray-200">
+                    {jobs[currentIndex].image_url ? (
+                      <img
+                        src={jobs[currentIndex].image_url}
+                        alt="Vehicle damage"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Car className="w-8 h-8 text-gray-400" />
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-600 to-red-500">
-                        {jobs[currentIndex]?.quote_price 
-                          ? formatPrice(jobs[currentIndex].quote_price)
-                          : 'Quote Required'}
-                      </p>
-                    </div>
+                    )}
                   </div>
 
-                  {/* Info Grid */}
-                  <div className="grid grid-cols-2 gap-1.5 mb-2.5">
-                    {[
-                      { icon: User, text: `${jobs[currentIndex]?.full_name}` },
-                      { 
-                        icon: MapPin, 
-                        text: jobs[currentIndex].area || 'Location not available',
-                        className: 'text-gray-500'
-                      },
-                      { 
-                        icon: Info, 
-                        text: jobs[currentIndex].damaged_windows || 'Front Windscreen',
-                        className: 'text-amber-600'
-                      },
-                      { 
-                        icon: Clock, 
-                        text: jobs[currentIndex].timeline || 'Today',
-                        className: 'text-blue-600'
-                      }
-                    ].map((item, index) => (
-                      <div key={index} 
-                        className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-gradient-to-br from-gray-50/50 to-transparent backdrop-blur-sm border border-white/20"
-                      >
-                        <item.icon className={`w-3 h-3 flex-shrink-0 ${item.className || 'text-gray-500'}`} />
-                        <span className="text-[11px] font-medium text-gray-700 truncate">
-                          {item.text}
-                        </span>
+                  <div className="p-3.5">
+                    {/* Header Section */}
+                    <div className="flex justify-between items-start mb-2.5">
+                      <div>
+                        <h2 className="text-sm font-semibold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600">
+                          {getVehicleDisplay(jobs[currentIndex])}
+                        </h2>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="px-1.5 py-0.5 bg-gradient-to-r from-gray-100 to-gray-50 rounded-full text-[10px] font-medium text-gray-600">
+                            {jobs[currentIndex].vehicle_reg}
+                          </span>
+                          <span className="px-1.5 py-0.5 bg-gradient-to-r from-red-50 to-orange-50 rounded-full text-[10px] font-medium text-red-600">
+                            {jobs[currentIndex].covertype}
+                          </span>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-
-                  {/* Actions Section */}
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/20">
-                    <div className="flex gap-0.5">
-                      <Button
-                        onClick={() => setCurrentIndex((prev) => (prev > 0 ? prev - 1 : prev))}
-                        disabled={currentIndex === 0}
-                        variant="ghost"
-                        size="sm"
-                        className="h-9 w-7 text-gray-600 hover:text-gray-900 hover:bg-white/30 disabled:opacity-40"
-                      >
-                        ←
-                      </Button>
-                      <Button
-                        onClick={() => setCurrentIndex((prev) => (prev < jobs.length - 1 ? prev + 1 : prev))}
-                        disabled={currentIndex === jobs.length - 1}
-                        variant="ghost"
-                        size="sm"
-                        className="h-9 w-7 text-gray-600 hover:text-gray-900 hover:bg-white/30 disabled:opacity-40"
-                      >
-                        →
-                      </Button>
+                      <div className="text-right">
+                        <p className="text-sm font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-600 to-red-500">
+                          {jobs[currentIndex]?.quote_price 
+                            ? formatPrice(jobs[currentIndex].quote_price)
+                            : 'Quote Required'}
+                        </p>
+                      </div>
                     </div>
-                    
-                    <div className="flex gap-1.5 flex-1">
-                      <Button 
-                        onClick={handleAcceptJob}
-                        className={`h-9 flex-1 text-xs font-medium rounded-lg transition-all duration-300 ${
-                          isAccepted 
-                            ? 'bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-700 hover:to-sky-600 text-white shadow-lg shadow-blue-500/20'
-                            : 'bg-gradient-to-r from-red-600 to-rose-500 hover:from-red-700 hover:to-rose-600 text-white shadow-lg shadow-red-500/20'
-                        }`}
-                        disabled={isAccepted}
-                      >
-                        {isAccepted ? '✓ Accepted' : 'Accept Job'}
-                      </Button>
-                      <Button
-                        onClick={openGoogleMapsDirections}
-                        className="h-9 w-9 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-lg shadow-lg shadow-blue-500/20 transition-all duration-300 flex items-center justify-center"
-                      >
-                        <MapPin className="w-4 h-4" />
-                      </Button>
+
+                    {/* Info Grid */}
+                    <div className="grid grid-cols-2 gap-1.5 mb-2.5">
+                      {[
+                        { icon: User, text: `${jobs[currentIndex]?.full_name}` },
+                        { 
+                          icon: MapPin, 
+                          text: jobs[currentIndex].area || 'Location not available',
+                          className: 'text-gray-500'
+                        },
+                        { 
+                          icon: Info, 
+                          text: jobs[currentIndex].damaged_windows || 'Front Windscreen',
+                          className: 'text-amber-600'
+                        },
+                        { 
+                          icon: Clock, 
+                          text: jobs[currentIndex].timeline || 'Today',
+                          className: 'text-blue-600'
+                        }
+                      ].map((item, index) => (
+                        <div key={index} 
+                          className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-gradient-to-br from-gray-50/50 to-transparent backdrop-blur-sm border border-white/20"
+                        >
+                          <item.icon className={`w-3 h-3 flex-shrink-0 ${item.className || 'text-gray-500'}`} />
+                          <span className="text-[11px] font-medium text-gray-700 truncate">
+                            {item.text}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Actions Section */}
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/20">
+                      <div className="flex gap-0.5">
+                        <Button
+                          onClick={() => setCurrentIndex((prev) => (prev > 0 ? prev - 1 : prev))}
+                          disabled={currentIndex === 0}
+                          variant="ghost"
+                          size="sm"
+                          className="h-9 w-7 text-gray-600 hover:text-gray-900 hover:bg-white/30 disabled:opacity-40"
+                        >
+                          ←
+                        </Button>
+                        <Button
+                          onClick={() => setCurrentIndex((prev) => (prev < jobs.length - 1 ? prev + 1 : prev))}
+                          disabled={currentIndex === jobs.length - 1}
+                          variant="ghost"
+                          size="sm"
+                          className="h-9 w-7 text-gray-600 hover:text-gray-900 hover:bg-white/30 disabled:opacity-40"
+                        >
+                          →
+                        </Button>
+                      </div>
+                      
+                      <div className="flex gap-1.5 flex-1">
+                        <Button 
+                          onClick={handleAcceptJob}
+                          className={`h-9 flex-1 text-xs font-medium rounded-lg transition-all duration-300 ${
+                            isAccepted 
+                              ? 'bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-700 hover:to-sky-600 text-white shadow-lg shadow-blue-500/20'
+                              : 'bg-gradient-to-r from-red-600 to-rose-500 hover:from-red-700 hover:to-rose-600 text-white shadow-lg shadow-red-500/20'
+                          }`}
+                          disabled={isAccepted}
+                        >
+                          {isAccepted ? '✓ Accepted' : 'Accept Job'}
+                        </Button>
+                        <Button
+                          onClick={openGoogleMapsDirections}
+                          className="h-9 w-9 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-lg shadow-lg shadow-blue-500/20 transition-all duration-300 flex items-center justify-center"
+                        >
+                          <MapPin className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </>
-        )}
-      </div>
+            </>
+          )}
+        </div>
+      </SlidePageTransition>
     </DashboardLayout>
   );
 };

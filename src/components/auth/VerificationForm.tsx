@@ -131,9 +131,15 @@ export function VerificationForm() {
         return;
       }
 
+      // Add a minimum delay to prevent flashing on fast page transitions
+      const minDelay = new Promise(resolve => setTimeout(resolve, 300));
+
       try {
         console.log('🔵 Checking for existing application for user:', user.id);
         const { data: application, error } = await getApplicationByUserId(user.id);
+        
+        // Wait for minimum delay to prevent flashing
+        await minDelay;
         
         if (application) {
           console.log('🟢 Found existing application:', application);
@@ -144,12 +150,17 @@ export function VerificationForm() {
         }
       } catch (error) {
         console.error('🔴 Error checking for existing application:', error);
+        // Wait for minimum delay even on error
+        await minDelay;
       } finally {
         setIsCheckingApplication(false);
       }
     };
 
-    checkExistingApplication();
+    // Add a debounce to prevent rapid re-checking during page transitions
+    const debounceTimer = setTimeout(checkExistingApplication, 100);
+    
+    return () => clearTimeout(debounceTimer);
   }, [user?.id]);
 
   const [formData, setFormData] = useState<VerificationFormData>({
@@ -320,14 +331,18 @@ export function VerificationForm() {
     }
   };
 
-  // Show loading while checking for existing application
+  // Show a more elegant loading state
   if (isCheckingApplication) {
     return (
       <div className="max-w-2xl mx-auto p-6">
         <Card className="border-0 shadow-lg">
           <CardContent className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Checking application status...</p>
+            <div className="flex flex-col items-center space-y-4">
+              <div className="w-12 h-12 bg-[#135084]/10 rounded-full flex items-center justify-center">
+                <div className="animate-spin rounded-full h-6 w-6 border-2 border-[#135084] border-t-transparent"></div>
+              </div>
+              <p className="text-gray-600 font-medium">Loading verification status...</p>
+            </div>
           </CardContent>
         </Card>
       </div>

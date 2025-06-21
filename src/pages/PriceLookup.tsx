@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MAGAuthProvider, useMAGAuth } from "@/contexts/MAGAuthContext";
 import { MAGLoginForm } from "@/components/auth/MAGLoginForm";
+import { PageTransition, ModalPageTransition } from "@/components/PageTransition";
 
 // Add interface for glass features
 interface GlassFeatures {
@@ -1006,507 +1007,509 @@ const PriceLookupContent = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
-        {isScheduleTab ? (
-          <div className="max-w-4xl mx-auto">
-            <div className="mb-8">
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-[#135084] to-[#135084]/70 bg-clip-text text-transparent animate-fadeIn">
-                Schedule Professional Service
-              </h1>
-              <p className="mt-3 text-gray-600 text-lg animate-fadeIn delay-100">
-                Book an appointment with our certified technicians for your vehicle glass needs
-              </p>
-            </div>
-            <div className="bg-gradient-to-br from-white to-[#135084]/5 rounded-2xl shadow-xl p-8 animate-fadeIn delay-200">
-              <BookingForm />
-            </div>
-          </div>
-        ) : (
-          <div className="animate-fadeIn">
-            <div className="mb-8">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h1 className="text-3xl font-bold text-[#135084]">Glass Order Quote</h1>
-                  <p className="mt-2 text-gray-600">Get instant quotes for your vehicle glass needs</p>
-                </div>
-                
-                {/* MAG User Status */}
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${magUser?.isAuthenticated ? 'bg-green-500' : 'bg-orange-500'}`}></div>
-                      <span className="text-sm font-medium text-gray-700">
-                        {magUser?.isAuthenticated ? 'MAG Account' : 'Guest Mode'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      {magUser?.email}
-                    </p>
-                  </div>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={logoutMAG}
-                    className="border-[#145484] text-[#145484] hover:bg-[#145484] hover:text-white"
-                  >
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Logout
-                  </Button>
-                </div>
+      <PageTransition>
+        <div className="container mx-auto px-4 py-6 max-w-7xl">
+          {isScheduleTab ? (
+            <div className="max-w-4xl mx-auto">
+              <div className="mb-8">
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-[#135084] to-[#135084]/70 bg-clip-text text-transparent animate-fadeIn">
+                  Schedule Professional Service
+                </h1>
+                <p className="mt-3 text-gray-600 text-lg animate-fadeIn delay-100">
+                  Book an appointment with our certified technicians for your vehicle glass needs
+                </p>
+              </div>
+              <div className="bg-gradient-to-br from-white to-[#135084]/5 rounded-2xl shadow-xl p-8 animate-fadeIn delay-200">
+                <BookingForm />
               </div>
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <Card className="overflow-hidden bg-gradient-to-br from-white to-[#135084]/5 border-[#135084]/20 shadow-xl hover:shadow-2xl transition-all duration-300">
-                <CardHeader className="border-b border-[#135084]/10 bg-gradient-to-r from-[#135084]/5 to-[#135084]/10 p-6">
-                  <div className="flex justify-between items-center">
-                    <CardTitle className="text-2xl font-bold bg-gradient-to-r from-[#135084] to-[#135084]/70 bg-clip-text text-transparent flex items-center gap-3">
-                      <ShoppingCart className="w-7 h-7 text-[#135084]" />
-                      Order Details
-                    </CardTitle>
-                    <p className="text-sm text-gray-500 font-medium">
-                      Powered by{" "}
-                      <span className="text-[#135084] font-semibold">
-                        Master Auto Glass
-                      </span>
-                    </p>
+          ) : (
+            <div className="animate-fadeIn">
+              <div className="mb-8">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h1 className="text-3xl font-bold text-[#135084]">Glass Order Quote</h1>
+                    <p className="mt-2 text-gray-600">Get instant quotes for your vehicle glass needs</p>
                   </div>
-                </CardHeader>
-                <CardContent className="p-6 space-y-6">
-                  <form onSubmit={handleQuoteSubmit} className="space-y-6">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                        Vehicle Registration Number (VRN)
-                        <span className="text-[#135084] text-xs">(Required)</span>
-                      </label>
-                      <Input
-                        type="text"
-                        value={vrn}
-                        onChange={(e) => setVrn(e.target.value.toUpperCase())}
-                        placeholder="e.g., AB12 CDE"
-                        className="w-full input-focus border-[#135084]/20 transition-all duration-200"
-                      />
+                  
+                  {/* MAG User Status */}
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${magUser?.isAuthenticated ? 'bg-green-500' : 'bg-orange-500'}`}></div>
+                        <span className="text-sm font-medium text-gray-700">
+                          {magUser?.isAuthenticated ? 'MAG Account' : 'Guest Mode'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        {magUser?.email}
+                      </p>
                     </div>
-
-                    {/* Vehicle Details Display */}
-                    {vehicleDetails.make && (
-                      <div className="p-4 bg-[#135084]/5 rounded-lg">
-                        <h3 className="font-medium text-[#135084] mb-2">Vehicle Details</h3>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div>
-                            <span className="font-medium">Make:</span> {vehicleDetails.make}
-                          </div>
-                          <div>
-                            <span className="font-medium">Model:</span> {vehicleDetails.model}
-                          </div>
-                          {vehicleDetails.variant && (
-                            <div>
-                              <span className="font-medium">Variant:</span> {vehicleDetails.variant}
-                            </div>
-                          )}
-                          {vehicleDetails.bodyStyle && (
-                            <div>
-                              <span className="font-medium">Body:</span> {vehicleDetails.bodyStyle}
-                            </div>
-                          )}
-                          {vehicleDetails.doors && (
-                            <div>
-                              <span className="font-medium">Doors:</span> {vehicleDetails.doors}
-                            </div>
-                          )}
-                          {vehicleDetails.year && (
-                            <div>
-                              <span className="font-medium">Year:</span> {vehicleDetails.year}
-                            </div>
-                          )}
-                          {vehicleDetails.fuel && (
-                            <div>
-                              <span className="font-medium">Fuel:</span> {vehicleDetails.fuel}
-                            </div>
-                          )}
-                          {vehicleDetails.transmission && (
-                            <div>
-                              <span className="font-medium">Trans:</span> {vehicleDetails.transmission}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                        Depots
-                        <span className="text-[#135084] text-xs">(Select at least one)</span>
-                        {selectedDepots.length > 0 && (
-                          <span className="bg-[#135084] text-white text-xs px-2 py-0.5 rounded-full">
-                            {selectedDepots.length} selected
-                          </span>
-                        )}
-                      </label>
-                      <div className="space-y-2 max-h-60 overflow-y-auto p-2 border rounded-md border-[#135084]/20">
-                        {availableDepots.map((depot) => (
-                          <div key={depot.DepotCode} className="flex items-center space-x-2 p-1 hover:bg-[#135084]/5 rounded">
-                            <Checkbox 
-                              id={`depot-${depot.DepotCode}`}
-                              checked={selectedDepots.includes(depot.DepotCode)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setSelectedDepots(prev => [...prev, depot.DepotCode]);
-                                } else {
-                                  setSelectedDepots(prev => prev.filter(d => d !== depot.DepotCode));
-                                }
-                              }}
-                            />
-                            <Label htmlFor={`depot-${depot.DepotCode}`} className="cursor-pointer flex-grow">
-                              {depot.DepotName}
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <p className="text-xs text-gray-500">
-                          Select multiple depots to check availability across locations
-                        </p>
-                        <Button 
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => selectedDepots.length === availableDepots.length 
-                            ? setSelectedDepots([]) 
-                            : setSelectedDepots(availableDepots.map(d => d.DepotCode))}
-                          className="text-xs"
-                        >
-                          {selectedDepots.length === availableDepots.length ? "Deselect All" : "Select All"}
-                        </Button>
-                      </div>
-                      </div>
-                      
-                    <div className="space-y-4">
-                          <div className="flex justify-between items-center">
-                        <label className="text-sm font-medium text-gray-700">Glass Selections</label>
-                            <Button
-                              type="button"
-                          variant="outline"
-                          onClick={addGlassSelection}
-                          className="text-[#135084] border-[#135084] hover:bg-[#135084]/10"
-                        >
-                          Add Glass
-                            </Button>
-                          </div>
-                          
-                      {glassSelections.map((selection, index) => renderGlassSelectionCard(selection, index))}
-
-                      {glassSelections.length === 0 && (
-                        <div className="text-center p-6 border border-dashed border-[#135084]/20 rounded-lg">
-                          <p className="text-gray-500">Click 'Add Glass' to start your quote</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <Button 
-                      type="submit" 
-                      className="w-full bg-[#135084] hover:bg-[#FFC107] text-white shadow-xl hover:shadow-2xl transition-all duration-300 text-lg py-6"
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={logoutMAG}
+                      className="border-[#145484] text-[#145484] hover:bg-[#145484] hover:text-white"
                     >
-                      Get Quote
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Logout
                     </Button>
-                  </form>
-                </CardContent>
-              </Card>
-
-              {showQuotes && (
-                <Card className="overflow-hidden bg-gradient-to-br from-white to-[#135084]/5 border-[#135084]/20 shadow-xl animate-fadeIn">
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <Card className="overflow-hidden bg-gradient-to-br from-white to-[#135084]/5 border-[#135084]/20 shadow-xl hover:shadow-2xl transition-all duration-300">
                   <CardHeader className="border-b border-[#135084]/10 bg-gradient-to-r from-[#135084]/5 to-[#135084]/10 p-6">
                     <div className="flex justify-between items-center">
                       <CardTitle className="text-2xl font-bold bg-gradient-to-r from-[#135084] to-[#135084]/70 bg-clip-text text-transparent flex items-center gap-3">
                         <ShoppingCart className="w-7 h-7 text-[#135084]" />
-                        Available Options
+                        Order Details
                       </CardTitle>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setSortOrder(current => current === 'asc' ? 'desc' : 'asc')}
-                        className="w-10 h-10 bg-white border-[#135084]/20 hover:bg-[#135084]/5"
-                      >
-                        {sortOrder === 'asc' ? '↑' : '↓'}
-                      </Button>
+                      <p className="text-sm text-gray-500 font-medium">
+                        Powered by{" "}
+                        <span className="text-[#135084] font-semibold">
+                          Master Auto Glass
+                        </span>
+                      </p>
                     </div>
                   </CardHeader>
-                  <CardContent className="p-6">
-                    <div className="space-y-4">
-                      {sortQuotes(quotes).map((quote, index) => (
-                        <div
-                          key={index}
-                          className="p-6 rounded-xl border border-[#135084]/10 hover:border-[#135084]/30 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-                        >
-                          <div className="flex justify-between items-start mb-4">
-                            <div className="flex items-center gap-3">
-                              <div className="bg-[#135084]/10 rounded-lg p-2 w-16 h-16 flex items-center justify-center">
-                                {getGlassTypeIcon(quote, glassSelections[0])}
+                  <CardContent className="p-6 space-y-6">
+                    <form onSubmit={handleQuoteSubmit} className="space-y-6">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                          Vehicle Registration Number (VRN)
+                          <span className="text-[#135084] text-xs">(Required)</span>
+                        </label>
+                        <Input
+                          type="text"
+                          value={vrn}
+                          onChange={(e) => setVrn(e.target.value.toUpperCase())}
+                          placeholder="e.g., AB12 CDE"
+                          className="w-full input-focus border-[#135084]/20 transition-all duration-200"
+                        />
+                      </div>
+
+                      {/* Vehicle Details Display */}
+                      {vehicleDetails.make && (
+                        <div className="p-4 bg-[#135084]/5 rounded-lg">
+                          <h3 className="font-medium text-[#135084] mb-2">Vehicle Details</h3>
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                              <span className="font-medium">Make:</span> {vehicleDetails.make}
+                            </div>
+                            <div>
+                              <span className="font-medium">Model:</span> {vehicleDetails.model}
+                            </div>
+                            {vehicleDetails.variant && (
+                              <div>
+                                <span className="font-medium">Variant:</span> {vehicleDetails.variant}
                               </div>
-                            <h3 className="font-semibold text-xl text-gray-900">{quote.company}</h3>
-                            </div>
-                            <div className="text-right">
-                              <span className="text-2xl font-bold text-[#135084]">
-                                £{quote.price.toFixed(2)}
-                              </span>
-                              {quote.totalAvailable !== undefined && (
-                                <div className={`text-sm font-medium ${quote.totalAvailable > 0 ? 'text-green-600' : 'text-red-500'}`}>
-                                  {quote.totalAvailable > 10 
-                                    ? 'In Stock' 
-                                    : quote.totalAvailable > 0 
-                                      ? `${quote.totalAvailable} in stock` 
-                                      : 'Out of Stock'}
-                                </div>
-                              )}
-                              {/* Add depot display with different color */}
-                              {quote.depotName && (
-                                <div className="text-sm font-medium text-purple-600 mt-1">
-                                  Depot: {quote.depotName}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          
-                          {/* Enhanced glass details */}
-                          <div className="mb-4 space-y-2">
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <span>{quote.estimatedTimePickup}</span>
-                            </div>
-                            
-                            {quote.features && quote.features.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {quote.features.map((feature, i) => (
-                                  <span key={i} className="text-xs bg-[#135084]/10 text-[#135084] px-2 py-0.5 rounded-full">
-                                    {feature}
-                                  </span>
-                                ))}
+                            )}
+                            {vehicleDetails.bodyStyle && (
+                              <div>
+                                <span className="font-medium">Body:</span> {vehicleDetails.bodyStyle}
+                              </div>
+                            )}
+                            {vehicleDetails.doors && (
+                              <div>
+                                <span className="font-medium">Doors:</span> {vehicleDetails.doors}
+                              </div>
+                            )}
+                            {vehicleDetails.year && (
+                              <div>
+                                <span className="font-medium">Year:</span> {vehicleDetails.year}
+                              </div>
+                            )}
+                            {vehicleDetails.fuel && (
+                              <div>
+                                <span className="font-medium">Fuel:</span> {vehicleDetails.fuel}
+                              </div>
+                            )}
+                            {vehicleDetails.transmission && (
+                              <div>
+                                <span className="font-medium">Trans:</span> {vehicleDetails.transmission}
                               </div>
                             )}
                           </div>
-                          
-                          <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
-                            <span className="font-medium">Vehicle:</span>
-                            <div className="flex items-center flex-wrap">
-                              <span>{`${vehicleDetails.make} ${vehicleDetails.model} (${vehicleDetails.year})`}</span>
-                              {quote.argicCode && (
-                                <span className="bg-[#135084]/10 px-2 py-0.5 rounded font-medium text-[#135084] ml-2">
-                                  {quote.argicCode.length > 4 
-                                    ? quote.argicCode.substring(0, 4) 
-                                    : quote.argicCode}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        
-                          <Button 
-                            className="w-full bg-[#135084] hover:bg-[#0e3b61] text-white shadow-xl hover:shadow-2xl transition-all duration-300"
-                            onClick={() => handleQuoteSelection(quote)}
-                          >
-                            Select This Option
-                          </Button>
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </div>
-        )}
-        
-        <AlertDialog open={isConfirmationOpen} onOpenChange={setIsConfirmationOpen}>
-          <AlertDialogContent className="bg-white max-w-2xl">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-2xl font-bold text-gray-900">
-                Confirm Your Order Details
-              </AlertDialogTitle>
-              <AlertDialogDescription asChild>
-                <div className="text-gray-600 space-y-6">
-                {selectedQuote && (
-                  <>
-                    <div className="space-y-6">
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-3">Selected Windows</h3>
-                        <div className="bg-[#135084]/5 rounded-lg divide-y divide-[#135084]/10">
-                          {glassSelections.map((selection, index) => (
-                            <div key={index} className="p-4 flex justify-between items-center">
-                              <div>
-                                <p className="font-medium text-gray-900">
-                                  {selection.type === 'Windscreen' && 'Windscreen (Front)'}
-                                  {selection.type === 'rear-window' && 'Rear Window'}
-                                  {selection.type === 'driver-front' && "Driver's Front Window"}
-                                  {selection.type === 'passenger-front' && "Passenger's Front Window"}
-                                  {selection.type === 'driver-rear' && "Driver's Rear Window"}
-                                  {selection.type === 'passenger-rear' && "Passenger's Rear Window"}
-                                </p>
-                              </div>
-                              <span className="text-[#135084] font-medium">
-                                Quantity: {selection.quantity}
-                              </span>
+                      )}
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                          Depots
+                          <span className="text-[#135084] text-xs">(Select at least one)</span>
+                          {selectedDepots.length > 0 && (
+                            <span className="bg-[#135084] text-white text-xs px-2 py-0.5 rounded-full">
+                              {selectedDepots.length} selected
+                            </span>
+                          )}
+                        </label>
+                        <div className="space-y-2 max-h-60 overflow-y-auto p-2 border rounded-md border-[#135084]/20">
+                          {availableDepots.map((depot) => (
+                            <div key={depot.DepotCode} className="flex items-center space-x-2 p-1 hover:bg-[#135084]/5 rounded">
+                              <Checkbox 
+                                id={`depot-${depot.DepotCode}`}
+                                checked={selectedDepots.includes(depot.DepotCode)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setSelectedDepots(prev => [...prev, depot.DepotCode]);
+                                  } else {
+                                    setSelectedDepots(prev => prev.filter(d => d !== depot.DepotCode));
+                                  }
+                                }}
+                              />
+                              <Label htmlFor={`depot-${depot.DepotCode}`} className="cursor-pointer flex-grow">
+                                {depot.DepotName}
+                              </Label>
                             </div>
                           ))}
                         </div>
+                        <div className="flex justify-between items-center">
+                          <p className="text-xs text-gray-500">
+                            Select multiple depots to check availability across locations
+                          </p>
+                          <Button 
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => selectedDepots.length === availableDepots.length 
+                              ? setSelectedDepots([]) 
+                              : setSelectedDepots(availableDepots.map(d => d.DepotCode))}
+                            className="text-xs"
+                          >
+                            {selectedDepots.length === availableDepots.length ? "Deselect All" : "Select All"}
+                          </Button>
+                        </div>
+                        </div>
+                        
+                      <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                          <label className="text-sm font-medium text-gray-700">Glass Selections</label>
+                              <Button
+                                type="button"
+                            variant="outline"
+                            onClick={addGlassSelection}
+                            className="text-[#135084] border-[#135084] hover:bg-[#135084]/10"
+                          >
+                            Add Glass
+                              </Button>
+                            </div>
+                            
+                        {glassSelections.map((selection, index) => renderGlassSelectionCard(selection, index))}
+
+                        {glassSelections.length === 0 && (
+                          <div className="text-center p-6 border border-dashed border-[#135084]/20 rounded-lg">
+                            <p className="text-gray-500">Click 'Add Glass' to start your quote</p>
+                          </div>
+                        )}
                       </div>
 
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-3">Order Summary</h3>
-                        <div className="bg-[#135084]/5 p-4 rounded-lg space-y-3">
-                          <div className="flex items-center gap-3 mb-4">
-                            <div className="bg-[#135084]/10 rounded-lg p-2 w-16 h-16 flex items-center justify-center">
-                              {getGlassTypeIcon(selectedQuote, glassSelections[0])}
-                            </div>
-                            <span className="text-[#135084] font-semibold text-lg">{selectedQuote.company}</span>
-                          </div>
-                          
-                          <div className="flex justify-between items-center">
-                            <p className="font-medium">Glass Type:</p>
-                            <span className="text-[#135084] font-semibold">{selectedQuote.company}</span>
-                          </div>
-                          
-                          <div className="flex justify-between items-center">
-                            <p className="font-medium">Vehicle Registration:</p>
-                            <span className="text-[#135084] font-semibold">{vrn}</span>
-                          </div>
-                          <div className="flex items-start justify-between">
-                            <p className="font-medium mt-1">Vehicle:</p>
-                            <div className="text-right flex items-center flex-wrap justify-end">
-                              <span className="text-[#135084] font-semibold">{`${vehicleDetails.make} ${vehicleDetails.model} (${vehicleDetails.year})`}</span>
-                              {selectedQuote && selectedQuote.argicCode && (
-                                <span className="bg-[#135084]/10 px-2 py-0.5 rounded font-medium text-[#135084] ml-2 mt-1">
-                                  {selectedQuote.argicCode.length > 4 
-                                    ? selectedQuote.argicCode.substring(0, 4) 
-                                    : selectedQuote.argicCode}
+                      <Button 
+                        type="submit" 
+                        className="w-full bg-[#135084] hover:bg-[#FFC107] text-white shadow-xl hover:shadow-2xl transition-all duration-300 text-lg py-6"
+                      >
+                        Get Quote
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+
+                {showQuotes && (
+                  <Card className="overflow-hidden bg-gradient-to-br from-white to-[#135084]/5 border-[#135084]/20 shadow-xl animate-fadeIn">
+                    <CardHeader className="border-b border-[#135084]/10 bg-gradient-to-r from-[#135084]/5 to-[#135084]/10 p-6">
+                      <div className="flex justify-between items-center">
+                        <CardTitle className="text-2xl font-bold bg-gradient-to-r from-[#135084] to-[#135084]/70 bg-clip-text text-transparent flex items-center gap-3">
+                          <ShoppingCart className="w-7 h-7 text-[#135084]" />
+                          Available Options
+                        </CardTitle>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setSortOrder(current => current === 'asc' ? 'desc' : 'asc')}
+                          className="w-10 h-10 bg-white border-[#135084]/20 hover:bg-[#135084]/5"
+                        >
+                          {sortOrder === 'asc' ? '↑' : '↓'}
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <div className="space-y-4">
+                        {sortQuotes(quotes).map((quote, index) => (
+                          <div
+                            key={index}
+                            className="p-6 rounded-xl border border-[#135084]/10 hover:border-[#135084]/30 transition-all duration-300 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                          >
+                            <div className="flex justify-between items-start mb-4">
+                              <div className="flex items-center gap-3">
+                                <div className="bg-[#135084]/10 rounded-lg p-2 w-16 h-16 flex items-center justify-center">
+                                  {getGlassTypeIcon(quote, glassSelections[0])}
+                                </div>
+                              <h3 className="font-semibold text-xl text-gray-900">{quote.company}</h3>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-2xl font-bold text-[#135084]">
+                                  £{quote.price.toFixed(2)}
                                 </span>
+                                {quote.totalAvailable !== undefined && (
+                                  <div className={`text-sm font-medium ${quote.totalAvailable > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                    {quote.totalAvailable > 10 
+                                      ? 'In Stock' 
+                                      : quote.totalAvailable > 0 
+                                        ? `${quote.totalAvailable} in stock` 
+                                        : 'Out of Stock'}
+                                  </div>
+                                )}
+                                {/* Add depot display with different color */}
+                                {quote.depotName && (
+                                  <div className="text-sm font-medium text-purple-600 mt-1">
+                                    Depot: {quote.depotName}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {/* Enhanced glass details */}
+                            <div className="mb-4 space-y-2">
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <span>{quote.estimatedTimePickup}</span>
+                              </div>
+                              
+                              {quote.features && quote.features.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {quote.features.map((feature, i) => (
+                                    <span key={i} className="text-xs bg-[#135084]/10 text-[#135084] px-2 py-0.5 rounded-full">
+                                      {feature}
+                                    </span>
+                                  ))}
+                                </div>
                               )}
                             </div>
-                          </div>
-                          
-                          <div className="flex justify-between items-center">
-                            <p className="font-medium">Selected Depots:</p>
-                            <span className="text-[#135084] font-semibold">
-                              {selectedDepots.length > 0 
-                                ? selectedDepots.map(depot => availableDepots.find(d => d.DepotCode === depot)?.DepotName || depot).join(', ')
-                                : "None selected"}
-                            </span>
-                          </div>
-                          
-                          <div className="flex justify-between items-center">
-                            <p className="font-medium">Product Depot:</p>
-                            <span className="text-[#135084] font-semibold">
-                              {selectedQuote.depotName || 
-                                availableDepots.find(d => d.DepotCode === selectedQuote.depotCode)?.DepotName || 
-                                selectedQuote.depotCode || 
-                                "Not specified"}
-                            </span>
-                          </div>
-                          
-                          {/* Add stock information */}
-                          {selectedQuote.totalAvailable !== undefined && (
-                            <div className="flex justify-between items-center">
-                              <p className="font-medium">Stock Status:</p>
-                              <span className={`font-semibold ${selectedQuote.totalAvailable > 0 ? 'text-green-600' : 'text-red-500'}`}>
-                                {selectedQuote.totalAvailable > 10 
-                                  ? 'In Stock' 
-                                  : selectedQuote.totalAvailable > 0 
-                                    ? `${selectedQuote.totalAvailable} in stock` 
-                                    : 'Out of Stock'}
-                              </span>
-                            </div>
-                          )}
-                          
-                          <div className="flex justify-between items-center">
-                            <p className="font-medium">Estimated Delivery:</p>
-                            <span className="text-[#135084] font-semibold">{selectedQuote.estimatedTimeDelivery}</span>
-                          </div>
-                          
-                          {/* Display features if available */}
-                          {selectedQuote.features && selectedQuote.features.length > 0 && (
-                            <div className="border-t border-[#135084]/10 pt-3 mt-3">
-                              <p className="font-medium mb-2">Features:</p>
-                              <div className="flex flex-wrap gap-1">
-                                {selectedQuote.features.map((feature, i) => (
-                                  <span key={i} className="text-xs bg-[#135084]/10 text-[#135084] px-2 py-0.5 rounded-full">
-                                    {feature}
+                            
+                            <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
+                              <span className="font-medium">Vehicle:</span>
+                              <div className="flex items-center flex-wrap">
+                                <span>{`${vehicleDetails.make} ${vehicleDetails.model} (${vehicleDetails.year})`}</span>
+                                {quote.argicCode && (
+                                  <span className="bg-[#135084]/10 px-2 py-0.5 rounded font-medium text-[#135084] ml-2">
+                                    {quote.argicCode.length > 4 
+                                      ? quote.argicCode.substring(0, 4) 
+                                      : quote.argicCode}
                                   </span>
-                                ))}
+                                )}
                               </div>
                             </div>
-                          )}
                           
-                          {/* Add depot information if available */}
-                          {selectedQuote.availableDepots && selectedQuote.availableDepots.length > 0 && (
-                            <div className="mt-4 border-t border-[#135084]/10 pt-4">
-                              <p className="font-medium mb-2">Available at these depots:</p>
-                              <div className="max-h-40 overflow-y-auto">
-                                {selectedQuote.availableDepots.map((depot: any, index: number) => (
-                                  <div key={index} className="p-2 bg-white/50 rounded mb-2 text-sm">
-                                    <div className="flex justify-between">
-                                      <span className="font-medium">{depot.depotName}</span>
-                                      <span className="text-green-600 font-bold">{depot.Qty} in stock</span>
-                                    </div>
-                                    <div className="text-gray-600 mt-1">
-                                      {depot.town && <span>{depot.town}, </span>}
-                                      {depot.postcode && <span>{depot.postcode}</span>}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* Display product codes */}
-                          {selectedQuote?.argicCode && (
-                            <div className="border-t border-[#135084]/10 pt-3 mt-3">
-                              <div className="flex items-center justify-center">
-                                <span className="bg-[#135084]/20 px-3 py-1 rounded font-semibold text-[#135084]">
-                                  {selectedQuote.argicCode.length > 4 
-                                    ? selectedQuote.argicCode.substring(0, 4) 
-                                    : selectedQuote.argicCode}
+                            <Button 
+                              className="w-full bg-[#135084] hover:bg-[#0e3b61] text-white shadow-xl hover:shadow-2xl transition-all duration-300"
+                              onClick={() => handleQuoteSelection(quote)}
+                            >
+                              Select This Option
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </div>
+          )}
+          
+          <AlertDialog open={isConfirmationOpen} onOpenChange={setIsConfirmationOpen}>
+            <AlertDialogContent className="bg-white max-w-2xl">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-2xl font-bold text-gray-900">
+                  Confirm Your Order Details
+                </AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="text-gray-600 space-y-6">
+                  {selectedQuote && (
+                    <>
+                      <div className="space-y-6">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-3">Selected Windows</h3>
+                          <div className="bg-[#135084]/5 rounded-lg divide-y divide-[#135084]/10">
+                            {glassSelections.map((selection, index) => (
+                              <div key={index} className="p-4 flex justify-between items-center">
+                                <div>
+                                  <p className="font-medium text-gray-900">
+                                    {selection.type === 'Windscreen' && 'Windscreen (Front)'}
+                                    {selection.type === 'rear-window' && 'Rear Window'}
+                                    {selection.type === 'driver-front' && "Driver's Front Window"}
+                                    {selection.type === 'passenger-front' && "Passenger's Front Window"}
+                                    {selection.type === 'driver-rear' && "Driver's Rear Window"}
+                                    {selection.type === 'passenger-rear' && "Passenger's Rear Window"}
+                                  </p>
+                                </div>
+                                <span className="text-[#135084] font-medium">
+                                  Quantity: {selection.quantity}
                                 </span>
                               </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-3">Order Summary</h3>
+                          <div className="bg-[#135084]/5 p-4 rounded-lg space-y-3">
+                            <div className="flex items-center gap-3 mb-4">
+                              <div className="bg-[#135084]/10 rounded-lg p-2 w-16 h-16 flex items-center justify-center">
+                                {getGlassTypeIcon(selectedQuote, glassSelections[0])}
+                              </div>
+                              <span className="text-[#135084] font-semibold text-lg">{selectedQuote.company}</span>
                             </div>
-                          )}
-                          
-                          <div className="flex justify-between items-center pt-3 border-t border-[#135084]/10">
-                            <p className="font-semibold text-lg">Total Price:</p>
-                            <span className="text-[#135084] font-bold text-lg">£{selectedQuote.price.toFixed(2)}</span>
+                            
+                            <div className="flex justify-between items-center">
+                              <p className="font-medium">Glass Type:</p>
+                              <span className="text-[#135084] font-semibold">{selectedQuote.company}</span>
+                            </div>
+                            
+                            <div className="flex justify-between items-center">
+                              <p className="font-medium">Vehicle Registration:</p>
+                              <span className="text-[#135084] font-semibold">{vrn}</span>
+                            </div>
+                            <div className="flex items-start justify-between">
+                              <p className="font-medium mt-1">Vehicle:</p>
+                              <div className="text-right flex items-center flex-wrap justify-end">
+                                <span className="text-[#135084] font-semibold">{`${vehicleDetails.make} ${vehicleDetails.model} (${vehicleDetails.year})`}</span>
+                                {selectedQuote && selectedQuote.argicCode && (
+                                  <span className="bg-[#135084]/10 px-2 py-0.5 rounded font-medium text-[#135084] ml-2 mt-1">
+                                    {selectedQuote.argicCode.length > 4 
+                                      ? selectedQuote.argicCode.substring(0, 4) 
+                                      : selectedQuote.argicCode}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="flex justify-between items-center">
+                              <p className="font-medium">Selected Depots:</p>
+                              <span className="text-[#135084] font-semibold">
+                                {selectedDepots.length > 0 
+                                  ? selectedDepots.map(depot => availableDepots.find(d => d.DepotCode === depot)?.DepotName || depot).join(', ')
+                                  : "None selected"}
+                              </span>
+                            </div>
+                            
+                            <div className="flex justify-between items-center">
+                              <p className="font-medium">Product Depot:</p>
+                              <span className="text-[#135084] font-semibold">
+                                {selectedQuote.depotName || 
+                                  availableDepots.find(d => d.DepotCode === selectedQuote.depotCode)?.DepotName || 
+                                  selectedQuote.depotCode || 
+                                  "Not specified"}
+                              </span>
+                            </div>
+                            
+                            {/* Add stock information */}
+                            {selectedQuote.totalAvailable !== undefined && (
+                              <div className="flex justify-between items-center">
+                                <p className="font-medium">Stock Status:</p>
+                                <span className={`font-semibold ${selectedQuote.totalAvailable > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                  {selectedQuote.totalAvailable > 10 
+                                    ? 'In Stock' 
+                                    : selectedQuote.totalAvailable > 0 
+                                      ? `${selectedQuote.totalAvailable} in stock` 
+                                      : 'Out of Stock'}
+                                </span>
+                              </div>
+                            )}
+                            
+                            <div className="flex justify-between items-center">
+                              <p className="font-medium">Estimated Delivery:</p>
+                              <span className="text-[#135084] font-semibold">{selectedQuote.estimatedTimeDelivery}</span>
+                            </div>
+                            
+                            {/* Display features if available */}
+                            {selectedQuote.features && selectedQuote.features.length > 0 && (
+                              <div className="border-t border-[#135084]/10 pt-3 mt-3">
+                                <p className="font-medium mb-2">Features:</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {selectedQuote.features.map((feature, i) => (
+                                    <span key={i} className="text-xs bg-[#135084]/10 text-[#135084] px-2 py-0.5 rounded-full">
+                                      {feature}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Add depot information if available */}
+                            {selectedQuote.availableDepots && selectedQuote.availableDepots.length > 0 && (
+                              <div className="mt-4 border-t border-[#135084]/10 pt-4">
+                                <p className="font-medium mb-2">Available at these depots:</p>
+                                <div className="max-h-40 overflow-y-auto">
+                                  {selectedQuote.availableDepots.map((depot: any, index: number) => (
+                                    <div key={index} className="p-2 bg-white/50 rounded mb-2 text-sm">
+                                      <div className="flex justify-between">
+                                        <span className="font-medium">{depot.depotName}</span>
+                                        <span className="text-green-600 font-bold">{depot.Qty} in stock</span>
+                                      </div>
+                                      <div className="text-gray-600 mt-1">
+                                        {depot.town && <span>{depot.town}, </span>}
+                                        {depot.postcode && <span>{depot.postcode}</span>}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Display product codes */}
+                            {selectedQuote?.argicCode && (
+                              <div className="border-t border-[#135084]/10 pt-3 mt-3">
+                                <div className="flex items-center justify-center">
+                                  <span className="bg-[#135084]/20 px-3 py-1 rounded font-semibold text-[#135084]">
+                                    {selectedQuote.argicCode.length > 4 
+                                      ? selectedQuote.argicCode.substring(0, 4) 
+                                      : selectedQuote.argicCode}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                            
+                            <div className="flex justify-between items-center pt-3 border-t border-[#135084]/10">
+                              <p className="font-semibold text-lg">Total Price:</p>
+                              <span className="text-[#135084] font-bold text-lg">£{selectedQuote.price.toFixed(2)}</span>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                    
-                    <p className="text-center text-sm text-gray-600 mt-4">
-                      Would you like to proceed with this order?
-                    </p>
-                  </>
-                )}
-                </div>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel className="border-[#135084]/20 hover:bg-[#135084]/5">
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleConfirmOrder}
-                className="bg-[#135084] hover:bg-[#0e3b61] text-white"
-              >
-                Confirm Order
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-        
-        <div className="mt-16 text-center">
-          <p className="text-sm text-gray-500 font-medium">
-            Powered by{" "}
-            <span className="text-[#135084] font-semibold">
-              Master Auto Glass
-            </span>
-          </p>
+                      
+                      <p className="text-center text-sm text-gray-600 mt-4">
+                        Would you like to proceed with this order?
+                      </p>
+                    </>
+                  )}
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="border-[#135084]/20 hover:bg-[#135084]/5">
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleConfirmOrder}
+                  className="bg-[#135084] hover:bg-[#0e3b61] text-white"
+                >
+                  Confirm Order
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          
+          <div className="mt-16 text-center">
+            <p className="text-sm text-gray-500 font-medium">
+              Powered by{" "}
+              <span className="text-[#135084] font-semibold">
+                Master Auto Glass
+              </span>
+            </p>
+          </div>
         </div>
-      </div>
+      </PageTransition>
     </DashboardLayout>
   );
 };
@@ -1528,18 +1531,20 @@ const PriceLookupWithAuth = () => {
   if (!magUser) {
     return (
       <DashboardLayout>
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <MAGLoginForm
-            onLoginSuccess={async (credentials) => {
-              try {
-                await loginWithMAG(credentials);
-              } catch (error) {
-                console.error('Login failed:', error);
-              }
-            }}
-            onContinueAsGuest={continueAsGuest}
-          />
-        </div>
+        <ModalPageTransition>
+          <div className="min-h-screen flex items-center justify-center p-4">
+            <MAGLoginForm
+              onLoginSuccess={async (credentials) => {
+                try {
+                  await loginWithMAG(credentials);
+                } catch (error) {
+                  console.error('Login failed:', error);
+                }
+              }}
+              onContinueAsGuest={continueAsGuest}
+            />
+          </div>
+        </ModalPageTransition>
       </DashboardLayout>
     );
   }
