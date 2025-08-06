@@ -2,6 +2,7 @@ import { LoginForm } from "@/components/auth/LoginForm";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect } from "react";
 import { ModalPageTransition } from "@/components/PageTransition";
+import { Navigate } from "react-router-dom";
 
 export default function Login() {
   const { user, session, isLoading } = useAuth();
@@ -17,6 +18,12 @@ export default function Login() {
       console.log('🔵 OAuth callback detected in URL:', window.location.search);
     }
   }, [user, session, isLoading]);
+
+  // If user is already authenticated and not loading, redirect to dashboard
+  if (!isLoading && user && session) {
+    console.log('🔵 User already authenticated, redirecting to dashboard');
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <ModalPageTransition>

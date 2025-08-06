@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Coins, Plus, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 
 export function UserProfile({ 
   className, 
@@ -15,16 +16,26 @@ export function UserProfile({
   collapsed?: boolean;
   showLogout?: boolean;
 }) {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   
   const handleTopUp = () => {
     // TODO: Implement top-up functionality
     console.log('Top-up credits clicked');
   };
 
-  const handleLogout = () => {
-    navigate('/login');
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      console.log('🔵 UserProfile logout clicked');
+      await signOut();
+      navigate('/login', { replace: true });
+    } catch (error) {
+      console.error('Error logging out:', error);
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
   
   // Error prevention - if no user, show a default avatar
@@ -125,8 +136,9 @@ export function UserProfile({
             {showLogout && (
               <button
                 onClick={handleLogout}
-                className="p-1.5 rounded-md hover:bg-red-50 transition-colors text-red-500 hover:text-red-600 flex-shrink-0"
-                title="Logout"
+                disabled={isLoggingOut}
+                className="p-1.5 rounded-md hover:bg-red-50 transition-colors text-red-500 hover:text-red-600 flex-shrink-0 disabled:opacity-50"
+                title={isLoggingOut ? "Logging out..." : "Logout"}
               >
                 <LogOut className="h-4 w-4" />
               </button>
