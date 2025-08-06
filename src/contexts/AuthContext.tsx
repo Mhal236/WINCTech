@@ -151,17 +151,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           setUser(userObject);
           setSession(data.session);
-          
-          // If we're on login page and have a session, redirect to dashboard
-          const currentPath = window.location.pathname;
-          if (currentPath === '/login' || currentPath === '/signup') {
-            console.log('🔵 Found session on auth page, redirecting to dashboard');
-            setTimeout(() => {
-              if (data?.session && data.session.user) {
-                window.location.href = '/';
-              }
-            }, 100);
-          }
         } else {
           console.log('🔵 No existing session found');
         }
@@ -342,10 +331,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('🔵 AuthContext: Starting Google OAuth...');
       console.log('🔵 Current window location:', window.location.origin);
       
+      // Get the correct redirect URL based on environment
+      const getRedirectUrl = () => {
+        // Check if we have a base_url environment variable
+        if (import.meta.env.VITE_BASE_URL) {
+          return import.meta.env.VITE_BASE_URL;
+        }
+        
+        // Fallback to VITE_SITE_URL if base_url is not set
+        if (import.meta.env.VITE_SITE_URL) {
+          return import.meta.env.VITE_SITE_URL;
+        }
+        
+        // For development, use localhost
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          return window.location.origin;
+        }
+        
+        // For production/Vercel deployment, use the current origin
+        // This should work correctly once the OAuth app is configured with the right domain
+        return window.location.origin;
+      };
+      
+      const redirectUrl = getRedirectUrl();
+      console.log('🔵 Using redirect URL:', redirectUrl);
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/`
+          redirectTo: `${redirectUrl}/`
         }
       });
       
@@ -377,9 +391,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       
       console.log('🟢 Sign out completed');
-      
-      // Force navigation to login page
-      window.location.href = '/login';
     } catch (error) {
       console.error('Error signing out:', error);
     } finally {

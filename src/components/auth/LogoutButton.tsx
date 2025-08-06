@@ -3,12 +3,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 export function LogoutButton({ className, variant = "outline", ...props }: { 
   className?: string; 
   variant?: "outline" | "ghost" | "default";
 }) {
   const { signOut } = useAuth();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLogout = async () => {
@@ -16,7 +18,8 @@ export function LogoutButton({ className, variant = "outline", ...props }: {
     try {
       console.log('🔵 Logout button clicked');
       await signOut();
-      // Navigation is now handled in AuthContext.signOut()
+      // Navigate to login page after logout
+      navigate('/login', { replace: true });
     } catch (error) {
       console.error('Error logging out:', error);
     } finally {

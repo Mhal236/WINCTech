@@ -1,7 +1,16 @@
 import { SignupForm } from "@/components/auth/SignupForm";
 import { ModalPageTransition } from "@/components/PageTransition";
+import { useAuth } from "@/contexts/AuthContext";
+import { Navigate } from "react-router-dom";
 
 export default function Signup() {
+  const { user, session, isLoading } = useAuth();
+
+  // If user is already authenticated and not loading, redirect to dashboard
+  if (!isLoading && user && session) {
+    console.log('🔵 User already authenticated, redirecting to dashboard');
+    return <Navigate to="/" replace />;
+  }
   return (
     <ModalPageTransition>
       <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-gray-50">

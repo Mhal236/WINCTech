@@ -24,6 +24,7 @@ import { UserProfile } from "@/components/auth/UserProfile";
 import { Separator } from "@/components/ui/separator";
 import { useRoleBasedAccess } from "@/components/auth/RoleBasedAccess";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Reference the logo image from the public folder
 const logo = "/windscreen-compare-technician.png";
@@ -34,6 +35,21 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { hasPermission, isAdmin, user } = useRoleBasedAccess();
+  const { signOut } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      console.log('🔵 Sidebar logout clicked');
+      await signOut();
+      navigate('/login', { replace: true });
+    } catch (error) {
+      console.error('Error logging out:', error);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   // Define navigation items with their required roles - organized like Calendly
   const navigation = [
@@ -207,12 +223,22 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
 
             {/* Logout when collapsed */}
             {collapsed && (
-              <button
-                className="mt-2 flex justify-center items-center p-2.5 rounded-lg hover:bg-gray-100 w-full text-red-500 transition-colors"
-                onClick={() => navigate('/login')}
-              >
-                <LogOut className="h-5 w-5" />
-              </button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      className="mt-2 flex justify-center items-center p-2.5 rounded-lg hover:bg-gray-100 w-full text-red-500 transition-colors disabled:opacity-50"
+                      onClick={handleLogout}
+                      disabled={isLoggingOut}
+                    >
+                      <LogOut className="h-5 w-5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    <p>{isLoggingOut ? "Logging out..." : "Logout"}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
           </div>
         </div>
