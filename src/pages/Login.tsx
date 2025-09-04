@@ -84,8 +84,13 @@ export default function Login() {
 
       const userData = await userResponse.json();
 
+      console.log('🔵 Google user data received:', userData);
+      console.log('🔵 User email:', userData.email);
+      console.log('🔵 Email ends with @windscreencompare.com:', userData.email?.endsWith('@windscreencompare.com'));
+
       // Check if user email is from windscreencompare.com domain
       if (!userData.email || !userData.email.endsWith('@windscreencompare.com')) {
+        console.error('🔴 Domain check failed for email:', userData.email);
         throw new Error('Access denied. Only @windscreencompare.com email addresses are allowed.');
       }
 
