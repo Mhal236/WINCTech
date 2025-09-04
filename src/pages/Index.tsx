@@ -8,10 +8,66 @@ import { History, Heart, CreditCard, Download, Gift, Brain, Clock, Star, Award }
 import { PricingPlans } from "@/components/pricing/PricingPlans";
 import { useAuth } from "@/contexts/AuthContext";
 import { PageTransition } from "@/components/PageTransition";
+import { createClient } from '@supabase/supabase-js';
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
   const { user, isLoading } = useAuth();
   const [isCheckingVerification, setIsCheckingVerification] = useState(true);
+  const [isProcessingOAuth, setIsProcessingOAuth] = useState(false);
+  const navigate = useNavigate();
+
+  // Handle OAuth callback (PKCE flow)
+  useEffect(() => {
+    const handleOAuthCallback = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      const error = urlParams.get('error');
+      
+      if (error) {
+        console.error('🔴 OAuth error from URL:', error);
+        // Clear the URL parameters
+        navigate('/', { replace: true });
+        return;
+      }
+      
+      if (code && !user && !isLoading) {
+        console.log('🔵 OAuth callback detected, processing code:', code.substring(0, 10) + '...');
+        setIsProcessingOAuth(true);
+        
+        try {
+          // Create Supabase client for OAuth exchange
+          const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://julpwjxzrlkbxdbphrdy.supabase.co";
+          const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bHB3anh6cmxrYnhkYnBocmR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc0MTQ4NDUsImV4cCI6MjA1Mjk5MDg0NX0.rynZAq6bjPlpfyTaxHYcs8FdVdTo_gy95lazi2Kt5RY";
+          
+          const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+          
+          // Exchange the code for a session
+          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          
+          if (exchangeError) {
+            console.error('🔴 Error exchanging code for session:', exchangeError);
+          } else {
+            console.log('🟢 OAuth callback successful, session created:', !!data.session);
+            // The AuthContext will automatically detect the new session
+          }
+          
+          // Clear the URL parameters regardless of success/failure
+          navigate('/', { replace: true });
+        } catch (error) {
+          console.error('🔴 OAuth callback processing error:', error);
+          navigate('/', { replace: true });
+        } finally {
+          setIsProcessingOAuth(false);
+        }
+      }
+    };
+    
+    // Only run OAuth handling if we're not already loading and don't have a user
+    if (!isLoading) {
+      handleOAuthCallback();
+    }
+  }, [user, isLoading, navigate]);
 
   // Add a delay to prevent flashing during page transitions
   useEffect(() => {
@@ -39,7 +95,7 @@ const Index = () => {
       (!user.user_role && user.user_role !== 'admin')));
 
   // Show loading state during auth transitions
-  if (isLoading || isCheckingVerification) {
+  if (isLoading || isCheckingVerification || isProcessingOAuth) {
     return (
       <DashboardLayout>
         <PageTransition>
@@ -48,7 +104,9 @@ const Index = () => {
               <div className="w-12 h-12 bg-[#145484]/10 rounded-full flex items-center justify-center">
                 <div className="animate-spin rounded-full h-6 w-6 border-2 border-[#145484] border-t-transparent"></div>
               </div>
-              <p className="text-gray-600 font-medium">Loading dashboard...</p>
+              <p className="text-gray-600 font-medium">
+                {isProcessingOAuth ? 'Completing Google sign-in...' : 'Loading dashboard...'}
+              </p>
             </div>
           </div>
         </PageTransition>
