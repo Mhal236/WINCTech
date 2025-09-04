@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 interface GoogleLoginButtonProps {
@@ -8,53 +7,44 @@ interface GoogleLoginButtonProps {
   disabled?: boolean;
 }
 
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = import.meta.env.VITE_GOOGLE_CLIENT_SECRET;
+// Use the correct redirect URI for WINTechnician
+const GOOGLE_REDIRECT_URI = `${window.location.protocol}//${window.location.host}/login`;
+
 export function GoogleLoginButton({ className, disabled }: GoogleLoginButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const { signInWithGoogle } = useAuth();
   const { toast } = useToast();
 
-  const handleGoogleLogin = async () => {
-    console.log('🔵 Google login button clicked');
-    setIsLoading(true);
-    
-    try {
-      console.log('🔵 Calling signInWithGoogle...');
-      const { error } = await signInWithGoogle();
-      
-      console.log('🔵 signInWithGoogle response:', { error });
-      
-      if (error) {
-        console.error('🔴 Google login error:', error);
-        
-        // Provide more specific error messages
-        let errorMessage = "Failed to sign in with Google";
-        if (error.message?.includes('Provider not found')) {
-          errorMessage = "Google OAuth is not configured. Please check your Supabase settings.";
-        } else if (error.message?.includes('redirect')) {
-          errorMessage = "OAuth redirect configuration issue. Please check your redirect URLs.";
-        } else if (error.message) {
-          errorMessage = error.message;
-        }
-        
-        toast({
-          title: "Authentication Error",
-          description: errorMessage,
-          variant: "destructive",
-        });
-      } else {
-        console.log('🟢 Google login initiated successfully');
-        // Note: For OAuth, the user will be redirected to Google, so we won't reach here immediately
-      }
-    } catch (err) {
-      console.error('🔴 Google login error (catch):', err);
+  // Check if Google OAuth is configured
+  const isGoogleConfigured = GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET;
+
+  const handleGoogleLogin = () => {
+    if (!isGoogleConfigured) {
       toast({
-        title: "Authentication Error",
-        description: "An unexpected error occurred during Google sign-in. Check the console for details.",
+        title: "Configuration Error",
+        description: "Google OAuth credentials not found in environment variables.",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
+      return;
     }
+    
+    console.log('🔵 Starting Google OAuth...');
+    setIsLoading(true);
+    
+    // Generate Google OAuth URL
+    const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    googleAuthUrl.searchParams.set('client_id', GOOGLE_CLIENT_ID);
+    googleAuthUrl.searchParams.set('redirect_uri', GOOGLE_REDIRECT_URI);
+    googleAuthUrl.searchParams.set('response_type', 'code');
+    googleAuthUrl.searchParams.set('scope', 'openid email profile');
+    googleAuthUrl.searchParams.set('access_type', 'offline');
+    googleAuthUrl.searchParams.set('prompt', 'consent');
+
+    console.log('🔵 Redirecting to Google OAuth:', googleAuthUrl.toString());
+    
+    // Redirect to Google OAuth
+    window.location.href = googleAuthUrl.toString();
   };
 
   return (
