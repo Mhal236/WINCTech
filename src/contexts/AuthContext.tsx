@@ -74,7 +74,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         console.log('🔵 Checking for initial session...');
         
-        console.log('🔵 Getting session...');
+        // First check for Google session token in localStorage (like WINCRM)
+        const googleSessionToken = localStorage.getItem('google_session_token');
+        const userDataStr = localStorage.getItem('google_user_data');
+        
+        if (googleSessionToken && userDataStr) {
+          try {
+            console.log('🟢 Found Google session in localStorage');
+            // Parse stored user data from Google OAuth
+            const userData = JSON.parse(userDataStr);
+            
+            // Create user object from stored Google data
+            const userObject: User = {
+              id: userData.id || userData.sub,
+              email: userData.email,
+              name: userData.name,
+              user_role: 'admin', // Default role for Google users (matching WINCRM)
+              verification_status: 'verified'
+            };
+            
+            console.log('🟢 Google user loaded:', userObject);
+            setUser(userObject);
+            // Create a mock session for compatibility
+            setSession({ user: { id: userData.id, email: userData.email } } as any);
+            clearTimeout(safetyTimeout);
+            setIsLoading(false);
+            return;
+          } catch (parseError) {
+            console.error('Error parsing Google user data:', parseError);
+            localStorage.removeItem('google_session_token');
+            localStorage.removeItem('google_user_data');
+          }
+        }
+        
+        // Fall back to Supabase session checking
+        console.log('🔵 Getting Supabase session...');
         const { data, error } = await supabase.auth.getSession();
         
         console.log('🔵 Session check result:', { hasData: !!data, hasSession: !!data?.session, error });
@@ -87,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         
         if (data?.session) {
-          console.log('🟢 Found existing session');
+          console.log('🟢 Found existing Supabase session');
           console.log('🔵 Session user ID:', data.session.user?.id);
           
           // Create user object from session
@@ -385,6 +419,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('🔵 Starting sign out process');
       setIsLoading(true);
+      
+      // Clear Google session data (like WINCRM)
+      localStorage.removeItem('google_session_token');
+      localStorage.removeItem('google_user_data');
       
       // Sign out from Supabase
       await supabase.auth.signOut();

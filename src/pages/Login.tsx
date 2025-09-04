@@ -1,29 +1,147 @@
 import { LoginForm } from "@/components/auth/LoginForm";
 import { OAuthDebugInfo } from "@/components/auth/OAuthDebugInfo";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ModalPageTransition } from "@/components/PageTransition";
-import { Navigate } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = import.meta.env.VITE_GOOGLE_CLIENT_SECRET;
+const GOOGLE_REDIRECT_URI = `${window.location.protocol}//${window.location.host}/login`;
 
 export default function Login() {
   const { user, session, isLoading } = useAuth();
+  const [searchParams] = useSearchParams();
+  const { toast } = useToast();
+  const [isProcessingCallback, setIsProcessingCallback] = useState(false);
 
+  // Handle Google OAuth callback
   useEffect(() => {
+    const code = searchParams.get('code');
+    const error = searchParams.get('error');
+    
     console.log('🔵 Login page - Auth state:', { user, session, isLoading });
+    console.log('🔵 OAuth params:', { code: !!code, error });
     
-    // Check URL for OAuth callback parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const hasOAuthParams = urlParams.has('code') || urlParams.has('access_token') || urlParams.has('error');
-    
-    if (hasOAuthParams) {
-      console.log('🔵 OAuth callback detected in URL:', window.location.search);
+    if (error) {
+      toast({
+        title: "Authentication Error",
+        description: `Google OAuth error: ${error}`,
+        variant: "destructive",
+      });
+      return;
     }
-  }, [user, session, isLoading]);
+
+    if (code) {
+      handleGoogleCallback(code);
+    }
+  }, [searchParams, user, session, isLoading]);
+
+  const handleGoogleCallback = async (code: string) => {
+    console.log('🔵 Processing Google OAuth callback with code:', code);
+    setIsProcessingCallback(true);
+    
+    try {
+      if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+        throw new Error('Google OAuth credentials not configured');
+      }
+
+      // Exchange code for tokens
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: GOOGLE_CLIENT_ID,
+          client_secret: GOOGLE_CLIENT_SECRET,
+          code,
+          grant_type: 'authorization_code',
+          redirect_uri: GOOGLE_REDIRECT_URI,
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        console.error('Token exchange failed:', errorText);
+        throw new Error(`Failed to exchange code for tokens: ${tokenResponse.status} ${tokenResponse.statusText}`);
+      }
+
+      const tokens = await tokenResponse.json();
+      
+      // Get user info from Google
+      const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: {
+          Authorization: `Bearer ${tokens.access_token}`,
+        },
+      });
+
+      if (!userResponse.ok) {
+        throw new Error('Failed to fetch user info');
+      }
+
+      const userData = await userResponse.json();
+
+      // Check if user email is from windscreencompare.com domain
+      if (!userData.email || !userData.email.endsWith('@windscreencompare.com')) {
+        throw new Error('Access denied. Only @windscreencompare.com email addresses are allowed.');
+      }
+
+      // Generate session token
+      const sessionToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
+
+      // Store session data in localStorage
+      localStorage.setItem('google_session_token', sessionToken);
+      localStorage.setItem('google_user_data', JSON.stringify({
+        id: userData.id,
+        email: userData.email,
+        name: userData.name,
+        picture: userData.picture,
+        domain: userData.email.split('@')[1]
+      }));
+
+      toast({
+        title: "Login Successful",
+        description: `Welcome ${userData.name}!`,
+      });
+
+      // Clean up URL and redirect
+      window.history.replaceState({}, '', '/login');
+      window.location.href = '/';
+      
+    } catch (error: any) {
+      console.error('OAuth callback error:', error);
+      toast({
+        title: "Authentication Failed",
+        description: error.message || "An error occurred during authentication",
+        variant: "destructive",
+      });
+      
+      // Clean up URL on error
+      window.history.replaceState({}, '', '/login');
+    } finally {
+      setIsProcessingCallback(false);
+    }
+  };
 
   // If user is already authenticated and not loading, redirect to dashboard
-  if (!isLoading && user && session) {
+  if (!isLoading && user && session && !searchParams.get('code')) {
     console.log('🔵 User already authenticated, redirecting to dashboard');
     return <Navigate to="/" replace />;
+  }
+
+  // Show loading during OAuth callback processing
+  if (isProcessingCallback) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center space-y-4">
+          <LoadingSpinner />
+          <p className="text-sm text-muted-foreground">Processing Google authentication...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
