@@ -134,12 +134,13 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
-      {/* Sidebar */}
+      {/* Sidebar - Hidden on mobile */}
       <div
         className={cn(
           "fixed top-0 left-0 z-40 h-screen transition-all duration-300 bg-white border-r border-gray-200",
           collapsed ? "w-16" : "w-64",
-          isMobile && !collapsed && "backdrop-blur-sm bg-white/95"
+          isMobile && !collapsed && "backdrop-blur-sm bg-white/95",
+          isMobile && "hidden" // Hide sidebar completely on mobile
         )}
       >
         <div className="flex flex-col h-full">
@@ -244,20 +245,14 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
         </div>
       </div>
 
-      {/* Mobile overlay */}
-      {isMobile && !collapsed && (
-        <div
-          className="fixed inset-0 bg-black/20 z-30"
-          onClick={() => setCollapsed(true)}
-        />
-      )}
+      {/* Mobile overlay - Not needed since sidebar is hidden on mobile */}
 
       {/* Main content */}
       <main
         className={cn(
           "flex-1 w-full transition-all duration-300 overflow-y-auto bg-gray-50",
-          collapsed ? "pl-16" : "pl-64",
-          isMobile && "pl-0 pb-20" // Add bottom padding for mobile bottom nav
+          !isMobile && (collapsed ? "pl-16" : "pl-64"), // Only apply left padding on desktop
+          isMobile && "pl-0 pb-20" // No left padding on mobile, add bottom padding for mobile bottom nav
         )}
       >
         {children}

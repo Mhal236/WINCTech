@@ -195,4 +195,24 @@
   .mobile-form-input {
     @apply text-base; /* Prevents zoom on iOS */
   }
+  
+  /* Animation utilities for mobile navigation */
+  .animate-in {
+    animation-fill-mode: both;
+  }
+  
+  .slide-in-from-bottom-2 {
+    animation: slide-in-from-bottom-2 0.2s ease-out;
+  }
+  
+  @keyframes slide-in-from-bottom-2 {
+    from {
+      transform: translateY(0.5rem) translateX(-50%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0) translateX(-50%);
+      opacity: 1;
+    }
+  }
 }
