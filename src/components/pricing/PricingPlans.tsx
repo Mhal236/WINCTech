@@ -49,14 +49,14 @@ const plans = [
 
 export const PricingPlans = () => {
   return (
-    <div className="py-8 px-4 md:px-0">
+    <div className="py-6 sm:py-8 mobile-container">
       <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-8 md:mb-12">
-          <h2 className="text-2xl md:text-3xl font-bold text-[#145484] mb-4">Simple, Transparent Pricing</h2>
-          <p className="text-gray-600 max-w-2xl mx-auto">Choose the plan that best fits your needs. All plans include a 14-day free trial with no credit card required.</p>
+        <div className="text-center mb-6 sm:mb-8 md:mb-12">
+          <h2 className="mobile-heading font-bold text-[#145484] mb-3 sm:mb-4">Simple, Transparent Pricing</h2>
+          <p className="text-gray-600 max-w-2xl mx-auto mobile-text">Choose the plan that best fits your needs. All plans include a 14-day free trial with no credit card required.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
           {plans.map((plan) => (
             <div key={plan.name} className="relative">
               {plan.popular && (
@@ -71,33 +71,33 @@ export const PricingPlans = () => {
                   plan.popular ? 'border-[#145484] ring-1 ring-[#145484] transform md:-translate-y-2 mt-3' : ''
                 }`}
               >
-                <CardHeader className={`p-4 md:p-6 ${
+                <CardHeader className={`mobile-card ${
                   plan.popular 
                     ? 'bg-gradient-to-b from-[#145484]/30 via-[#145484]/20 to-white/90' 
                     : 'bg-gradient-to-b from-gray-100/40 via-gray-50/30 to-white/90'
                 } rounded-t-lg backdrop-blur-sm`}>
-                  <CardTitle className="text-xl md:text-2xl font-bold text-[#1D1D1F]">{plan.name}</CardTitle>
-                  <CardDescription className="text-sm md:text-base text-[#1D1D1F]">{plan.description}</CardDescription>
+                  <CardTitle className="text-lg sm:text-xl md:text-2xl font-bold text-[#1D1D1F]">{plan.name}</CardTitle>
+                  <CardDescription className="mobile-text text-[#1D1D1F]">{plan.description}</CardDescription>
                 </CardHeader>
-                <CardContent className="p-4 md:p-6 bg-white/90 backdrop-blur-sm flex-grow">
-                  <div className="mb-4">
-                    <span className="text-3xl md:text-4xl font-bold text-[#1D1D1F]">
+                <CardContent className="mobile-card bg-white/90 backdrop-blur-sm flex-grow">
+                  <div className="mb-3 sm:mb-4">
+                    <span className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#1D1D1F]">
                       £{plan.price}
                     </span>
-                    <span className="text-sm md:text-base text-[#1D1D1F]">/month</span>
+                    <span className="mobile-text text-[#1D1D1F]">/month</span>
                   </div>
-                  <ul className="space-y-2 md:space-y-3">
+                  <ul className="space-y-2 sm:space-y-3">
                     {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-center gap-2 text-sm md:text-base">
-                        <Check className="h-4 w-4 md:h-5 md:w-5 text-[#145484] flex-shrink-0" />
+                      <li key={feature} className="flex items-center gap-2 mobile-text">
+                        <Check className="h-4 w-4 sm:h-5 sm:w-5 text-[#145484] flex-shrink-0" />
                         <span className="text-[#1D1D1F]">{feature}</span>
                       </li>
                     ))}
                   </ul>
                 </CardContent>
-                <CardFooter className="p-4 md:p-6 bg-white/90 rounded-b-lg backdrop-blur-sm mt-auto">
+                <CardFooter className="mobile-card bg-white/90 rounded-b-lg backdrop-blur-sm mt-auto">
                   <Button 
-                    className={`w-full h-10 md:h-12 text-sm md:text-base ${
+                    className={`w-full touch-target mobile-text ${
                       plan.popular ? 'font-medium' : ''
                     }`}
                     onClick={() => alert(`Selected ${plan.name} plan with 14-day free trial`)}

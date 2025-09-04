@@ -120,13 +120,13 @@ const Index = () => {
   return (
     <DashboardLayout>
       <PageTransition>
-        <div className="space-y-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="space-y-4 sm:space-y-6">
+          <div className="mobile-flex justify-between items-start md:items-center mobile-gap">
             <div>
-              <h1 className="text-2xl md:text-3xl font-semibold text-[#145484]">
+              <h1 className="mobile-heading font-semibold text-[#145484]">
                 Welcome back, {user?.name}!
               </h1>
-              <p className="text-muted-foreground mt-1">
+              <p className="text-muted-foreground mt-1 mobile-text">
                 Status: <span className="font-medium text-green-600 capitalize">
                   {user?.user_role === 'admin' ? 'Admin' : 
                    user?.verification_status === 'verified' ? 'Verified' : 
@@ -142,18 +142,18 @@ const Index = () => {
           </section>
 
           {/* Features Section */}
-          <section className="py-12 bg-gray-50 rounded-lg">
-            <div className="container mx-auto px-4">
-              <h2 className="text-3xl font-bold text-center text-[#145484] mb-8">Platform Features</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <section className="py-8 sm:py-12 bg-gray-50 rounded-lg">
+            <div className="mobile-container">
+              <h2 className="mobile-heading font-bold text-center text-[#145484] mb-6 sm:mb-8">Platform Features</h2>
+              <div className="mobile-grid mobile-gap">
                 {features.map((feature, index) => (
                   <Card key={index} className="hover:shadow-lg transition-all duration-300">
-                    <CardContent className="p-6">
-                      <div className="flex items-center gap-4 mb-4">
+                    <CardContent className="mobile-card">
+                      <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
                         {feature.icon}
-                        <h3 className="font-semibold text-lg">{feature.title}</h3>
+                        <h3 className="font-semibold text-base sm:text-lg">{feature.title}</h3>
                       </div>
-                      <p className="text-gray-600">{feature.description}</p>
+                      <p className="text-gray-600 mobile-text">{feature.description}</p>
                     </CardContent>
                   </Card>
                 ))}
@@ -161,24 +161,24 @@ const Index = () => {
             </div>
           </section>
 
-          <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             <Card className="hover:shadow-lg transition-shadow duration-200 border-[#145484]/20">
               <CardHeader className="space-y-1">
-                <CardTitle className="text-xl md:text-2xl text-[#145484]">Recent Orders</CardTitle>
+                <CardTitle className="text-lg sm:text-xl md:text-2xl text-[#145484]">Recent Orders</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between text-sm">
+              <CardContent className="mobile-card">
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex items-center justify-between mobile-text">
                     <span>Order #12345</span>
                     <span className="text-muted-foreground">£299.99</span>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center justify-between mobile-text">
                     <span>Order #12344</span>
                     <span className="text-muted-foreground">£449.99</span>
                   </div>
-                  <Button variant="outline">
+                  <Button variant="outline" className="w-full sm:w-auto touch-target">
                     <History className="mr-2 h-4 w-4" />
-                    View All Orders
+                    <span className="mobile-text">View All Orders</span>
                   </Button>
                 </div>
               </CardContent>
@@ -186,21 +186,21 @@ const Index = () => {
 
             <Card className="hover:shadow-lg transition-shadow duration-200 border-[#145484]/20">
               <CardHeader className="space-y-1">
-                <CardTitle className="text-xl md:text-2xl text-[#145484]">Saved Quotes</CardTitle>
+                <CardTitle className="text-lg sm:text-xl md:text-2xl text-[#145484]">Saved Quotes</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between text-sm">
+              <CardContent className="mobile-card">
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex items-center justify-between mobile-text">
                     <span>Toyota Camry 2022</span>
                     <span className="text-muted-foreground">£299.99</span>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center justify-between mobile-text">
                     <span>Honda Civic 2023</span>
                     <span className="text-muted-foreground">£249.99</span>
                   </div>
-                  <Button variant="outline">
+                  <Button variant="outline" className="w-full sm:w-auto touch-target">
                     <Heart className="mr-2 h-4 w-4" />
-                    View Favorites
+                    <span className="mobile-text">View Favorites</span>
                   </Button>
                 </div>
               </CardContent>
@@ -208,23 +208,23 @@ const Index = () => {
           </div>
 
           {/* Loyalty Section - Moved to bottom */}
-          <section className="py-8">
-            <div className="container mx-auto px-4">
-              <div className="flex items-center gap-3 mb-6">
-                <Award className="h-8 w-8 text-[#145484]" />
-                <h2 className="text-2xl font-bold text-gray-800">Your Rewards</h2>
+          <section className="py-6 sm:py-8">
+            <div className="mobile-container">
+              <div className="flex items-center gap-3 mb-4 sm:mb-6">
+                <Award className="h-6 w-6 sm:h-8 sm:w-8 text-[#145484]" />
+                <h2 className="text-lg sm:text-2xl font-bold text-gray-800">Your Rewards</h2>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="mobile-grid mobile-gap">
                 {loyaltyRewards.map((reward, index) => (
                   <Card key={index} className="hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-white to-[#145484]/5">
-                    <CardContent className="p-6">
-                      <div className="flex items-center gap-4 mb-4">
+                    <CardContent className="mobile-card">
+                      <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
                         <div className="p-2 bg-[#145484]/10 rounded-lg">
                           {reward.icon}
                         </div>
                         <div>
-                          <h3 className="font-semibold text-lg text-gray-800">{reward.title}</h3>
-                          <p className="text-sm text-gray-600">{reward.points} points</p>
+                          <h3 className="font-semibold text-base sm:text-lg text-gray-800">{reward.title}</h3>
+                          <p className="text-xs sm:text-sm text-gray-600">{reward.points} points</p>
                         </div>
                       </div>
                       <Progress 

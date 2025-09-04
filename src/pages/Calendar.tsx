@@ -65,8 +65,8 @@ const Calendar = () => {
 
   return (
     <DashboardLayout>
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col md:flex-row gap-8">
+      <div className="mobile-container py-6 sm:py-8">
+        <div className="mobile-flex mobile-gap">
           {/* Left Column: Calendar Component */}
           <div className="md:w-1/3">
             <CalendarComponent 
@@ -80,41 +80,41 @@ const Calendar = () => {
           {/* Right Column: Jobs Listing */}
           <div className="md:w-2/3">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-xl font-semibold flex items-center gap-2">
+              <CardHeader className="mobile-card">
+                <CardTitle className="text-lg sm:text-xl font-semibold flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#3d99be] animate-pulse"></span>
                   Jobs for {date?.toLocaleDateString()}
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid gap-4">
+              <CardContent className="mobile-card">
+                <div className="grid gap-3 sm:gap-4">
                   {jobs.map(job => (
                     <Card key={job.id} className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-[#135084]">
-                      <CardContent className="p-6">
-                        <div className="flex flex-col md:flex-row justify-between gap-4">
-                          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <CardContent className="mobile-card">
+                        <div className="mobile-flex justify-between mobile-gap">
+                          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                             <div>
-                              <h3 className="font-semibold text-lg text-[#3d99be]">{job.damage || "Service"}</h3>
-                              <p className="text-sm text-gray-500">{job.vehicle || "Vehicle Info"}</p>
-                              <p className="text-sm text-gray-500">Customer: {job.customer}</p>
+                              <h3 className="font-semibold text-base sm:text-lg text-[#3d99be]">{job.damage || "Service"}</h3>
+                              <p className="mobile-text text-gray-500">{job.vehicle || "Vehicle Info"}</p>
+                              <p className="mobile-text text-gray-500">Customer: {job.customer}</p>
                             </div>
                             <div>
-                              <p className="text-sm font-medium">Scheduled for:</p>
-                              <p className="text-sm text-gray-500">{job.date}</p>
-                              <p className="text-sm text-gray-500">{job.time}</p>
+                              <p className="mobile-text font-medium">Scheduled for:</p>
+                              <p className="mobile-text text-gray-500">{job.date}</p>
+                              <p className="mobile-text text-gray-500">{job.time}</p>
                             </div>
                             <div>
-                              <p className="text-sm font-medium">Address:</p>
-                              <p className="text-sm text-gray-500">{job.address || "N/A"}</p>
-                              <p className="text-sm font-medium mt-2">Damage:</p>
-                              <p className="text-sm text-gray-500">{job.damage || "N/A"}</p>
-                              <p className="text-sm font-medium mt-2">VRN:</p>
-                              <p className="text-sm text-gray-500">{job.vrn || "N/A"}</p>
+                              <p className="mobile-text font-medium">Address:</p>
+                              <p className="mobile-text text-gray-500">{job.address || "N/A"}</p>
+                              <p className="mobile-text font-medium mt-2">Damage:</p>
+                              <p className="mobile-text text-gray-500">{job.damage || "N/A"}</p>
+                              <p className="mobile-text font-medium mt-2">VRN:</p>
+                              <p className="mobile-text text-gray-500">{job.vrn || "N/A"}</p>
                             </div>
                           </div>
-                          <div className="flex flex-col md:flex-row items-end md:items-center gap-4">
+                          <div className="mobile-flex items-end md:items-center gap-3 sm:gap-4">
                             <div className="text-right">
-                              <p className="font-medium text-lg">{job.price}</p>
+                              <p className="font-medium text-base sm:text-lg">{job.price}</p>
                               <span
                                 className={`inline-block px-2 py-1 text-xs rounded-full ${
                                   job.status === 'In Progress'

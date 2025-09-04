@@ -333,23 +333,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Get the correct redirect URL based on environment
       const getRedirectUrl = () => {
-        // Check if we have a base_url environment variable
+        // Priority 1: Explicit environment variables
         if (import.meta.env.VITE_BASE_URL) {
           return import.meta.env.VITE_BASE_URL;
         }
         
-        // Fallback to VITE_SITE_URL if base_url is not set
         if (import.meta.env.VITE_SITE_URL) {
           return import.meta.env.VITE_SITE_URL;
         }
         
-        // For development, use localhost
+        // Priority 2: Detect Vercel deployment
+        if (window.location.hostname.includes('vercel.app')) {
+          return window.location.origin;
+        }
+        
+        // Priority 3: Development environment
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
           return window.location.origin;
         }
         
-        // For production/Vercel deployment, use the current origin
-        // This should work correctly once the OAuth app is configured with the right domain
+        // Priority 4: Production deployment (custom domain)
         return window.location.origin;
       };
       

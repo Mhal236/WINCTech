@@ -257,7 +257,7 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
         className={cn(
           "flex-1 w-full transition-all duration-300 overflow-y-auto bg-gray-50",
           collapsed ? "pl-16" : "pl-64",
-          isMobile && "pl-0"
+          isMobile && "pl-0 pb-20" // Add bottom padding for mobile bottom nav
         )}
       >
         {children}
