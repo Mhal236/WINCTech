@@ -1,4 +1,5 @@
 import { LoginForm } from "@/components/auth/LoginForm";
+import { OAuthDebugInfo } from "@/components/auth/OAuthDebugInfo";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect } from "react";
 import { ModalPageTransition } from "@/components/PageTransition";
@@ -27,7 +28,7 @@ export default function Login() {
 
   return (
     <ModalPageTransition>
-      <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-gray-50">
+      <div className="min-h-screen w-full flex items-center justify-center mobile-container relative overflow-hidden bg-gray-50 safe-area-pt safe-area-pb">
         {/* Debug info - only show in development */}
         {process.env.NODE_ENV === 'development' && (
           <div className="fixed top-4 right-4 bg-black/80 text-white p-2 rounded text-xs z-50">
@@ -46,33 +47,36 @@ export default function Login() {
 
         {/* Main Content Container */}
         <div className="relative z-10 w-full max-w-md mx-auto">
+          {/* Debug Info */}
+          <OAuthDebugInfo />
+          
           {/* Header Section */}
-          <div className="mb-8 text-center">
-            <div className="mb-6">
+          <div className="mb-6 sm:mb-8 text-center">
+            <div className="mb-4 sm:mb-6">
               {/* Logo/Icon with Brand Colors */}
-              <div className="mx-auto w-16 h-16 bg-[#FFC107] rounded-2xl flex items-center justify-center mb-4 shadow-lg">
-                <svg className="w-8 h-8 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="mx-auto w-12 h-12 sm:w-16 sm:h-16 bg-[#FFC107] rounded-2xl flex items-center justify-center mb-3 sm:mb-4 shadow-lg">
+                <svg className="w-6 h-6 sm:w-8 sm:h-8 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
               </div>
             </div>
             
-            <h1 className="text-4xl font-bold text-gray-900 mb-3">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-2 sm:mb-3">
               Welcome Back
             </h1>
-            <p className="text-gray-600 text-lg">
+            <p className="text-gray-600 text-base sm:text-lg">
               Sign in to access your dashboard
             </p>
           </div>
 
           {/* Login Form with Glass Effect */}
-          <div className="glass-card rounded-2xl p-8 shadow-2xl hover-scale w-full">
+          <div className="glass-card rounded-2xl p-6 sm:p-8 shadow-2xl hover-scale w-full">
             <LoginForm />
           </div>
 
           {/* Footer */}
-          <div className="mt-8 text-center">
-            <p className="text-sm text-gray-500">
+          <div className="mt-6 sm:mt-8 text-center">
+            <p className="text-xs sm:text-sm text-gray-500">
               Secure login powered by advanced encryption
             </p>
           </div>

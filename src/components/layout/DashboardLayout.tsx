@@ -17,13 +17,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <Sidebar>
-      <div className="p-6 h-full overflow-y-auto">
+      <div className="p-3 sm:p-4 md:p-6 h-full overflow-y-auto">
         {children}
       </div>
       
       {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-sm border border-gray-100 
-        rounded-full shadow-xl w-[90%] max-w-md z-[2000] sm:hidden">
+      <nav className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-md border border-gray-200 
+        rounded-full shadow-xl w-[90%] max-w-md z-[2000] sm:hidden safe-area-pb">
         <div className="flex justify-around items-center h-14 px-2">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -35,9 +35,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 to={item.href}
                 className={cn(
                   "flex flex-col items-center justify-center p-2 rounded-full transition-colors",
-                  "text-xs font-medium",
+                  "text-xs font-medium min-w-[44px] min-h-[44px]", // Improved touch targets
                   isActive 
-                    ? "text-red-600 bg-red-50" 
+                    ? "text-[#145484] bg-[#145484]/10" 
                     : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
                 )}
               >

@@ -1,8 +1,16 @@
 #root {
-  max-width: 1280px;
+  max-width: 100%;
   margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  padding: 0;
+  text-align: left;
+}
+
+/* Mobile-first responsive padding */
+@media (min-width: 768px) {
+  #root {
+    max-width: 1280px;
+    padding: 1rem;
+  }
 }
 
 .logo {
