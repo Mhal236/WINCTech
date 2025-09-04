@@ -64,7 +64,7 @@ export function createApiRouter() {
       console.log(`Handling vehicle data request for VRN: ${vrn}`);
       
       // Get API key from environment with multiple fallbacks
-      const apiKey = process.env.VITE_VEHICLE_API_KEY;
+      const apiKey = process.env.VEHICLE_API_KEY;
       // Use the VITE prefixed environment variable
       const apiUrl = process.env.VITE_VEHICLE_API_URL;
       
