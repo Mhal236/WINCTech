@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 const GLASS_API_URL = 'https://www.master-auto-glass.co.uk/pdaservice.asmx';
 const GLASS_API_SOAP_ACTION = 'https://www.master-auto-glass.co.uk/pdaservice.asmx/getStockList';
 const VEHICLE_API_URL = process.env.VITE_VEHICLE_API_URL || 'https://legacy.api.vehicledataglobal.com/api/datapackage/VehicleData';
-const VEHICLE_API_KEY = process.env.VITE_VEHICLE_API_KEY || '6193cc7a-c1b2-469c-ad41-601c6faa294c';
+const VEHICLE_API_KEY = process.env.VEHICLE_API_KEY || '6193cc7a-c1b2-469c-ad41-601c6faa294c';
 
 // Middleware
 app.use(express.json());

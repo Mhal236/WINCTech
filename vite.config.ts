@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => {
   // Debug environment variables
   console.log('Environment variables loaded by Vite:');
   console.log('VITE_VEHICLE_API_URL:', env.VITE_VEHICLE_API_URL || 'not defined');
-  console.log('VITE_VEHICLE_API_KEY:', env.VITE_VEHICLE_API_KEY ? '[hidden for security]' : 'not defined');
+  console.log('VEHICLE_API_KEY:', env.VEHICLE_API_KEY ? '[hidden for security]' : 'not defined');
 
   return {
     base: './',

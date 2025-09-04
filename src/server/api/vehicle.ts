@@ -4,7 +4,7 @@
 
 // Access environment variables without the VITE_ prefix
 const apiUrl = process.env.VITE_VEHICLE_API_URL;
-const apiKey = process.env.VITE_VEHICLE_API_KEY;
+const apiKey = process.env.VEHICLE_API_KEY;
 
 export async function lookupVehicleData(vrn: string) {
   if (!apiUrl || !apiKey) {

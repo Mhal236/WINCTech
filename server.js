@@ -48,7 +48,7 @@ app.get('/api/vehicle/:vrn', async (req, res) => {
     // Get API credentials - hardcoded for simplicity in this example
     // In production, use environment variables
     const apiUrl = process.env.VITE_VEHICLE_API_URL || 'https://legacy.api.vehicledataglobal.com/api/datapackage/VehicleData';
-    const apiKey = process.env.VITE_VEHICLE_API_KEY || '6193cc7a-c1b2-469c-ad41-601c6faa294c';
+    const apiKey = process.env.VEHICLE_API_KEY || '6193cc7a-c1b2-469c-ad41-601c6faa294c';
     
     if (!apiKey || !apiUrl) {
       console.error('Missing API key or URL in environment variables');
