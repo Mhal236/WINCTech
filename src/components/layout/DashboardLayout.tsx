@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { Home, Briefcase, Calendar, Settings, User, Search, ShoppingCart, ClipboardList, MessageCircle, MoreHorizontal, X } from "lucide-react";
+import { Home, Briefcase, Calendar, Settings, User, Search, ShoppingCart, ClipboardList, MessageCircle, MoreHorizontal, X, Sparkles } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { useRoleBasedAccess } from "@/components/auth/RoleBasedAccess";
 import { Button } from "@/components/ui/button";
@@ -10,15 +10,16 @@ import { Button } from "@/components/ui/button";
 const primaryNavItems = [
   { icon: Home, label: "Home", href: "/", requiredRole: "user" },
   { icon: Briefcase, label: "Jobs", href: "/job-swipe", requiredRole: "admin" },
-  { icon: ShoppingCart, label: "Order", href: "/price-lookup", requiredRole: "admin" },
+  { icon: ClipboardList, label: "History", href: "/history", requiredRole: "admin" },
   { icon: Settings, label: "Settings", href: "/settings", requiredRole: "user" },
 ];
 
 // Secondary navigation items (shown in "More" menu)
 const secondaryNavItems = [
-  { icon: Search, label: "ARGIC Search", href: "/glass-search", requiredRole: "admin" },
   { icon: Calendar, label: "Calendar", href: "/calendar", requiredRole: "admin" },
-  { icon: ClipboardList, label: "History", href: "/history", requiredRole: "admin" },
+  { icon: Sparkles, label: "Tony A.I", href: "/tony-ai", requiredRole: "user" },
+  { icon: Search, label: "ARGIC Search", href: "/glass-search", requiredRole: "pro-2" },
+  { icon: ShoppingCart, label: "Order", href: "/price-lookup", requiredRole: "pro-2" },
   { icon: MessageCircle, label: "Contact", href: "/contact", requiredRole: "user" },
 ];
 

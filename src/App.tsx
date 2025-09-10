@@ -28,6 +28,8 @@ const Reporting = lazy(() => import("./pages/Reporting"));
 const History = lazy(() => import("./pages/History"));
 const JobSwipe = lazy(() => import("./pages/JobSwipe"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
+const DebugAuth = lazy(() => import("./pages/DebugAuth"));
+const TonyAI = lazy(() => import("./pages/TonyAI"));
 
 // Loading fallback
 const LoadingFallback = () => (
@@ -149,6 +151,18 @@ const AnimatedRoutes = () => {
         <Route path="/contact" element={
           <ProtectedRoute>
             <Contact />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/tony-ai" element={
+          <ProtectedRoute>
+            <TonyAI />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/debug-auth" element={
+          <ProtectedRoute>
+            <DebugAuth />
           </ProtectedRoute>
         } />
         

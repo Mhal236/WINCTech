@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { VerificationForm } from "@/components/auth/VerificationForm";
+import { DemoVideos } from "@/components/DemoVideos";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -187,12 +188,17 @@ const Index = () => {
               <p className="text-muted-foreground mt-1 mobile-text">
                 Status: <span className="font-medium text-green-600 capitalize">
                   {user?.user_role === 'admin' ? 'Admin' : 
+                   user?.user_role === 'pro-1' ? 'Pro-1 Technician' :
+                   user?.user_role === 'pro-2' ? 'Pro-2 Technician' :
                    user?.verification_status === 'verified' ? 'Verified' : 
                    'Verified'}
                 </span>
               </p>
             </div>
           </div>
+
+          {/* Demo Videos Section */}
+          <DemoVideos />
 
           {/* Subscription Plans - Main Focus for Verified Users */}
           <section className="py-8">
