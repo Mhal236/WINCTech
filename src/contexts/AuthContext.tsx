@@ -84,19 +84,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Parse stored user data from Google OAuth
             const userData = JSON.parse(userDataStr);
             
-            // Create user object from stored Google data
-            const userObject: User = {
-              id: userData.id || userData.sub,
-              email: userData.email,
-              name: userData.name,
-              user_role: 'admin', // Default role for Google users (matching WINCRM)
-              verification_status: 'verified'
-            };
+            // Look up user data using the database function
+            console.log('🔵 Looking up user data by email:', userData.email);
             
-            console.log('🟢 Google user loaded:', userObject);
+            const { data: userLookupData, error: lookupError } = await supabase
+              .rpc('get_user_by_email', { user_email: userData.email })
+              .single();
+            
+            let userObject: User;
+            
+            if (userLookupData && !lookupError) {
+              console.log('🟢 Found user data from database:', userLookupData);
+              // Use data from database lookup
+              const dbUser = userLookupData as any;
+              userObject = {
+                id: dbUser.supabase_id,
+                email: dbUser.email,
+                name: dbUser.name,
+                user_role: dbUser.user_role,
+                verification_status: dbUser.verification_status,
+                verification_form_data: dbUser.verification_form_data,
+                submitted_at: dbUser.submitted_at,
+                verified_at: dbUser.verified_at,
+                verified_by: dbUser.verified_by,
+                rejection_reason: dbUser.rejection_reason,
+                credits: dbUser.credits
+              };
+            } else {
+              console.log('🔵 No database user found, using basic Google data');
+              // Fallback to basic Google data
+              userObject = {
+                id: userData.id || userData.sub,
+                email: userData.email,
+                name: userData.name,
+                user_role: userData.email === 'admin@windscreencompare.com' ? 'admin' : 'pending',
+                verification_status: userData.email === 'admin@windscreencompare.com' ? 'verified' : 'non-verified'
+              };
+            }
+            
+            console.log('🟢 Final Google user object:', userObject);
             setUser(userObject);
             // Create a mock session for compatibility
-            setSession({ user: { id: userData.id, email: userData.email } } as any);
+            setSession({ user: { id: userObject.id, email: userData.email } } as any);
             clearTimeout(safetyTimeout);
             setIsLoading(false);
             return;
@@ -443,27 +472,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hasPermission = (requiredRole: string): boolean => {
     if (!user) return false;
     
-    // Role hierarchy: admin > staff > verified > user
-    const userRole = user.user_role || 'user';
-    const verificationStatus = user.verification_status || 'verified';
+    // New 4-level hierarchy: admin > pro-2 > pro-1 > pending
+    const userRole = user.user_role || 'pending';
+    const verificationStatus = user.verification_status || 'non-verified';
     
-    // Admin can access everything
+    // Admin has access to everything
     if (userRole === 'admin') return true;
     
-    // Staff can access staff and below
-    if (requiredRole === 'staff' && userRole === 'staff') return true;
-    
-    // For "user" level access (Contact, Settings, Dashboard), allow all authenticated users including non-verified
-    if (requiredRole === 'user') {
-      return ['verified', 'user', 'staff', 'admin', 'non-verified'].includes(userRole);
+    // Pro-2 technicians can access everything except admin-only features
+    if (userRole === 'pro-2') {
+      return ['pro-2', 'admin', 'pro-1', 'user'].includes(requiredRole);
     }
     
-    // For "verified" and above, require proper verification status
-    if (userRole === 'non-verified' || verificationStatus === 'non-verified') return false;
-    if (verificationStatus === 'pending' || verificationStatus === 'rejected') return false;
+    // Pro-1 technicians can access core technician features
+    if (userRole === 'pro-1') {
+      return ['pro-1', 'user'].includes(requiredRole) || 
+             (requiredRole === 'admin'); // Allow admin access for core features
+    }
     
-    // Verified users can access verified-level content
-    if (requiredRole === 'verified' && ['verified', 'user', 'staff', 'admin'].includes(userRole)) return true;
+    // For "user" level access (Contact, Settings, Home), allow all authenticated users
+    if (requiredRole === 'user') {
+      return ['pending', 'pro-1', 'pro-2', 'admin'].includes(userRole);
+    }
+    
+    // For admin-level access, check specific permissions
+    if (requiredRole === 'admin') {
+      // Admin and Pro-2 have full admin access
+      if (['admin', 'pro-2'].includes(userRole)) return true;
+      
+      // Pro-1 has admin access to core technician features only
+      if (userRole === 'pro-1') return true;
+    }
+    
+    // For pro-2 level access, only pro-2 and admin
+    if (requiredRole === 'pro-2') {
+      return ['admin', 'pro-2'].includes(userRole);
+    }
+    
+    // Legacy support for old role names - map to new system
+    if (userRole === 'staff') return hasPermission('pro-2');
+    if (userRole === 'verified') return hasPermission('pro-1');
+    if (userRole === 'user') return hasPermission('pending');
     
     return false;
   };

@@ -2,6 +2,7 @@ import express from 'express';
 import * as GlassApiService from './glass-api-service.js';
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
+import { createClient } from '@supabase/supabase-js';
 
 // Load environment variables from .env files
 dotenv.config();
@@ -28,6 +29,17 @@ export function setupApiMiddleware(server) {
     }
     next();
   });
+
+  // Helper: get Supabase admin client
+  function getSupabaseAdmin() {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !serviceRole) {
+      return { error: 'Missing SUPABASE_URL/VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in server env' };
+    }
+    const client = createClient(url, serviceRole, { auth: { persistSession: false } });
+    return { client };
+  }
 
   // Example API endpoint
   app.get('/api/health', (req, res) => {
@@ -179,6 +191,164 @@ export function setupApiMiddleware(server) {
         error: error instanceof Error ? error.message : String(error),
         message: "Failed to get vehicle makes"
       });
+    }
+  });
+
+  // =============================
+  // Jobs: Secure endpoints (service role)
+  // =============================
+  app.post('/api/jobs/accept', async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      if (admin.error) return res.status(500).json({ success: false, error: admin.error });
+      const supabase = admin.client;
+
+      const { jobId, technicianId, technicianName } = req.body || {};
+      if (!jobId || !technicianId || !technicianName) {
+        return res.status(400).json({ success: false, error: 'Missing required fields: jobId, technicianId, technicianName' });
+        }
+
+      // Prevent double assignment
+      const { data: existingAssign, error: existingErr } = await supabase
+        .from('job_assignments')
+        .select('id')
+        .eq('job_id', jobId)
+        .maybeSingle();
+
+      if (existingErr) return res.status(500).json({ success: false, error: existingErr.message });
+      if (existingAssign) return res.status(409).json({ success: false, error: 'Job already assigned' });
+
+      // Insert assignment
+      const { data: assignment, error: insertErr } = await supabase
+        .from('job_assignments')
+        .insert({ job_id: jobId, technician_id: technicianId, status: 'assigned' })
+        .select()
+        .single();
+
+      if (insertErr || !assignment) {
+        return res.status(500).json({ success: false, error: insertErr?.message || 'Failed to create assignment' });
+      }
+
+      // Update MasterCustomer
+      const { error: updateErr } = await supabase
+        .from('MasterCustomer')
+        .update({ status: 'assigned', technician_id: technicianId, technician_name: technicianName })
+        .eq('id', jobId);
+
+      if (updateErr) {
+        await supabase.from('job_assignments').delete().eq('id', assignment.id);
+        return res.status(500).json({ success: false, error: updateErr.message });
+      }
+
+      return res.json({ success: true, assignmentId: assignment.id });
+    } catch (error) {
+      console.error('Error in /api/jobs/accept:', error);
+      return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
+  app.post('/api/jobs/create-event', async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      if (admin.error) return res.status(500).json({ success: false, error: admin.error });
+      const supabase = admin.client;
+
+      const { assignmentId, job, technicianId } = req.body || {};
+      if (!assignmentId || !job || !technicianId) {
+        return res.status(400).json({ success: false, error: 'Missing required fields: assignmentId, job, technicianId' });
+      }
+
+      const eventDate = job.appointment_date || new Date().toISOString().split('T')[0];
+      const startTime = (job.time_slot?.split('-')[0] || '09:00').trim();
+
+      // Calculate end time
+      const getEnd = (start, dur) => {
+        try {
+          const [h, m] = start.split(':').map(Number);
+          let hours = 2;
+          if (dur?.includes('hour')) hours = parseInt(dur.match(/\d+/)?.[0] || '2');
+          else if (dur?.includes('minute')) hours = (parseInt(dur.match(/\d+/)?.[0] || '120')) / 60;
+          const endH = h + Math.floor(hours);
+          const endMtotal = m + (hours % 1) * 60;
+          const finalM = Math.round(endMtotal % 60);
+          const extraH = Math.floor(endMtotal / 60);
+          const finalH = endH + extraH;
+          return `${finalH.toString().padStart(2,'0')}:${finalM.toString().padStart(2,'0')}`;
+        } catch { return '17:00'; }
+      };
+
+      const endTime = getEnd(startTime, job.duration || '2 hours');
+      const vehicleInfo = [job.year, job.brand, job.model].filter(Boolean).join(' ') || 'Vehicle information not available';
+      const location = `${job.location || ''} ${job.postcode || ''}`.trim();
+
+      const { error } = await supabase
+        .from('calendar_events')
+        .insert({
+          job_assignment_id: assignmentId,
+          technician_id: technicianId,
+          title: `${job.service_type || 'Windscreen Service'} - ${job.full_name}`,
+          description: `Vehicle: ${vehicleInfo}\nService: ${job.service_type || 'Windscreen Service'}\nGlass Type: ${job.glass_type || 'Standard'}\nCustomer: ${job.full_name}\nPhone: ${job.mobile || 'N/A'}`,
+          start_date: eventDate,
+          start_time: startTime,
+          end_date: eventDate,
+          end_time: endTime,
+          location,
+          customer_name: job.full_name,
+          customer_phone: job.mobile,
+          vehicle_info: vehicleInfo,
+          status: 'scheduled'
+        });
+
+      if (error) return res.status(500).json({ success: false, error: error.message });
+      return res.json({ success: true });
+    } catch (error) {
+      console.error('Error in /api/jobs/create-event:', error);
+      return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
+  // Get technician's accepted jobs (service role)
+  app.post('/api/technician/jobs', async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      if (admin.error) return res.status(500).json({ success: false, error: admin.error });
+      const supabase = admin.client;
+
+      const { technicianId } = req.body || {};
+      if (!technicianId) {
+        return res.status(400).json({ success: false, error: 'Missing technicianId' });
+      }
+
+      const { data, error } = await supabase
+        .from('job_assignments')
+        .select(`
+          *,
+          MasterCustomer (
+            id,
+            full_name,
+            mobile,
+            location,
+            postcode,
+            appointment_date,
+            time_slot,
+            status,
+            quote_price,
+            service_type,
+            glass_type,
+            vehicle_reg,
+            brand,
+            model,
+            year
+          )
+        `)
+        .eq('technician_id', technicianId)
+        .order('assigned_at', { ascending: false });
+
+      if (error) return res.status(500).json({ success: false, error: error.message });
+      return res.json({ success: true, data });
+    } catch (error) {
+      console.error('Error in /api/technician/jobs:', error);
+      return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 

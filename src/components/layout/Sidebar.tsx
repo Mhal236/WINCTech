@@ -15,13 +15,14 @@ import {
   LockIcon,
   ShoppingCart,
   DollarSign,
+  Sparkles,
 } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { UserProfile } from "@/components/auth/UserProfile";
-import { Separator } from "@/components/ui/separator";
 import { useRoleBasedAccess } from "@/components/auth/RoleBasedAccess";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,6 +32,7 @@ const logo = "/windscreen-compare-technician.png";
 
 export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
   const [collapsed, setCollapsed] = useState(false);
+  const [settingsExpanded, setSettingsExpanded] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -54,13 +56,19 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
   // Define navigation items with their required roles - organized like Calendly
   const navigation = [
     { name: "Home", href: "/", icon: Home, requiredRole: "user" },
+  ];
+
+  const jobsAndCalendarNavigation = [
     { name: "Jobs", href: "/job-swipe", icon: Briefcase, requiredRole: "admin" },
     { name: "Calendar", href: "/calendar", icon: Calendar, requiredRole: "admin" },
   ];
 
   const bottomNavigation = [
-    { name: "ARGIC Search", href: "/glass-search", icon: Search, requiredRole: "admin" },
-    { name: "Glass Order", href: "/price-lookup", icon: ShoppingCart, requiredRole: "admin" },
+    { name: "ARGIC Search", href: "/glass-search", icon: Search, requiredRole: "pro-2" },
+    { name: "Glass Order", href: "/price-lookup", icon: ShoppingCart, requiredRole: "pro-2" },
+  ];
+
+  const preSettingsNavigation = [
     { name: "History", href: "/history", icon: ClipboardList, requiredRole: "admin" },
   ];
 
@@ -80,24 +88,24 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
               <Link
                 to={item.href}
                 className={cn(
-                  "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                  "hover:bg-gray-100 hover:text-gray-900",
+                  "group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150",
+                  "hover:bg-gray-50 hover:text-gray-900",
                   location.pathname === item.href 
-                    ? "bg-blue-50 text-blue-700 border-r-2 border-blue-700" 
-                    : "text-gray-700",
-                  isUpgrade && "bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100",
+                    ? "bg-gray-100 text-gray-900 font-semibold" 
+                    : "text-gray-600",
+                  isUpgrade && "bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100",
                   collapsed && "justify-center px-2"
                 )}
               >
                 <item.icon className={cn(
                   "h-5 w-5 flex-shrink-0 transition-colors",
-                  location.pathname === item.href ? "text-blue-700" : "text-gray-500 group-hover:text-gray-700"
+                  location.pathname === item.href ? "text-gray-700" : "text-gray-400 group-hover:text-gray-600"
                 )} />
                 {!collapsed && (
                   <span className="truncate">{item.name}</span>
                 )}
                 {isUpgrade && !collapsed && (
-                  <DollarSign className="ml-auto h-4 w-4 text-blue-600" />
+                  <DollarSign className="ml-auto h-4 w-4 text-emerald-600" />
                 )}
               </Link>
             ) : (
@@ -188,7 +196,15 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
               {navigation.map((item) => renderNavItem(item))}
             </div>
 
-            {/* Separator */}
+            {/* Jobs & Calendar Section */}
+            <div className="mx-3 my-4">
+              <Separator className="bg-gray-200" />
+            </div>
+            <div className="p-3 space-y-1">
+              {jobsAndCalendarNavigation.map((item) => renderNavItem(item))}
+            </div>
+
+            {/* Separator before ARGIC Search section */}
             <div className="mx-3 my-4">
               <Separator className="bg-gray-200" />
             </div>
@@ -197,30 +213,123 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
             <div className="p-3 space-y-1">
               {bottomNavigation.map((item) => renderNavItem(item))}
             </div>
+
           </div>
 
-          {/* Contact Us & Settings Section */}
+          {/* Bottom Section - History and Settings */}
           <div className="border-t border-gray-100 p-3">
-            <Link
-              to="/contact"
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
-            >
-              <MessageCircle className="h-5 w-5 text-gray-500" />
-              {!collapsed && (
-                <span>Contact Us</span>
-              )}
-            </Link>
+            {/* Tony AI Promo - Above History */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link
+                    to="/tony-ai"
+                    className={cn(
+                      "group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition-all duration-300",
+                      location.pathname === "/tony-ai" ? "bg-gray-100" : "hover:bg-gray-50",
+                      collapsed && "justify-center px-2"
+                    )}
+                  >
+                    <Sparkles className="h-5 w-5 flex-shrink-0 text-[#3d99be]" />
+                    {!collapsed && (
+                      <span className="truncate bg-gradient-to-r from-[#3d99be] via-[#145484] to-[#135084] bg-clip-text text-transparent animate-pulse">
+                        Try Tony A.I
+                      </span>
+                    )}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p>Preview our Windscreen A.I assistant</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
 
-            {/* Settings */}
-            <Link
-              to="/settings"
-              className="mt-2 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
-            >
-              <Settings className="h-5 w-5 text-gray-500" />
-              {!collapsed && (
-                <span>Settings</span>
-              )}
-            </Link>
+            {/* History - Right above Settings */}
+            <div className="space-y-1 mb-3">
+              {preSettingsNavigation.map((item) => renderNavItem(item))}
+            </div>
+            {!collapsed ? (
+              <div>
+                {/* Settings Header - Collapsible */}
+                <button
+                  onClick={() => setSettingsExpanded(!settingsExpanded)}
+                  className="w-full flex items-center justify-between gap-3 rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <Settings className="h-5 w-5 text-gray-400" />
+                    <span>Settings</span>
+                  </div>
+                  <ChevronDown className={cn(
+                    "h-4 w-4 text-gray-400 transition-transform duration-200",
+                    settingsExpanded && "rotate-180"
+                  )} />
+                </button>
+
+                {/* Settings Submenu */}
+                {settingsExpanded && (
+                  <div className="mt-1 ml-8 space-y-1">
+                    <Link
+                      to="/settings"
+                      className={cn(
+                        "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                        location.pathname === "/settings"
+                          ? "bg-gray-100 text-gray-900"
+                          : "text-gray-600 hover:bg-gray-50"
+                      )}
+                    >
+                      <Settings className="h-4 w-4 text-gray-400" />
+                      <span>General</span>
+                    </Link>
+                    <Link
+                      to="/contact"
+                      className={cn(
+                        "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                        location.pathname === "/contact"
+                          ? "bg-gray-100 text-gray-900"
+                          : "text-gray-600 hover:bg-gray-50"
+                      )}
+                    >
+                      <MessageCircle className="h-4 w-4 text-gray-400" />
+                      <span>Contact Us</span>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Collapsed Settings - Show both as separate items */
+              <div className="space-y-1">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link
+                        to="/settings"
+                        className="flex justify-center items-center p-2.5 rounded-md hover:bg-gray-50 text-gray-600 transition-colors"
+                      >
+                        <Settings className="h-5 w-5" />
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="bg-gray-900 text-white">
+                      Settings
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link
+                        to="/contact"
+                        className="flex justify-center items-center p-2.5 rounded-md hover:bg-gray-50 text-gray-600 transition-colors"
+                      >
+                        <MessageCircle className="h-5 w-5" />
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="bg-gray-900 text-white">
+                      Contact Us
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            )}
 
             {/* Logout when collapsed */}
             {collapsed && (

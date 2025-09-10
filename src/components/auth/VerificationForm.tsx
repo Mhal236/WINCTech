@@ -12,12 +12,39 @@ import { CheckCircle, AlertCircle, Clock, FileText, Building, User, Phone, Calen
 import { Progress } from '@/components/ui/progress';
 
 // Helper function to get application details by user ID (useful for admin views)
-export const getApplicationByUserId = async (userId: string) => {
+export const getApplicationByUserId = async (userId: string, userEmail?: string) => {
   try {
+    // Check if the user ID looks like a Google OAuth ID instead of UUID
+    let actualUserId = userId;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+      console.log('🔵 User ID appears to be OAuth ID in getApplicationByUserId:', userId);
+      
+      // If we have the user email, look up the actual UUID
+      if (userEmail) {
+        console.log('🔵 Looking up UUID for email:', userEmail);
+        const { data: appUser, error: lookupError } = await supabase
+          .from('app_users')
+          .select('id')
+          .eq('email', userEmail)
+          .single();
+          
+        if (!lookupError && appUser) {
+          actualUserId = appUser.id;
+          console.log('🟢 Found UUID for OAuth user:', actualUserId);
+        } else {
+          console.error('🔴 Could not find UUID for OAuth user:', lookupError);
+          return { data: null, error: lookupError };
+        }
+      } else {
+        console.log('🔴 No email provided to lookup UUID for OAuth ID');
+        return { data: null, error: new Error('OAuth ID provided without email for lookup') };
+      }
+    }
+    
     const { data, error } = await supabase
       .from('applications')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', actualUserId)
       .order('submitted_at', { ascending: false })
       .limit(1)
       .single();
@@ -67,6 +94,8 @@ interface VerificationFormData {
   company_name: string;
   business_type: string;
   registration_number: string;
+  dvla_number: string;
+  vat_registered: boolean;
   vat_number: string;
   years_in_business: string;
   
@@ -74,6 +103,11 @@ interface VerificationFormData {
   contact_name: string;
   contact_phone: string;
   business_address: string;
+  
+  // Vehicle Information
+  vehicle_registration_number: string;
+  vehicle_make: string;
+  vehicle_model: string;
   
   // Services & Certifications
   services_offered: string[];
@@ -91,8 +125,8 @@ const steps = [
   },
   {
     id: 2,
-    title: "Contact Information", 
-    description: "How can we reach you?",
+    title: "Contact & Vehicle Info", 
+    description: "Your contact details and vehicle information",
     icon: User
   },
   {
@@ -116,6 +150,8 @@ export function VerificationForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [existingApplication, setExistingApplication] = useState<any>(null);
   const [isCheckingApplication, setIsCheckingApplication] = useState(true);
+  const [isSubmissionComplete, setIsSubmissionComplete] = useState(false);
+  const [submissionDetails, setSubmissionDetails] = useState<any>(null);
 
   console.log('🔍 VerificationForm Debug:', {
     user,
@@ -136,7 +172,7 @@ export function VerificationForm() {
 
       try {
         console.log('🔵 Checking for existing application for user:', user.id);
-        const { data: application, error } = await getApplicationByUserId(user.id);
+        const { data: application, error } = await getApplicationByUserId(user.id, user.email);
         
         // Wait for minimum delay to prevent flashing
         await minDelay;
@@ -167,10 +203,15 @@ export function VerificationForm() {
     company_name: '',
     business_type: '',
     registration_number: '',
+    dvla_number: '',
+    vat_registered: false,
     vat_number: '',
     contact_name: user?.name || '',
     contact_phone: '',
     business_address: '',
+    vehicle_registration_number: '',
+    vehicle_make: '',
+    vehicle_model: '',
     years_in_business: '',
     services_offered: [],
     certifications: '',
@@ -179,10 +220,9 @@ export function VerificationForm() {
   });
 
   const businessTypes = [
-    'Auto Glass Repair Shop',
+    'Limited Company',
     'Mobile Auto Glass Service',
-    'Independent Contractor',
-    'Other'
+    'Partnerships'
   ];
 
   const serviceOptions = [
@@ -219,9 +259,12 @@ export function VerificationForm() {
   const isStepValid = () => {
     switch (currentStep) {
       case 1:
-        return formData.company_name && formData.business_type;
+        const basicInfoValid = formData.company_name && formData.business_type;
+        const vatValid = !formData.vat_registered || (formData.vat_registered && formData.vat_number);
+        return basicInfoValid && vatValid;
       case 2:
-        return formData.contact_name && formData.contact_phone && formData.business_address;
+        return formData.contact_name && formData.contact_phone && formData.business_address && 
+               formData.vehicle_registration_number && formData.vehicle_make && formData.vehicle_model;
       case 3:
         return formData.years_in_business;
       case 4:
@@ -252,19 +295,47 @@ export function VerificationForm() {
 
       console.log('🔵 Submitting verification application for user:', user.id);
 
+      // Ensure we have a valid UUID for user_id
+      let userId = user.id;
+      
+      // Check if the user ID looks like a Google OAuth ID (numeric string) instead of UUID
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+        console.log('🔵 User ID appears to be OAuth ID, looking up UUID from app_users table');
+        
+        // Look up the actual UUID from app_users table
+        const { data: appUser, error: lookupError } = await supabase
+          .from('app_users')
+          .select('id')
+          .eq('email', user.email)
+          .single();
+          
+        if (lookupError || !appUser) {
+          console.error('🔴 Could not find user in app_users table:', lookupError);
+          throw new Error('Could not find user record. Please try logging out and back in.');
+        }
+        
+        userId = appUser.id;
+        console.log('🟢 Found user UUID:', userId);
+      }
+
       // Prepare application data
       const applicationData = {
-        user_id: user.id,
+        user_id: userId,
         // Company Information
         company_name: formData.company_name,
         business_type: formData.business_type,
         registration_number: formData.registration_number || null,
-        vat_number: formData.vat_number || null,
+        dvla_number: formData.dvla_number || null,
+        vat_number: formData.vat_registered ? formData.vat_number : null,
         years_in_business: formData.years_in_business,
         // Contact Information
         contact_name: formData.contact_name,
         contact_phone: formData.contact_phone,
         business_address: formData.business_address,
+        // Vehicle Information
+        vehicle_registration_number: formData.vehicle_registration_number || null,
+        vehicle_make: formData.vehicle_make || null,
+        vehicle_model: formData.vehicle_model || null,
         // Services & Certifications
         services_offered: formData.services_offered,
         certifications: formData.certifications || null,
@@ -299,7 +370,7 @@ export function VerificationForm() {
           verification_form_data: formData, // Keep for backward compatibility
           submitted_at: new Date().toISOString()
         })
-        .eq('id', user.id);
+        .eq('id', userId);
 
       if (userUpdateError) {
         console.error('🔴 Error updating user status:', userUpdateError);
@@ -308,22 +379,19 @@ export function VerificationForm() {
 
       console.log('🟢 User verification status updated successfully');
 
-      toast({
-        title: "Verification Application Submitted",
-        description: `Your verification application has been submitted successfully. Application ID: ${applicationResult.id.slice(0, 8)}... We'll review it within 2-3 business days.`,
-        variant: "default",
+      // Set submission complete state with details
+      setSubmissionDetails({
+        applicationId: applicationResult.id,
+        submittedAt: new Date().toISOString(),
+        companyName: formData.company_name
       });
-
-      // Refresh the page to update the user's status
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
+      setIsSubmissionComplete(true);
 
     } catch (error) {
       console.error('🔴 Error submitting verification application:', error);
       toast({
         title: "Submission Failed",
-        description: error instanceof Error ? error.message : "Failed to submit verification application. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to submit technician application. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -341,7 +409,7 @@ export function VerificationForm() {
               <div className="w-12 h-12 bg-[#135084]/10 rounded-full flex items-center justify-center">
                 <div className="animate-spin rounded-full h-6 w-6 border-2 border-[#135084] border-t-transparent"></div>
               </div>
-              <p className="text-gray-600 font-medium">Loading verification status...</p>
+              <p className="text-gray-600 font-medium">Loading application status...</p>
             </div>
           </CardContent>
         </Card>
@@ -349,42 +417,75 @@ export function VerificationForm() {
     );
   }
 
-  // Show status based on user's verification status OR existing application
-  const hasExistingApplication = existingApplication && existingApplication.status === 'pending';
-  const isPending = user?.verification_status === 'pending' || hasExistingApplication;
+  // Show thank you screen for users with submitted applications (pending status)
+  // This covers both just-submitted applications and existing submitted applications
+  console.log('🔍 Thank you screen check:', {
+    isSubmissionComplete,
+    hasSubmissionDetails: !!submissionDetails,
+    hasExistingApplication: !!existingApplication,
+    existingApplicationStatus: existingApplication?.status,
+    shouldShowThankYou: (isSubmissionComplete && submissionDetails) || (existingApplication && existingApplication.status === 'pending')
+  });
   
-  if (isPending) {
-    // Use application submission date if available, otherwise use user submitted_at
-    const submissionDate = existingApplication?.submitted_at || user?.submitted_at;
-    
+  if ((isSubmissionComplete && submissionDetails) || (existingApplication && existingApplication.status === 'pending')) {
+    // Use submission details if just submitted, otherwise use existing application data
+    const displayData = submissionDetails || {
+      applicationId: existingApplication?.id,
+      submittedAt: existingApplication?.submitted_at || existingApplication?.created_at,
+      companyName: existingApplication?.company_name
+    };
+
     return (
       <div className="max-w-2xl mx-auto p-6">
         <Card className="border-0 shadow-lg">
           <CardHeader className="text-center pb-8">
-            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mb-6 shadow-lg">
-              <Clock className="w-10 h-10 text-white" />
+            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center mb-6 shadow-lg">
+              <CheckCircle className="w-10 h-10 text-white" />
             </div>
-            <CardTitle className="text-2xl font-bold text-gray-800">Verification Pending</CardTitle>
+            <CardTitle className="text-2xl font-bold text-gray-800">Thank You for Your Application!</CardTitle>
             <CardDescription className="text-lg text-gray-600 mt-2">
-              Your verification request is being reviewed. We'll email you once the review is complete.
+              Your technician application has been submitted successfully.
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
-            <div className="bg-gray-50 rounded-lg p-6 mb-6">
-              <p className="text-gray-700 mb-2 font-medium">
-                Submitted on: {submissionDate ? new Date(submissionDate).toLocaleDateString('en-GB', {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric'
-                }) : 'Unknown'}
-              </p>
-              {existingApplication && (
-                <p className="text-gray-700 mb-2 font-medium">
-                  Application ID: {existingApplication.id.slice(0, 8)}...
-                </p>
-              )}
-              <p className="text-sm text-gray-500">
-                This usually takes 2-3 business days. You'll receive an email notification once approved.
+            <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
+              <div className="space-y-3">
+                <div>
+                  <p className="text-green-800 font-medium">Application ID:</p>
+                  <p className="text-green-700 font-mono text-sm break-all">{displayData.applicationId}</p>
+                </div>
+                {displayData.companyName && (
+                  <div>
+                    <p className="text-green-800 font-medium">Company:</p>
+                    <p className="text-green-700">{displayData.companyName}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-green-800 font-medium">Submitted:</p>
+                  <p className="text-green-700">{new Date(displayData.submittedAt).toLocaleDateString('en-GB', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+              <h3 className="text-lg font-semibold text-blue-800 mb-2">What happens next?</h3>
+              <div className="text-left space-y-2 text-blue-700">
+                <p>• Our team will review your application within 24-48 hours</p>
+                <p>• You'll receive an email notification once the review is complete</p>
+                <p>• If approved, you'll gain access to all platform features</p>
+                <p>• If we need additional information, we'll contact you directly</p>
+              </div>
+            </div>
+
+            <div className="text-center">
+              <p className="text-gray-600">
+                Please wait <strong>24-48 hours</strong> for a decision on your application.
               </p>
             </div>
           </CardContent>
@@ -392,6 +493,7 @@ export function VerificationForm() {
       </div>
     );
   }
+
 
   if (user?.verification_status === 'rejected') {
     return (
@@ -401,9 +503,9 @@ export function VerificationForm() {
             <div className="mx-auto w-20 h-20 bg-gradient-to-br from-red-400 to-red-600 rounded-full flex items-center justify-center mb-6 shadow-lg">
               <AlertCircle className="w-10 h-10 text-white" />
             </div>
-            <CardTitle className="text-2xl font-bold text-gray-800">Verification Rejected</CardTitle>
+            <CardTitle className="text-2xl font-bold text-gray-800">Application Rejected</CardTitle>
             <CardDescription className="text-lg text-gray-600 mt-2">
-              Your verification request was not approved.
+              Your technician application was not approved.
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
@@ -414,7 +516,7 @@ export function VerificationForm() {
               </div>
             )}
             <p className="text-gray-600 mb-6">
-              Please contact support for more information or to resubmit your application with the required changes.
+              Please contact support for more information or to resubmit your technician application with the required changes.
             </p>
             <Button onClick={() => window.location.reload()} className="bg-blue-600 hover:bg-blue-700">
               Try Again
@@ -440,9 +542,9 @@ export function VerificationForm() {
                 <FileText className="w-6 h-6 text-white" />
               </div>
               <div>
-                <CardTitle className="text-2xl font-bold">Business Verification</CardTitle>
+                <CardTitle className="text-2xl font-bold">Technician Application</CardTitle>
                 <CardDescription className="text-blue-100">
-                  Get verified to access all platform features
+                  Apply to join our network of verified technicians
                 </CardDescription>
               </div>
             </div>
@@ -549,15 +651,48 @@ export function VerificationForm() {
                   </div>
                   
                   <div>
-                    <Label htmlFor="vat_number" className="text-base font-medium">VAT Number</Label>
+                    <Label htmlFor="dvla_number" className="text-base font-medium">DVLA Number</Label>
                     <Input
-                      id="vat_number"
-                      value={formData.vat_number}
-                      onChange={(e) => setFormData(prev => ({ ...prev, vat_number: e.target.value }))}
+                      id="dvla_number"
+                      value={formData.dvla_number}
+                      onChange={(e) => setFormData(prev => ({ ...prev, dvla_number: e.target.value }))}
                       className="mt-2 h-12"
-                      placeholder="e.g. GB123456789"
+                      placeholder="e.g. DVLA123456"
                     />
                   </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="checkbox"
+                      id="vat_registered"
+                      checked={formData.vat_registered}
+                      onChange={(e) => setFormData(prev => ({ 
+                        ...prev, 
+                        vat_registered: e.target.checked,
+                        // Clear VAT number if unchecking
+                        vat_number: e.target.checked ? prev.vat_number : ''
+                      }))}
+                      className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                    />
+                    <Label htmlFor="vat_registered" className="text-base font-medium cursor-pointer">
+                      My business is VAT registered
+                    </Label>
+                  </div>
+                  
+                  {formData.vat_registered && (
+                    <div className="ml-8 transition-all duration-300 ease-in-out">
+                      <Label htmlFor="vat_number" className="text-base font-medium">VAT Number *</Label>
+                      <Input
+                        id="vat_number"
+                        value={formData.vat_number}
+                        onChange={(e) => setFormData(prev => ({ ...prev, vat_number: e.target.value }))}
+                        className="mt-2 h-12"
+                        placeholder="e.g. GB123456789"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -599,6 +734,46 @@ export function VerificationForm() {
                     className="mt-2 min-h-[100px]"
                     placeholder="Enter your full business address including postcode"
                   />
+                </div>
+
+                {/* Vehicle Information Section */}
+                <div className="border-t pt-6">
+                  <h4 className="text-lg font-semibold text-gray-800 mb-4">Vehicle Information</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <Label htmlFor="vehicle_registration_number" className="text-base font-medium">Vehicle Registration Number (VRN) *</Label>
+                      <Input
+                        id="vehicle_registration_number"
+                        value={formData.vehicle_registration_number}
+                        onChange={(e) => setFormData(prev => ({ ...prev, vehicle_registration_number: e.target.value.toUpperCase() }))}
+                        className="mt-2 h-12"
+                        placeholder="e.g. AB12 CDE"
+                        maxLength={8}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="vehicle_make" className="text-base font-medium">Vehicle Make *</Label>
+                      <Input
+                        id="vehicle_make"
+                        value={formData.vehicle_make}
+                        onChange={(e) => setFormData(prev => ({ ...prev, vehicle_make: e.target.value }))}
+                        className="mt-2 h-12"
+                        placeholder="e.g. Ford, BMW, Toyota"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="vehicle_model" className="text-base font-medium">Vehicle Model *</Label>
+                      <Input
+                        id="vehicle_model"
+                        value={formData.vehicle_model}
+                        onChange={(e) => setFormData(prev => ({ ...prev, vehicle_model: e.target.value }))}
+                        className="mt-2 h-12"
+                        placeholder="e.g. Focus, 3 Series, Corolla"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -719,7 +894,7 @@ export function VerificationForm() {
                   ) : (
                     <>
                       <Check className="w-4 h-4" />
-                      <span>Submit for Verification</span>
+                      <span>Submit Application</span>
                     </>
                   )}
                 </Button>
