@@ -5,7 +5,8 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Coins, Plus, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 export function UserProfile({ 
   className, 
@@ -21,8 +22,7 @@ export function UserProfile({
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   
   const handleTopUp = () => {
-    // TODO: Implement top-up functionality
-    console.log('Top-up credits clicked');
+    navigate('/topup');
   };
 
   const handleLogout = async () => {

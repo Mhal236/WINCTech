@@ -16,6 +16,8 @@ import {
   ShoppingCart,
   DollarSign,
   Sparkles,
+  Package,
+  Globe,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useState } from "react";
@@ -66,6 +68,11 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
   const bottomNavigation = [
     { name: "ARGIC Search", href: "/glass-search", icon: Search, requiredRole: "pro-2" },
     { name: "Glass Order", href: "/price-lookup", icon: ShoppingCart, requiredRole: "pro-2" },
+    { name: "Shop Supplies", href: "/shop-supplies", icon: Package, requiredRole: "pro-2" },
+  ];
+
+  const websiteNavigation = [
+    { name: "Website", href: "/website", icon: Globe, requiredRole: "pro-2" },
   ];
 
   const preSettingsNavigation = [
@@ -214,6 +221,16 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
               {bottomNavigation.map((item) => renderNavItem(item))}
             </div>
 
+            {/* Separator before Website section */}
+            <div className="mx-3 my-4">
+              <Separator className="bg-gray-200" />
+            </div>
+
+            {/* Website Navigation */}
+            <div className="p-3 space-y-1">
+              {websiteNavigation.map((item) => renderNavItem(item))}
+            </div>
+
           </div>
 
           {/* Bottom Section - History and Settings */}
@@ -230,9 +247,9 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
                       collapsed && "justify-center px-2"
                     )}
                   >
-                    <Sparkles className="h-5 w-5 flex-shrink-0 text-[#3d99be]" />
+                    <Sparkles className="h-5 w-5 flex-shrink-0 text-[#23b7c0]" />
                     {!collapsed && (
-                      <span className="truncate bg-gradient-to-r from-[#3d99be] via-[#145484] to-[#135084] bg-clip-text text-transparent animate-pulse">
+                      <span className="truncate bg-gradient-to-r from-[#23b7c0] via-[#1a9ca5] to-[#148189] bg-clip-text text-transparent animate-pulse">
                         Try Tony A.I
                       </span>
                     )}

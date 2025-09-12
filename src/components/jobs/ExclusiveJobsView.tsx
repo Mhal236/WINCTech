@@ -19,6 +19,7 @@ export const ExclusiveJobsView: React.FC<ExclusiveJobsViewProps> = ({ onJobAccep
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [lastAction, setLastAction] = useState<'accepted' | 'passed' | null>(null);
+  const [acceptedJobs, setAcceptedJobs] = useState<Set<string>>(new Set());
   const { user } = useAuth();
 
   console.log('🎯 ExclusiveJobsView component mounted/rendered');
@@ -193,6 +194,9 @@ export const ExclusiveJobsView: React.FC<ExclusiveJobsViewProps> = ({ onJobAccep
         variant: "default",
       });
 
+      // Update local state to track accepted job
+      setAcceptedJobs(prev => new Set([...prev, job.id]));
+
       // Call parent callback
       onJobAccepted?.(job);
 
@@ -284,23 +288,10 @@ export const ExclusiveJobsView: React.FC<ExclusiveJobsViewProps> = ({ onJobAccep
   console.log('🎨 About to render card for job:', currentJob.full_name, 'ID:', currentJob.id);
 
   return (
-    <div className="flex flex-col w-full h-full max-w-sm mx-auto px-3 sm:px-4 pb-safe">
-      {/* Progress indicator */}
-      <div className="mb-3 sm:mb-4 text-center w-full flex-shrink-0">
-        <div className="text-xs sm:text-sm text-gray-500 mb-2">
-          Job {currentJobIndex + 1} of {jobs.length}
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-1.5 sm:h-2">
-          <div 
-            className="bg-blue-600 h-1.5 sm:h-2 rounded-full transition-all duration-100 ease-linear"
-            style={{ width: `${((currentJobIndex + 1) / jobs.length) * 100}%` }}
-          ></div>
-        </div>
-      </div>
-
-      {/* Beautiful Swipeable Card */}
-      <div className="relative w-full flex-1 min-h-0">
-        <div className="relative w-full h-full max-h-[calc(100vh-200px)] min-h-[500px]">
+    <div className="flex flex-col items-center justify-center w-full h-full max-w-sm mx-auto px-3 sm:px-4 py-2 sm:py-8">
+      {/* Centered Swipeable Card */}
+      <div className="relative w-full max-h-[calc(100vh-120px)] sm:max-h-[calc(100vh-160px)] min-h-[500px] flex items-center justify-center">
+        <div className="relative w-full h-full max-h-[600px]">
           <SwipeableJobCard
             key={currentJob.id}
             job={currentJob}
@@ -308,6 +299,7 @@ export const ExclusiveJobsView: React.FC<ExclusiveJobsViewProps> = ({ onJobAccep
             onSwipeRight={handleSwipeRight}
             onCardLeftScreen={handleCardLeftScreen}
             isVisible={true}
+            isAccepted={acceptedJobs.has(currentJob.id)}
           />
 
           {/* Action feedback overlay */}
@@ -348,9 +340,9 @@ export const ExclusiveJobsView: React.FC<ExclusiveJobsViewProps> = ({ onJobAccep
       </div>
 
       {/* Instructions */}
-      <div className="mt-3 sm:mt-4 text-center text-xs sm:text-sm text-gray-500 px-2 flex-shrink-0">
+      <div className="mt-4 text-center text-xs sm:text-sm text-gray-500 px-2 flex-shrink-0">
         <p className="leading-tight">
-          Swipe left to pass • Swipe right to accept
+         
         </p>
       </div>
     </div>

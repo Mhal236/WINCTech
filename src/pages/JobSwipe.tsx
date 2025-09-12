@@ -67,13 +67,11 @@ const JobSwipe = () => {
           {/* Enhanced Header */}
           <div className="bg-white shadow-sm border-b border-gray-200">
             <div className="px-6 py-8">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              <div className="hidden sm:flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                 <div>
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <Briefcase className="w-6 h-6 text-blue-600" />
-                    </div>
-                    <h1 className="text-4xl font-bold text-gray-900">Job Board</h1>
+                   
+                    <h1 className="text-4xl font-bold text-gray-900">Jobs</h1>
                   </div>
                   <p className="text-gray-600 text-lg">
                     Find and accept windscreen repair jobs in your area
@@ -88,12 +86,9 @@ const JobSwipe = () => {
                     </label>
                     <Select value={selectedJobType} onValueChange={handleJobTypeChange}>
                       <SelectTrigger id="job-type-select" className="w-[200px] bg-white border-2 border-gray-200 hover:border-blue-300">
-                        <div className="flex items-center gap-2">
-                          {getJobTypeIcon(selectedJobType)}
-                          <SelectValue placeholder="Select job type" />
-                        </div>
+                        <SelectValue placeholder="Select job type" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-white border border-gray-200 shadow-lg">
                         <SelectItem value="exclusive" className="flex items-center gap-2">
                           <div className="flex items-center gap-2 w-full">
                             <Star className="w-4 h-4 text-yellow-500" />
@@ -118,23 +113,42 @@ const JobSwipe = () => {
                 </div>
               </div>
               
+              {/* Mobile-only Job Type Selector */}
+              <div className="sm:hidden px-6 py-4">
+                <div className="flex items-center gap-3">
+                  <label htmlFor="job-type-select-mobile" className="text-sm font-semibold text-gray-700 whitespace-nowrap">
+                    Job Type:
+                  </label>
+                  <Select value={selectedJobType} onValueChange={handleJobTypeChange}>
+                    <SelectTrigger id="job-type-select-mobile" className="w-[200px] bg-white border-2 border-gray-200 hover:border-blue-300">
+                      <SelectValue placeholder="Select job type" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border border-gray-200 shadow-lg">
+                      <SelectItem value="exclusive" className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 w-full">
+                          <Star className="w-4 h-4 text-yellow-500" />
+                          <span>Exclusive Jobs</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="board" className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 w-full">
+                          <Briefcase className="w-4 h-4 text-blue-500" />
+                          <span>Job Board</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="bids" className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 w-full">
+                          <TrendingUp className="w-4 h-4 text-green-500" />
+                          <span>Job Bids</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
               {/* Job Type Info Card */}
-              <Card className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    {getJobTypeIcon(selectedJobType)}
-                    <div>
-                      <h3 className="font-semibold text-gray-900">
-                        {selectedJobType === 'exclusive' ? 'Exclusive Jobs' : 
-                         selectedJobType === 'board' ? 'Job Board' : 'Job Bids'}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        {getJobTypeDescription(selectedJobType)}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+             
             </div>
           </div>
           
