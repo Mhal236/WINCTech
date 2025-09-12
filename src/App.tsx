@@ -30,6 +30,9 @@ const JobSwipe = lazy(() => import("./pages/JobSwipe"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
 const DebugAuth = lazy(() => import("./pages/DebugAuth"));
 const TonyAI = lazy(() => import("./pages/TonyAI"));
+const ShopSupplies = lazy(() => import("./pages/ShopSupplies"));
+const Website = lazy(() => import("./pages/Website"));
+const TopUp = lazy(() => import("./pages/TopUp"));
 
 // Loading fallback
 const LoadingFallback = () => (
@@ -136,6 +139,21 @@ const AnimatedRoutes = () => {
         <Route path="/glass-search" element={
           <ProtectedRoute requiredRole="admin">
             <Glass />
+          </ProtectedRoute>
+        } />
+        <Route path="/shop-supplies" element={
+          <ProtectedRoute requiredRole="admin">
+            <ShopSupplies />
+          </ProtectedRoute>
+        } />
+        <Route path="/website" element={
+          <ProtectedRoute requiredRole="admin">
+            <Website />
+          </ProtectedRoute>
+        } />
+        <Route path="/topup" element={
+          <ProtectedRoute>
+            <TopUp />
           </ProtectedRoute>
         } />
         <Route path="/history" element={

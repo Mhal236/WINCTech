@@ -31,6 +31,8 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [priceFilter, setPriceFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [currentPage, setCurrentPage] = useState(1);
+  const jobsPerPage = 8;
   const { user } = useAuth();
 
   // Fetch jobs from MasterCustomer table
@@ -163,6 +165,7 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
     }
 
     setFilteredJobs(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
   }, [jobs, searchTerm, sortBy, priceFilter]);
 
   const handleAcceptJob = async (job: JobData) => {
@@ -179,10 +182,10 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
     let technicianData = null;
     let techError = null;
     
-    // First try with user_id
+    // First try with user_id - include credits in selection
     const { data: techData1, error: techError1 } = await supabase
       .from('technicians')
-      .select('id, name, user_id')
+      .select('id, name, user_id, credits')
       .eq('user_id', user.id)
       .single();
     
@@ -192,7 +195,7 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
       // If that fails, try looking up by email (for Google OAuth users)
       const { data: techData2, error: techError2 } = await supabase
         .from('technicians')
-        .select('id, name, user_id, contact_email')
+        .select('id, name, user_id, contact_email, credits')
         .eq('contact_email', user.email)
         .single();
       
@@ -210,6 +213,19 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
         variant: "destructive",
       });
       return;
+    }
+
+    // Check if this is a credit job and if technician has enough credits
+    if (jobType === 'board') {
+      const creditCost = Math.round((job.quote_price || 0) * 0.1);
+      if ((technicianData.credits || 0) < creditCost) {
+        toast({
+          title: "Insufficient Credits",
+          description: `You need ${creditCost} credits to purchase this lead. You currently have ${technicianData.credits || 0} credits.`,
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     try {
@@ -242,12 +258,28 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
         console.warn('Calendar event creation failed, but job was assigned successfully');
       }
 
+      // Deduct credits if this is a credit job
+      if (jobType === 'board') {
+        const creditCost = Math.round((job.quote_price || 0) * 0.1);
+        const newCredits = (technicianData.credits || 0) - creditCost;
+        
+        const { error: creditError } = await supabase
+          .from('technicians')
+          .update({ credits: newCredits })
+          .eq('id', technicianData.id);
+        
+        if (creditError) {
+          console.error('Failed to deduct credits:', creditError);
+        }
+      }
+
       // Update local state
       setAcceptedJobs(prev => new Set([...prev, job.id]));
       
+      const actionText = jobType === 'board' ? 'purchased the lead for' : 'accepted the job for';
       toast({
-        title: "Job Accepted!",
-        description: `You have successfully accepted the job for ${job.full_name}. It has been added to your calendar.`,
+        title: jobType === 'board' ? "Lead Purchased!" : "Job Accepted!",
+        description: `You have successfully ${actionText} ${job.full_name}. It has been added to your calendar.`,
         variant: "default",
       });
 
@@ -291,11 +323,11 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
             <SelectTrigger className="w-[160px]">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-white border border-gray-200 shadow-lg">
               <SelectItem value="newest">Newest First</SelectItem>
               <SelectItem value="timeline">By Urgency</SelectItem>
-              <SelectItem value="price-desc">Price: High to Low</SelectItem>
-              <SelectItem value="price-asc">Price: Low to High</SelectItem>
+              <SelectItem value="price-desc">{jobType === 'board' ? 'Credits: High to Low' : 'Price: High to Low'}</SelectItem>
+              <SelectItem value="price-asc">{jobType === 'board' ? 'Credits: Low to High' : 'Price: Low to High'}</SelectItem>
               <SelectItem value="location">By Location</SelectItem>
             </SelectContent>
           </Select>
@@ -304,12 +336,12 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
             <SelectTrigger className="w-[140px]">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Prices</SelectItem>
-              <SelectItem value="under-100">Under £100</SelectItem>
-              <SelectItem value="100-200">£100 - £200</SelectItem>
-              <SelectItem value="200-300">£200 - £300</SelectItem>
-              <SelectItem value="over-300">Over £300</SelectItem>
+            <SelectContent className="bg-white border border-gray-200 shadow-lg">
+              <SelectItem value="all">{jobType === 'board' ? 'All Credits' : 'All Prices'}</SelectItem>
+              <SelectItem value="under-100">{jobType === 'board' ? 'Under 10 Credits' : 'Under £100'}</SelectItem>
+              <SelectItem value="100-200">{jobType === 'board' ? '10 - 20 Credits' : '£100 - £200'}</SelectItem>
+              <SelectItem value="200-300">{jobType === 'board' ? '20 - 30 Credits' : '£200 - £300'}</SelectItem>
+              <SelectItem value="over-300">{jobType === 'board' ? 'Over 30 Credits' : 'Over £300'}</SelectItem>
             </SelectContent>
           </Select>
 
@@ -349,7 +381,7 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
         )}
         {priceFilter !== 'all' && (
           <Badge variant="secondary" className="flex items-center gap-1">
-            Price: {priceFilter}
+            {jobType === 'board' ? 'Credits:' : 'Price:'} {priceFilter}
             <button onClick={() => setPriceFilter('all')} className="ml-1 hover:text-red-600">×</button>
           </Badge>
         )}
@@ -450,7 +482,7 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
     console.log('JobsGrid: Rendering exclusive jobs view for jobType:', jobType);
     return (
       <div className="w-full h-full flex flex-col">
-        <div className="mb-3 sm:mb-4 md:mb-6 text-center px-3 sm:px-4 md:px-6 flex-shrink-0">
+        <div className="hidden sm:block mt-8 sm:mt-12 md:mt-16 mb-6 sm:mb-8 md:mb-10 text-center px-3 sm:px-4 md:px-6 flex-shrink-0">
           <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">{getJobTypeTitle()}</h2>
           <p className="text-xs sm:text-sm md:text-base text-gray-600 leading-tight">{getJobTypeDescription()}</p>
         </div>
@@ -475,39 +507,102 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
                 Showing {filteredJobs.length} of {jobs.length} job{jobs.length !== 1 ? 's' : ''} - {getJobTypeDescription()}
               </p>
             </div>
-            <div className="flex items-center gap-4">
-              <Badge variant="outline" className="px-3 py-1">
-                Total Value: £{filteredJobs.reduce((sum, job) => sum + (job.quote_price || 0), 0).toFixed(2)}
-              </Badge>
-            </div>
+            {jobType !== 'board' && (
+              <div className="flex items-center gap-4">
+                <Badge variant="outline" className="px-3 py-1">
+                  Total Value: £{filteredJobs.reduce((sum, job) => sum + (job.quote_price || 0), 0).toFixed(2)}
+                </Badge>
+              </div>
+            )}
           </div>
         </div>
         
-        {/* Jobs Grid */}
-        <div className={viewMode === 'grid' 
-          ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6" 
-          : "space-y-4"
-        }>
-          {filteredJobs.map((job) => (
-            <div key={job.id} className={viewMode === 'list' ? 'max-w-none' : ''}>
-              <JobCard
-                job={job}
-                onAccept={handleAcceptJob}
-                isAccepted={acceptedJobs.has(job.id)}
-                isAccepting={acceptingJobId === job.id}
-              />
-            </div>
-          ))}
+        {/* Jobs List - Mobile Optimized Cards */}
+        <div className="space-y-4 sm:space-y-3 max-w-7xl mx-auto px-2 sm:px-0">
+          {(() => {
+            const startIndex = (currentPage - 1) * jobsPerPage;
+            const endIndex = startIndex + jobsPerPage;
+            const currentJobs = filteredJobs.slice(startIndex, endIndex);
+            
+            return currentJobs.map((job) => (
+              <div key={job.id} className="w-full">
+                <JobCard
+                  job={job}
+                  onAccept={handleAcceptJob}
+                  isAccepted={acceptedJobs.has(job.id)}
+                  isAccepting={acceptingJobId === job.id}
+                  showCredits={jobType === 'board'}
+                />
+              </div>
+            ));
+          })()}
         </div>
 
-        {/* Load more placeholder for future pagination */}
-        {filteredJobs.length > 0 && (
-          <div className="text-center mt-12 py-8 border-t border-gray-200">
-            <p className="text-gray-500 text-sm">
-              {filteredJobs.length === jobs.length ? 'All jobs loaded' : `Showing ${filteredJobs.length} jobs`}
-            </p>
+        {/* Mobile-Friendly Pagination Controls */}
+        {filteredJobs.length > jobsPerPage && (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-8 px-4 gap-4">
+            <div className="text-sm text-gray-600 text-center sm:text-left">
+              Showing {Math.min((currentPage - 1) * jobsPerPage + 1, filteredJobs.length)} to{' '}
+              {Math.min(currentPage * jobsPerPage, filteredJobs.length)} of {filteredJobs.length} jobs
+            </div>
+            
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="flex items-center gap-2 border-[#2165ab] text-[#2165ab] hover:bg-[#2165ab] hover:text-white disabled:border-gray-300 disabled:text-gray-400 disabled:hover:bg-transparent disabled:hover:text-gray-400 h-10 px-4 sm:h-8 sm:px-3"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                <span className="hidden sm:inline">Previous</span>
+                <span className="sm:hidden">Prev</span>
+              </Button>
+              
+              <div className="flex items-center gap-1">
+                {(() => {
+                  const totalPages = Math.ceil(filteredJobs.length / jobsPerPage);
+                  const pages = [];
+                  const showPages = 5;
+                  const startPage = Math.max(1, currentPage - Math.floor(showPages / 2));
+                  const endPage = Math.min(totalPages, startPage + showPages - 1);
+                  
+                  for (let i = startPage; i <= endPage; i++) {
+                    pages.push(
+                      <Button
+                        key={i}
+                        variant={i === currentPage ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(i)}
+                        className={`w-10 h-10 sm:w-10 sm:h-8 ${i === currentPage ? 'bg-[#2165ab] hover:bg-[#1a5294]' : 'border-[#2165ab] text-[#2165ab] hover:bg-[#2165ab] hover:text-white'}`}
+                      >
+                        {i}
+                      </Button>
+                    );
+                  }
+                  return pages;
+                })()}
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredJobs.length / jobsPerPage)))}
+                disabled={currentPage >= Math.ceil(filteredJobs.length / jobsPerPage)}
+                className="flex items-center gap-2 border-[#2165ab] text-[#2165ab] hover:bg-[#2165ab] hover:text-white disabled:border-gray-300 disabled:text-gray-400 disabled:hover:bg-transparent disabled:hover:text-gray-400 h-10 px-4 sm:h-8 sm:px-3"
+              >
+                <span className="hidden sm:inline">Next</span>
+                <span className="sm:hidden">Next</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Button>
+            </div>
           </div>
         )}
+
       </div>
     </div>
   );
