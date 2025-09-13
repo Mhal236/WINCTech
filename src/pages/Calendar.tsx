@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
-import { User, Calendar as CalendarIcon, Clock, MapPin, Car, Phone } from "lucide-react";
+import { User, Calendar as CalendarIcon, Clock, MapPin, Car, Phone, Play, CheckCircle2, Navigation, RefreshCw, TrendingUp, Activity, Zap } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";

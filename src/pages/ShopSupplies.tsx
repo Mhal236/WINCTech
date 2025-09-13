@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingCart, Star, Search, Filter, Package, Truck, Shield, Award } from "lucide-react";
+import { ExternalLink, Star, Search, Filter, Package, Truck, Shield, Award } from "lucide-react";
 import { PageTransition } from "@/components/PageTransition";
 
 // Dummy promotional products data
@@ -283,11 +283,13 @@ export default function ShopSupplies() {
                     </div>
                     
                     <Button 
-                      disabled={!product.inStock}
+                      asChild
                       className="flex items-center gap-2"
                     >
-                      <ShoppingCart className="h-4 w-4" />
-                      {product.inStock ? "Add to Cart" : "Notify Me"}
+                      <a href="https://carglasstools.com" target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4" />
+                        Go to website
+                      </a>
                     </Button>
                   </CardFooter>
                 </Card>

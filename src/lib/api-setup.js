@@ -247,6 +247,78 @@ export function setupApiMiddleware(server) {
     }
   });
 
+  // Unassign job (service role)
+  app.post('/api/jobs/unassign', async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      if (admin.error) return res.status(500).json({ success: false, error: admin.error });
+      const supabase = admin.client;
+
+      const { jobId, technicianId } = req.body || {};
+      if (!jobId || !technicianId) {
+        return res.status(400).json({ success: false, error: 'Missing required fields: jobId, technicianId' });
+      }
+
+      // Verify the assignment exists and belongs to this technician
+      const { data: assignment, error: assignmentError } = await supabase
+        .from('job_assignments')
+        .select('id, status')
+        .eq('job_id', jobId)
+        .eq('technician_id', technicianId)
+        .single();
+
+      if (assignmentError || !assignment) {
+        return res.status(404).json({ success: false, error: 'Assignment not found or does not belong to this technician' });
+      }
+
+      // Don't allow unassigning completed jobs
+      if (assignment.status === 'completed') {
+        return res.status(400).json({ success: false, error: 'Cannot unassign completed jobs' });
+      }
+
+      // Delete the job assignment
+      const { error: deleteError } = await supabase
+        .from('job_assignments')
+        .delete()
+        .eq('id', assignment.id);
+
+      if (deleteError) {
+        return res.status(500).json({ success: false, error: deleteError.message });
+      }
+
+      // Update MasterCustomer back to quoted status
+      const { error: updateError } = await supabase
+        .from('MasterCustomer')
+        .update({ 
+          status: 'quoted', 
+          technician_id: null, 
+          technician_name: null 
+        })
+        .eq('id', jobId);
+
+      if (updateError) {
+        console.error('Failed to update MasterCustomer status after unassignment:', updateError);
+        // Don't fail the request since the assignment was already deleted
+      }
+
+      // Delete any associated calendar events
+      const { error: calendarDeleteError } = await supabase
+        .from('calendar_events')
+        .delete()
+        .eq('job_assignment_id', assignment.id);
+
+      if (calendarDeleteError) {
+        console.error('Failed to delete calendar events:', calendarDeleteError);
+        // Don't fail the request since the main unassignment was successful
+      }
+
+      return res.json({ success: true, message: 'Job unassigned successfully' });
+    } catch (error) {
+      console.error('Error in /api/jobs/unassign:', error);
+      return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
   app.post('/api/jobs/create-event', async (req, res) => {
     try {
       const admin = getSupabaseAdmin();

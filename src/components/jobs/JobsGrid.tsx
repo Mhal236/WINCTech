@@ -107,15 +107,30 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
     let filtered = [...jobs];
 
     // Apply search filter
-    if (searchTerm) {
-      filtered = filtered.filter(job => 
-        job.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        job.vehicle_reg.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        job.brand?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        job.model?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        job.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        job.postcode?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase().trim();
+      console.log('🔍 Searching for:', searchLower, 'in', jobs.length, 'jobs');
+      
+      filtered = filtered.filter(job => {
+        const matches = 
+          job.full_name?.toLowerCase().includes(searchLower) ||
+          job.vehicle_reg?.toLowerCase().includes(searchLower) ||
+          job.brand?.toLowerCase().includes(searchLower) ||
+          job.model?.toLowerCase().includes(searchLower) ||
+          job.location?.toLowerCase().includes(searchLower) ||
+          job.postcode?.toLowerCase().includes(searchLower) ||
+          job.service_type?.toLowerCase().includes(searchLower) ||
+          job.glass_type?.toLowerCase().includes(searchLower) ||
+          job.email?.toLowerCase().includes(searchLower) ||
+          job.mobile?.includes(searchTerm) ||
+          // Search in selected_windows and window_damage arrays
+          (job.selected_windows && JSON.stringify(job.selected_windows).toLowerCase().includes(searchLower)) ||
+          (job.window_damage && JSON.stringify(job.window_damage).toLowerCase().includes(searchLower));
+        
+        return matches;
+      });
+      
+      console.log('🔍 Search results:', filtered.length, 'jobs found');
     }
 
     // Apply price filter
@@ -309,7 +324,7 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <Input
-              placeholder="Search by customer, vehicle, location..."
+              placeholder="Search by customer, vehicle, location, service type, phone..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"

@@ -64,6 +64,112 @@ export const JobCard: React.FC<JobCardProps> = ({
   isAccepting = false,
   showCredits = false
 }) => {
+  // Helper function to safely parse JSON fields from Supabase
+  const parseJsonField = (field: any): any[] => {
+    if (!field) return [];
+    if (Array.isArray(field)) return field;
+    if (typeof field === 'string') {
+      try {
+        const parsed = JSON.parse(field);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
+  // Helper function to extract glass codes from selected_windows array structure
+  const extractGlassCodesFromWindows = (selectedWindows: any[]): string[] => {
+    const codes: string[] = [];
+    selectedWindows.forEach(window => {
+      if (Array.isArray(window)) {
+        // Handle nested arrays like [["jqvmap1_ws"]]
+        window.forEach(item => {
+          if (typeof item === 'string') {
+            codes.push(item);
+          }
+        });
+      } else if (typeof window === 'string') {
+        codes.push(window);
+      }
+    });
+    return codes;
+  };
+
+  // Helper function to extract damage info from window_damage array structure
+  const extractDamageInfo = (windowDamage: any[]): Array<{code: string, damageType: string}> => {
+    const damageInfo: Array<{code: string, damageType: string}> = [];
+    windowDamage.forEach(damage => {
+      if (typeof damage === 'object' && damage !== null) {
+        // Handle objects like {"jqvmap1_ws":"Scratched"}
+        Object.entries(damage).forEach(([code, damageType]) => {
+          damageInfo.push({ code, damageType: damageType as string });
+        });
+      }
+    });
+    return damageInfo;
+  };
+  // Helper function to convert glass type codes to readable names
+  const getGlassTypeName = (type: string): string => {
+    if (!type) return '';
+    
+    // Handle glass codes that end with specific patterns
+    if (type.includes('_ws') || type.toLowerCase().includes('windscreen')) {
+      return 'Windscreen';
+    }
+    if (type.includes('_rw') || type.toLowerCase().includes('rear')) {
+      return 'Rear Window';
+    }
+    if (type.includes('_df') || type.toLowerCase().includes('driver') && type.toLowerCase().includes('front')) {
+      return "Driver's Front Window";
+    }
+    if (type.includes('_pf') || type.toLowerCase().includes('passenger') && type.toLowerCase().includes('front')) {
+      return "Passenger's Front Window";
+    }
+    if (type.includes('_dr') || type.toLowerCase().includes('driver') && type.toLowerCase().includes('rear')) {
+      return "Driver's Rear Window";
+    }
+    if (type.includes('_pr') || type.toLowerCase().includes('passenger') && type.toLowerCase().includes('rear')) {
+      return "Passenger's Rear Window";
+    }
+    
+    // Handle standard type names
+    switch (type) {
+      case 'Windscreen':
+        return 'Windscreen';
+      case 'rear-window':
+        return 'Rear Window';
+      case 'driver-front':
+        return "Driver's Front Window";
+      case 'passenger-front':
+        return "Passenger's Front Window";
+      case 'driver-rear':
+        return "Driver's Rear Window";
+      case 'passenger-rear':
+        return "Passenger's Rear Window";
+      default:
+        return type;
+    }
+  };
+  // Normalize Supabase window_spec which can be array of arrays of strings
+  const getSpecStrings = (spec: any): string[] => {
+    try {
+      if (!spec) return [];
+      const flattenDeep = (arr: any[]): any[] => arr.reduce((acc: any[], val: any) => (
+        Array.isArray(val) ? acc.concat(flattenDeep(val)) : acc.concat(val)
+      ), []);
+      let items: any[] = Array.isArray(spec) ? flattenDeep(spec) : [spec];
+      const mapped = items.map((it: any) => {
+        if (typeof it === 'string') return it;
+        if (typeof it === 'object' && it !== null) return it.label || it.name || it.value || '';
+        return String(it ?? '');
+      }).filter(Boolean);
+      return [...new Set(mapped)];
+    } catch {
+      return [];
+    }
+  };
   const getVehicleDisplay = () => {
     const parts = [job.year, job.brand, job.model].filter(Boolean);
     return parts.length > 0 ? parts.join(' ') : 'Vehicle information not available';
@@ -84,6 +190,18 @@ export const JobCard: React.FC<JobCardProps> = ({
     if (price == null) return 'Credits Required';
     const credits = calculateCreditCost(price);
     return `${credits}`;
+  };
+
+  // Map spec strings to subtle color classes
+  const getChipClasses = (label: string): string => {
+    const l = (label || '').toLowerCase();
+    if (l.includes('sensor') || l.includes('rain') || l.includes('camera')) return 'bg-blue-100 text-blue-800 border border-blue-200';
+    if (l.includes('heated') || l.includes('heat')) return 'bg-amber-100 text-amber-800 border border-amber-200';
+    if (l.includes('aerial') || l.includes('antenna')) return 'bg-purple-100 text-purple-800 border border-purple-200';
+    if (l.includes('privacy') || l.includes('tint')) return 'bg-slate-200 text-slate-800 border border-slate-300';
+    if (l.includes('acoustic') || l.includes('solar')) return 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+    if (l.includes('adas') || l.includes('calibration')) return 'bg-rose-100 text-rose-800 border border-rose-200';
+    return 'bg-gray-100 text-gray-800 border border-gray-200';
   };
 
   const getPriorityColor = (timeline?: string, appointmentDate?: string) => {
@@ -266,35 +384,60 @@ export const JobCard: React.FC<JobCardProps> = ({
                 <span className="text-base sm:text-sm font-bold text-gray-900">Damage</span>
               </div>
               <div className="space-y-1">
-                {job.window_damage && job.window_damage.length > 0 ? (
-                  job.window_damage.slice(0, 2).map((damage: any, index: number) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 bg-red-500 rounded-full flex-shrink-0"></div>
-                      <span className="text-xs text-gray-800 truncate">
-                        {damage.window_type || 'Window'}: {damage.damage_type || damage.type || 'Damage'}
-                      </span>
-                    </div>
-                  ))
-                ) : job.selected_windows && job.selected_windows.length > 0 ? (
-                  job.selected_windows.slice(0, 2).map((window: any, index: number) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 bg-orange-500 rounded-full flex-shrink-0"></div>
-                      <span className="text-xs text-gray-800 truncate">
-                        {window.window_type || window.type || 'Window'}
-                      </span>
-                    </div>
-                  ))
-                ) : job.glass_type ? (
+                {(() => {
+                  const windowDamage = parseJsonField(job.window_damage);
+                  const selectedWindows = parseJsonField(job.selected_windows);
+                  
+                  if (windowDamage.length > 0) {
+                    const damageInfo = extractDamageInfo(windowDamage);
+                    return damageInfo.slice(0, 2).map((damage, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 bg-red-500 rounded-full flex-shrink-0"></div>
+                        <span className="text-xs text-gray-800 truncate">
+                          Damage: {getGlassTypeName(damage.code)} ({damage.damageType})
+                        </span>
+                      </div>
+                    ));
+                  } else if (selectedWindows.length > 0) {
+                    const glassCodes = extractGlassCodesFromWindows(selectedWindows);
+                    return glassCodes.slice(0, 2).map((code, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 bg-orange-500 rounded-full flex-shrink-0"></div>
+                        <span className="text-xs text-gray-800 truncate">
+                          Damage: {getGlassTypeName(code)}
+                        </span>
+                      </div>
+                    ));
+                  } else {
+                    return null;
+                  }
+                })() || (job.glass_type && job.glass_type !== 'OEE' ? (
                   <div className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 bg-blue-500 rounded-full flex-shrink-0"></div>
                     <span className="text-xs text-gray-800 truncate">{job.glass_type}</span>
                   </div>
                 ) : (
                   <span className="text-xs text-gray-600 italic">Details not specified</span>
-                )}
-                {job.service_type && (
-                  <div className="text-xs text-red-700 font-semibold mt-1 truncate">
-                    {job.service_type}
+                ))}
+                {/* Specification chips */}
+                {(job.glass_type || job.window_spec || job.adas_calibration) && (
+                  <div className="flex items-center gap-2 flex-wrap mt-2">
+                    {job.glass_type && (
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${getChipClasses(job.glass_type)}`}>
+                        {job.glass_type}
+                      </span>
+                    )}
+                    {(() => {
+                      const specs = getSpecStrings(job.window_spec);
+                      return specs.map((s, i) => (
+                        <span key={i} className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${getChipClasses(s)}`}>{s}</span>
+                      ));
+                    })()}
+                    {job.adas_calibration && (
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${getChipClasses(job.adas_calibration)}`}>
+                        {job.adas_calibration}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
@@ -328,7 +471,7 @@ export const JobCard: React.FC<JobCardProps> = ({
                 isAccepted 
                   ? 'bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700' 
                   : showCredits
-                  ? 'bg-gradient-to-r from-orange-300 to-orange-400 hover:from-orange-400 hover:to-orange-500'
+                  ? 'cta-primary'
                   : 'bg-[#2165ab] hover:bg-[#1a5294]'
               }`}
             >
