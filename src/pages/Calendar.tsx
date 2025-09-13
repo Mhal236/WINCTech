@@ -171,186 +171,378 @@ const Calendar = () => {
       })
     : calendarEvents;
 
+  // Calculate daily stats
+  const getDailyStats = () => {
+    const totalJobs = selectedDateEvents.length;
+    const completedJobs = selectedDateEvents.filter(e => e.status === 'completed').length;
+    const inProgressJobs = selectedDateEvents.filter(e => e.status === 'in_progress').length;
+    const scheduledJobs = selectedDateEvents.filter(e => e.status === 'scheduled').length;
+    const totalValue = selectedDateEvents.reduce((sum, event) => 
+      sum + (event.job_assignments?.MasterCustomer?.quote_price || 0), 0
+    );
+    
+    return { totalJobs, completedJobs, inProgressJobs, scheduledJobs, totalValue };
+  };
+
+  const stats = getDailyStats();
+
   return (
     <DashboardLayout>
-      <div className="mobile-container py-6 sm:py-8">
-        <div className="mobile-flex mobile-gap">
-          {/* Left Column: Calendar Component */}
-          <div className="md:w-1/3">
-            <CalendarComponent 
-              mode="single"
-              selected={date}
-              onSelect={setDate}
-              className="mx-auto"
-            />
+      <div className="p-4 sm:p-6 space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Calendar</h1>
+            <p className="text-gray-600 mt-1">Manage your scheduled jobs and appointments</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button 
+              onClick={fetchCalendarEvents} 
+              variant="outline" 
+              size="sm"
+              disabled={loading}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? 'Loading...' : 'Refresh'}
+            </Button>
+            <Badge variant="secondary" className="hidden sm:flex items-center gap-1">
+              <Activity className="w-3 h-3" />
+              {calendarEvents.length} Total Jobs
+            </Badge>
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-blue-600">Today's Jobs</p>
+                  <p className="text-2xl font-bold text-blue-900">{stats.totalJobs}</p>
+                </div>
+                <div className="p-2 bg-blue-200 rounded-full">
+                  <CalendarIcon className="w-5 h-5 text-blue-700" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-green-600">Completed</p>
+                  <p className="text-2xl font-bold text-green-900">{stats.completedJobs}</p>
+                </div>
+                <div className="p-2 bg-green-200 rounded-full">
+                  <CheckCircle2 className="w-5 h-5 text-green-700" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-amber-600">In Progress</p>
+                  <p className="text-2xl font-bold text-amber-900">{stats.inProgressJobs}</p>
+                </div>
+                <div className="p-2 bg-amber-200 rounded-full">
+                  <Zap className="w-5 h-5 text-amber-700" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-purple-600">Day Value</p>
+                  <p className="text-2xl font-bold text-purple-900">£{stats.totalValue.toFixed(0)}</p>
+                </div>
+                <div className="p-2 bg-purple-200 rounded-full">
+                  <TrendingUp className="w-5 h-5 text-purple-700" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column: Modern Calendar */}
+          <div className="lg:col-span-1">
+            <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-gray-50">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <CalendarIcon className="w-5 h-5 text-blue-600" />
+                  Select Date
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CalendarComponent 
+                  mode="single"
+                  selected={date}
+                  onSelect={setDate}
+                  className="mx-auto rounded-lg border-0 shadow-sm"
+                  classNames={{
+                    months: "space-y-4",
+                    month: "space-y-4",
+                    caption: "flex justify-center pt-1 relative items-center",
+                    caption_label: "text-sm font-medium",
+                    nav: "space-x-1 flex items-center",
+                    nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
+                    nav_button_previous: "absolute left-1",
+                    nav_button_next: "absolute right-1",
+                    table: "w-full border-collapse space-y-1",
+                    head_row: "flex",
+                    head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
+                    row: "flex w-full mt-2",
+                    cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+                    day: "h-9 w-9 p-0 font-normal aria-selected:opacity-100 hover:bg-blue-100 rounded-md transition-colors",
+                    day_selected: "bg-blue-600 text-white hover:bg-blue-700 hover:text-white focus:bg-blue-600 focus:text-white",
+                    day_today: "bg-blue-100 text-blue-900 font-semibold",
+                    day_outside: "text-muted-foreground opacity-50",
+                    day_disabled: "text-muted-foreground opacity-50",
+                    day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                    day_hidden: "invisible",
+                  }}
+                />
+                
+                {/* Quick Date Navigation */}
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDate(new Date())}
+                    className="text-xs"
+                  >
+                    Today
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const tomorrow = new Date();
+                      tomorrow.setDate(tomorrow.getDate() + 1);
+                      setDate(tomorrow);
+                    }}
+                    className="text-xs"
+                  >
+                    Tomorrow
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Right Column: Jobs Listing */}
-          <div className="md:w-2/3">
-            <Card>
-              <CardHeader className="mobile-card">
-                <CardTitle className="text-lg sm:text-xl font-semibold flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#3d99be] animate-pulse"></span>
-                  Jobs for {date?.toLocaleDateString()}
-                </CardTitle>
-                <div className="flex items-center gap-2 mt-2">
-                  <Button 
-                    onClick={fetchCalendarEvents} 
-                    variant="outline" 
-                    size="sm"
-                    disabled={loading}
-                  >
-                    {loading ? 'Loading...' : 'Refresh'}
-                  </Button>
-                  <span className="text-sm text-gray-600">
-                    {selectedDateEvents.length} job{selectedDateEvents.length !== 1 ? 's' : ''}
-                  </span>
+          {/* Right Column: Enhanced Jobs Timeline */}
+          <div className="lg:col-span-2">
+            <Card className="shadow-lg border-0 bg-white">
+              <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl font-bold flex items-center gap-2">
+                    <CalendarIcon className="w-6 h-6" />
+                    {date?.toLocaleDateString('en-GB', { 
+                      weekday: 'long', 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}
+                  </CardTitle>
+                  <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                    {selectedDateEvents.length} Job{selectedDateEvents.length !== 1 ? 's' : ''}
+                  </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="mobile-card">
+              <CardContent className="p-6">
                 {loading ? (
                   <div className="space-y-4">
                     {[...Array(3)].map((_, i) => (
                       <div key={i} className="animate-pulse">
-                        <div className="bg-gray-200 rounded-lg h-32 w-full"></div>
+                        <div className="bg-gray-200 rounded-xl h-40 w-full"></div>
                       </div>
                     ))}
                   </div>
                 ) : selectedDateEvents.length === 0 ? (
-                  <div className="text-center py-8">
-                    <CalendarIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No Jobs Scheduled</h3>
-                    <p className="text-gray-600">
-                      No jobs are scheduled for {date?.toLocaleDateString()}.
+                  <div className="text-center py-12">
+                    <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <CalendarIcon className="w-10 h-10 text-gray-400" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">No Jobs Today</h3>
+                    <p className="text-gray-600 mb-6">
+                      You have a free day! Use this time to catch up or take on more jobs.
                     </p>
+                    <Button 
+                      onClick={() => window.location.href = '/job-swipe'}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Zap className="w-4 h-4 mr-2" />
+                      Find New Jobs
+                    </Button>
                   </div>
                 ) : (
-                  <div className="grid gap-3 sm:gap-4">
-                    {selectedDateEvents.map(event => {
-                      const jobData = event.job_assignments?.MasterCustomer;
-                      const formatPrice = (price: number | null | undefined) => {
-                        if (price == null) return 'Quote Required';
-                        return `£${price.toFixed(2)}`;
-                      };
+                  <div className="space-y-4">
+                    {selectedDateEvents
+                      .sort((a, b) => a.start_time.localeCompare(b.start_time))
+                      .map((event, index) => {
+                        const jobData = event.job_assignments?.MasterCustomer;
+                        const formatPrice = (price: number | null | undefined) => {
+                          if (price == null) return 'Quote Required';
+                          return `£${price.toFixed(2)}`;
+                        };
 
-                      return (
-                        <Card key={event.id} className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-[#135084]">
-                          <CardContent className="mobile-card">
-                            <div className="mobile-flex justify-between mobile-gap">
-                              <div className="flex-1 space-y-3">
-                                {/* Header */}
-                                <div className="flex justify-between items-start">
-                                  <div>
-                                    <h3 className="font-semibold text-base sm:text-lg text-[#3d99be]">
-                                      {event.title}
-                                    </h3>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <Badge variant="outline" className="text-xs">
-                                        {jobData?.vehicle_reg || 'No Reg'}
-                                      </Badge>
-                                      <Badge className={`text-xs ${getStatusColor(event.status)}`}>
-                                        {event.status}
-                                      </Badge>
+                        const getStatusIcon = (status: string) => {
+                          switch (status.toLowerCase()) {
+                            case 'scheduled':
+                              return <Clock className="w-5 h-5 text-blue-600" />;
+                            case 'in_progress':
+                              return <Play className="w-5 h-5 text-amber-600" />;
+                            case 'completed':
+                              return <CheckCircle2 className="w-5 h-5 text-green-600" />;
+                            default:
+                              return <CalendarIcon className="w-5 h-5 text-gray-600" />;
+                          }
+                        };
+
+                        return (
+                          <Card key={event.id} className={`group hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border-l-4 ${
+                            event.status === 'completed' ? 'border-l-green-500 bg-green-50/30' :
+                            event.status === 'in_progress' ? 'border-l-amber-500 bg-amber-50/30' :
+                            'border-l-blue-500 bg-blue-50/30'
+                          }`}>
+                            <CardContent className="p-5">
+                              <div className="flex items-start justify-between gap-4">
+                                {/* Left: Job Info */}
+                                <div className="flex-1 space-y-3">
+                                  {/* Header with Status Icon */}
+                                  <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-lg bg-white shadow-sm">
+                                      {getStatusIcon(event.status)}
+                                    </div>
+                                    <div className="flex-1">
+                                      <h3 className="font-bold text-lg text-gray-900 leading-tight">
+                                        {event.customer_name}
+                                      </h3>
+                                      <p className="text-sm text-gray-600">
+                                        {event.start_time} - {event.end_time}
+                                      </p>
+                                    </div>
+                                    <Badge className={`${getStatusColor(event.status)} font-medium`}>
+                                      {event.status.replace('_', ' ')}
+                                    </Badge>
+                                  </div>
+
+                                  {/* Vehicle & Service Info */}
+                                  <div className="bg-white rounded-lg p-3 border border-gray-100">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                      <div className="space-y-2">
+                                        <div className="flex items-center gap-2">
+                                          <Car className="w-4 h-4 text-gray-500" />
+                                          <span className="text-sm font-medium text-gray-900">
+                                            {jobData?.vehicle_reg || 'No Registration'}
+                                          </span>
+                                        </div>
+                                        {event.location && (
+                                          <div className="flex items-center gap-2">
+                                            <MapPin className="w-4 h-4 text-gray-500" />
+                                            <span className="text-sm text-gray-600 truncate">{event.location}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="space-y-2">
+                                        {event.customer_phone && (
+                                          <div className="flex items-center gap-2">
+                                            <Phone className="w-4 h-4 text-gray-500" />
+                                            <a 
+                                              href={`tel:${event.customer_phone}`}
+                                              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                                            >
+                                              {event.customer_phone}
+                                            </a>
+                                          </div>
+                                        )}
+                                        {jobData?.service_type && (
+                                          <div className="text-sm">
+                                            <span className="font-medium text-gray-700">{jobData.service_type}</span>
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
-                                  <div className="text-right">
-                                    <p className="font-medium text-base sm:text-lg text-red-600">
+
+                                  {/* Action Buttons */}
+                                  <div className="flex flex-wrap gap-2">
+                                    {event.status === 'scheduled' && (
+                                      <Button
+                                        onClick={() => updateEventStatus(event.id, 'in_progress')}
+                                        size="sm"
+                                        className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md"
+                                      >
+                                        <Play className="w-4 h-4 mr-2" />
+                                        Start Job
+                                      </Button>
+                                    )}
+                                    {event.status === 'in_progress' && (
+                                      <Button
+                                        onClick={() => updateEventStatus(event.id, 'completed')}
+                                        size="sm"
+                                        className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-md"
+                                      >
+                                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                                        Complete Job
+                                      </Button>
+                                    )}
+                                    <Button
+                                      onClick={() => {
+                                        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location || '')}`;
+                                        window.open(mapsUrl, '_blank');
+                                      }}
+                                      variant="outline"
+                                      size="sm"
+                                      className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                                    >
+                                      <Navigation className="w-4 h-4 mr-2" />
+                                      Navigate
+                                    </Button>
+                                    {event.customer_phone && (
+                                      <Button
+                                        onClick={() => window.open(`tel:${event.customer_phone}`, '_self')}
+                                        variant="outline"
+                                        size="sm"
+                                        className="border-green-200 text-green-700 hover:bg-green-50"
+                                      >
+                                        <Phone className="w-4 h-4 mr-2" />
+                                        Call
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Right: Price */}
+                                <div className="text-right">
+                                  <div className="bg-gradient-to-br from-green-500 to-emerald-600 text-white p-3 rounded-xl shadow-lg">
+                                    <p className="text-lg font-bold">
                                       {formatPrice(jobData?.quote_price)}
                                     </p>
+                                    <p className="text-xs opacity-90">Job Value</p>
                                   </div>
-                                </div>
-
-                                {/* Details Grid */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                                  <div className="space-y-2">
-                                    <div className="flex items-center gap-2">
-                                      <User className="w-4 h-4 text-gray-500" />
-                                      <span className="text-sm">{event.customer_name}</span>
-                                    </div>
-                                    {event.customer_phone && (
-                                      <div className="flex items-center gap-2">
-                                        <Phone className="w-4 h-4 text-gray-500" />
-                                        <span className="text-sm text-gray-600">{event.customer_phone}</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                  
-                                  <div className="space-y-2">
-                                    <div className="flex items-center gap-2">
-                                      <Clock className="w-4 h-4 text-gray-500" />
-                                      <span className="text-sm">
-                                        {event.start_time} - {event.end_time}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <CalendarIcon className="w-4 h-4 text-gray-500" />
-                                      <span className="text-sm">
-                                        {new Date(event.start_date).toLocaleDateString()}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="space-y-2">
-                                    {event.location && (
-                                      <div className="flex items-center gap-2">
-                                        <MapPin className="w-4 h-4 text-gray-500" />
-                                        <span className="text-sm text-gray-600">{event.location}</span>
-                                      </div>
-                                    )}
-                                    {event.vehicle_info && (
-                                      <div className="flex items-center gap-2">
-                                        <Car className="w-4 h-4 text-gray-500" />
-                                        <span className="text-sm text-gray-600">{event.vehicle_info}</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* Description */}
-                                {event.description && (
-                                  <div className="p-3 bg-gray-50 rounded-lg">
-                                    <p className="text-sm text-gray-700">{event.description}</p>
-                                  </div>
-                                )}
-
-                                {/* Action Buttons */}
-                                <div className="flex gap-2 pt-2">
-                                  {event.status === 'scheduled' && (
-                                    <Button
-                                      onClick={() => updateEventStatus(event.id, 'in_progress')}
-                                      size="sm"
-                                      className="bg-blue-600 hover:bg-blue-700"
-                                    >
-                                      Start Job
-                                    </Button>
-                                  )}
-                                  {event.status === 'in_progress' && (
-                                    <Button
-                                      onClick={() => updateEventStatus(event.id, 'completed')}
-                                      size="sm"
-                                      className="bg-green-600 hover:bg-green-700"
-                                    >
-                                      Complete Job
-                                    </Button>
-                                  )}
-                                  <Button
-                                    onClick={() => {
-                                      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location || '')}`;
-                                      window.open(mapsUrl, '_blank');
-                                    }}
-                                    variant="outline"
-                                    size="sm"
-                                  >
-                                    <MapPin className="w-4 h-4 mr-1" />
-                                    Directions
-                                  </Button>
                                 </div>
                               </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
+
+                              {/* Description */}
+                              {event.description && (
+                                <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                  <p className="text-sm text-gray-700">{event.description}</p>
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
                   </div>
                 )}
               </CardContent>
