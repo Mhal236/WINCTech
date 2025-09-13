@@ -312,15 +312,15 @@ export const ExclusiveJobsView: React.FC<ExclusiveJobsViewProps> = ({ onJobAccep
                 transition={{ duration: 0.1 }}
                 className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
               >
-                <div className={`rounded-full p-4 sm:p-6 ${
+                <div className={`rounded-full p-3 sm:p-4 border ${
                   lastAction === 'accepted' 
-                    ? 'bg-green-500 text-white' 
-                    : 'bg-red-500 text-white'
+                    ? 'bg-green-50 text-green-700 border-green-200' 
+                    : 'bg-red-50 text-red-700 border-red-200'
                 }`}>
                   {lastAction === 'accepted' ? (
-                    <CheckCircle className="w-8 h-8 sm:w-12 sm:h-12" />
+                    <CheckCircle className="w-6 h-6 sm:w-8 sm:h-8" />
                   ) : (
-                    <XCircle className="w-8 h-8 sm:w-12 sm:h-12" />
+                    <XCircle className="w-6 h-6 sm:w-8 sm:h-8" />
                   )}
                 </div>
               </motion.div>
@@ -329,10 +329,10 @@ export const ExclusiveJobsView: React.FC<ExclusiveJobsViewProps> = ({ onJobAccep
 
           {/* Processing overlay */}
           {processing && (
-            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg z-10">
-              <div className="text-white text-center">
-                <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-white mx-auto mb-2"></div>
-                <p className="text-sm">Processing...</p>
+            <div className="absolute inset-0 bg-black/20 flex items-center justify-center rounded-lg z-10">
+              <div className="text-gray-800 text-center bg-white/80 backdrop-blur-sm rounded-md px-3 py-2 border border-gray-200">
+                <div className="animate-spin rounded-full h-5 w-5 sm:h-6 sm:w-6 border-b-2 border-gray-600 mx-auto mb-1"></div>
+                <p className="text-xs">Processing...</p>
               </div>
             </div>
           )}

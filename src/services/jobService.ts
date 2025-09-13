@@ -85,6 +85,30 @@ export class JobService {
   }
 
   /**
+   * Unassign a job via secure server endpoint
+   */
+  static async unassignJob(
+    jobId: string, 
+    technicianId: string
+  ): Promise<{ success: boolean; error?: any; message?: string }> {
+    try {
+      const response = await fetch('/api/jobs/unassign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId, technicianId })
+      });
+      const result = await response.json();
+      if (!response.ok || !result?.success) {
+        return { success: false, error: result?.error || 'Failed to unassign job' };
+      }
+      return { success: true, message: result.message };
+    } catch (error) {
+      console.error('Error in unassignJob:', error);
+      return { success: false, error };
+    }
+  }
+
+  /**
    * Create calendar event for accepted job via secure server endpoint
    */
   static async createCalendarEvent(

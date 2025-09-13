@@ -2,9 +2,11 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Clock, Filter, ArrowUp, Briefcase, Calendar, Users, MoreVertical, MapPin, Phone, Car, User } from "lucide-react";
+import { Plus, Search, Clock, Filter, ArrowUp, Briefcase, Calendar, Users, MoreVertical, MapPin, Phone, Car, User, UserX, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { JobService } from "@/services/jobService";
@@ -36,6 +38,7 @@ const History = () => {
   const [filterStatus, setFilterStatus] = useState("all");
   const [acceptedJobs, setAcceptedJobs] = useState<AcceptedJob[]>([]);
   const [loading, setLoading] = useState(true);
+  const [unassigningJobId, setUnassigningJobId] = useState<string | null>(null);
   const [stats, setStats] = useState({
     active: 0,
     completed: 0,
@@ -240,6 +243,84 @@ const History = () => {
       console.error('Error in fetchAcceptedJobs:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUnassignJob = async (job: AcceptedJob) => {
+    if (!user?.id) {
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to unassign jobs.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setUnassigningJobId(job.id);
+
+      // Get technician ID
+      let technicianId = null;
+      const { data: techData1 } = await supabase
+        .from('technicians')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (techData1) {
+        technicianId = techData1.id;
+      } else {
+        // Try by email for Google OAuth users
+        const { data: techData2 } = await supabase
+          .from('technicians')
+          .select('id')
+          .eq('contact_email', user.email)
+          .single();
+        
+        if (techData2) {
+          technicianId = techData2.id;
+        }
+      }
+
+      if (!technicianId) {
+        toast({
+          title: "Error",
+          description: "Unable to find your technician profile.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Unassign the job using the service
+      const { success, error } = await JobService.unassignJob(job.id, technicianId);
+
+      if (!success) {
+        toast({
+          title: "Unassignment Failed",
+          description: error || "Failed to unassign the job. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Job Unassigned",
+        description: `Successfully unassigned the job for ${job.customer_name}. It's now available for other technicians.`,
+        variant: "default",
+      });
+
+      // Refresh the jobs list
+      fetchAcceptedJobs();
+
+    } catch (error) {
+      console.error('Error unassigning job:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while unassigning the job.",
+        variant: "destructive",
+      });
+    } finally {
+      setUnassigningJobId(null);
     }
   };
 
@@ -491,9 +572,74 @@ const History = () => {
                         </div>
                         
                         <div className="flex flex-col md:flex-row items-end md:items-center gap-4">
-                          <Button variant="ghost" size="icon">
-                            <MoreVertical className="h-5 w-5 text-gray-500" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="icon" className="h-8 w-8 bg-white hover:bg-gray-50 border-gray-200 shadow-sm">
+                                <MoreVertical className="h-4 w-4 text-gray-600" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48 bg-white/95 backdrop-blur-sm border border-gray-200 shadow-lg rounded-lg">
+                              {job.customer_phone && (
+                                <DropdownMenuItem asChild>
+                                  <a href={`tel:${job.customer_phone}`} className="flex items-center gap-2 px-3 py-2 hover:bg-blue-50 hover:text-blue-700 rounded-md transition-colors">
+                                    <Phone className="h-4 w-4" />
+                                    Call Customer
+                                  </a>
+                                </DropdownMenuItem>
+                              )}
+                              {job.appointment_date && (
+                                <DropdownMenuItem className="px-3 py-2 hover:bg-blue-50 hover:text-blue-700 rounded-md transition-colors">
+                                  <Calendar className="h-4 w-4 mr-2" />
+                                  View in Calendar
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuSeparator className="my-1 bg-gray-200" />
+                              {job.status !== 'completed' && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem 
+                                      onSelect={(e) => e.preventDefault()}
+                                      className="px-3 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 focus:text-red-700 focus:bg-red-50 rounded-md transition-colors"
+                                    >
+                                      <UserX className="h-4 w-4 mr-2" />
+                                      Unassign Job
+                                    </DropdownMenuItem>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle className="flex items-center gap-2">
+                                        <AlertTriangle className="h-5 w-5 text-amber-500" />
+                                        Unassign Job?
+                                      </AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Are you sure you want to unassign the job for <strong>{job.customer_name}</strong>? 
+                                        This will:
+                                        <ul className="mt-2 ml-4 list-disc space-y-1">
+                                          <li>Remove the job from your assigned jobs</li>
+                                          <li>Make it available for other technicians</li>
+                                          <li>Delete any calendar events for this job</li>
+                                          <li>Reset the job status to "quoted"</li>
+                                        </ul>
+                                        <p className="mt-2 text-sm text-amber-600">
+                                          <strong>Note:</strong> You cannot unassign completed jobs.
+                                        </p>
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleUnassignJob(job)}
+                                        disabled={unassigningJobId === job.id}
+                                        className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                                      >
+                                        {unassigningJobId === job.id ? "Unassigning..." : "Unassign Job"}
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
                     </CardContent>

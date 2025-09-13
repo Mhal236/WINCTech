@@ -4,45 +4,49 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 
 const plans = [
   {
-    name: "Pro",
-    price: "99",
+    name: "Starter",
+    price: "88",
+    originalPrice: "118",
     description: "Perfect for getting started with auto glass repairs",
     features: [
       "15% company commission",
-      "10 searches per day",
-      "+10% earnings boost", 
-      "Priority job allocation",
-      "14-day free trial",
-      "Basic reporting"
+      "100 credits included",
+      "4 credits per standard search (25 searches)",
+      "VRN searching",
+      "Job leads",
+      "Calendar integration"
     ]
   },
   {
-    name: "Elite",
-    price: "199",
+    name: "Pro",
+    price: "148",
+    originalPrice: "198",
     description: "Best value for professional technicians",
     popular: true,
     features: [
       "10% company commission",
-      "25 searches per day",
-      "+20% earnings boost",
-      "Instant payouts",
-      "Premium job access",
-      "Advanced reporting",
-      "Priority support"
+      "350 credits included",
+      "4 credits per standard search (87 searches)",
+      "VRN searching",
+      "Job leads",
+      "Calendar integration",
+      "Priority email & phone support"
     ]
   },
   {
     name: "Enterprise",
-    price: "299",
-    description: "For established auto glass businesses",
+    price: "Custom",
+    description: "Tailored to your needs",
     features: [
       "5% company commission",
-      "Unlimited searches",
-      "+30% earnings boost",
+      "Custom credit packages",
+      "Volume discounts available",
+      "VRN searching",
+      "Job leads",
+      "Calendar integration",
       "Dedicated account manager",
-      "First access to high-ticket jobs",
-      "Custom reporting",
-      "24/7 phone support"
+      "24/7 priority support",
+      "Custom integrations"
     ]
   }
 ];
@@ -62,7 +66,7 @@ export const PricingPlans = () => {
               {plan.popular && (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-20">
                   <span className="bg-[#145484] text-white px-4 py-1 rounded-full text-sm font-medium shadow-sm">
-                    Most Popular
+                    Popular
                   </span>
                 </div>
               )}
@@ -81,10 +85,30 @@ export const PricingPlans = () => {
                 </CardHeader>
                 <CardContent className="mobile-card bg-white/90 backdrop-blur-sm flex-grow">
                   <div className="mb-3 sm:mb-4">
-                    <span className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#1D1D1F]">
-                      £{plan.price}
-                    </span>
-                    <span className="mobile-text text-[#1D1D1F]">/month</span>
+                    {plan.originalPrice && plan.price !== "Custom" && (
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-lg sm:text-xl text-gray-400 line-through">
+                          £{plan.originalPrice}
+                        </span>
+                        <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded-full font-medium">
+                          Save £{parseInt(plan.originalPrice) - parseInt(plan.price)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex items-baseline gap-1">
+                      {plan.price !== "Custom" && (
+                        <span className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#1D1D1F]">
+                          £{plan.price}
+                        </span>
+                      )}
+                      {plan.price === "Custom" ? (
+                        <span className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#1D1D1F]">
+                          Custom
+                        </span>
+                      ) : (
+                        <span className="mobile-text text-[#1D1D1F]">/month</span>
+                      )}
+                    </div>
                   </div>
                   <ul className="space-y-2 sm:space-y-3">
                     {plan.features.map((feature) => (
@@ -98,11 +122,18 @@ export const PricingPlans = () => {
                 <CardFooter className="mobile-card bg-white/90 rounded-b-lg backdrop-blur-sm mt-auto">
                   <Button 
                     className={`w-full touch-target mobile-text ${
-                      plan.popular ? 'font-medium' : ''
+                      plan.popular ? 'cta-primary font-medium' : ''
                     }`}
-                    onClick={() => alert(`Selected ${plan.name} plan with 14-day free trial`)}
+                    variant={plan.name === "Enterprise" ? "outline" : "default"}
+                    onClick={() => {
+                      if (plan.name === "Enterprise") {
+                        alert("Contact sales team for custom pricing and enterprise solutions");
+                      } else {
+                        alert(`Selected ${plan.name} plan - £${plan.price}/month`);
+                      }
+                    }}
                   >
-                    Start Free Trial
+                    {plan.name === "Enterprise" ? "Contact sales" : "Select plan"}
                   </Button>
                 </CardFooter>
               </Card>

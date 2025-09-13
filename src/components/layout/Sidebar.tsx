@@ -118,7 +118,7 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
             ) : (
               <div
                 className={cn(
-                  "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium cursor-not-allowed",
+                  "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium cursor-not-allowed",
                   "text-gray-400 bg-gray-50",
                   collapsed && "justify-center px-2"
                 )}
@@ -192,7 +192,7 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
 
           {/* User Profile */}
           {!collapsed && (
-            <div className="p-4 border-b border-gray-100">
+            <div className="p-3 border-b border-gray-100">
               <UserProfile collapsed={collapsed} className="px-0" showLogout={true} />
             </div>
           )}
@@ -204,7 +204,7 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
             </div>
 
             {/* Jobs & Calendar Section */}
-            <div className="mx-3 my-4">
+            <div className="mx-3 my-3">
               <Separator className="bg-gray-200" />
             </div>
             <div className="p-3 space-y-1">
@@ -212,7 +212,7 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
             </div>
 
             {/* Separator before ARGIC Search section */}
-            <div className="mx-3 my-4">
+            <div className="mx-3 my-3">
               <Separator className="bg-gray-200" />
             </div>
 
@@ -222,7 +222,7 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
             </div>
 
             {/* Separator before Website section */}
-            <div className="mx-3 my-4">
+            <div className="mx-3 my-3">
               <Separator className="bg-gray-200" />
             </div>
 
@@ -287,7 +287,7 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
                   <div className="mt-1 ml-8 space-y-1">
                     <Link
                       to="/settings"
-                      className={cn(
+                        className={cn(
                         "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                         location.pathname === "/settings"
                           ? "bg-gray-100 text-gray-900"
@@ -299,7 +299,7 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
                     </Link>
                     <Link
                       to="/contact"
-                      className={cn(
+                        className={cn(
                         "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                         location.pathname === "/contact"
                           ? "bg-gray-100 text-gray-900"
