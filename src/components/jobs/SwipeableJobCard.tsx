@@ -203,6 +203,10 @@ export const SwipeableJobCard: React.FC<SwipeableJobCardProps> = ({
   // Map spec strings to subtle color classes
   const getChipClasses = (label: string): string => {
     const l = (label || '').toLowerCase();
+    // Glass type specific colors
+    if (l === 'oee') return 'bg-green-100 text-green-800 border border-green-200';
+    if (l === 'oem') return 'bg-blue-100 text-blue-800 border border-blue-200';
+    // Other specifications
     if (l.includes('sensor') || l.includes('rain') || l.includes('camera')) return 'bg-blue-100 text-blue-800 border border-blue-200';
     if (l.includes('heated') || l.includes('heat')) return 'bg-amber-100 text-amber-800 border border-amber-200';
     if (l.includes('aerial') || l.includes('antenna')) return 'bg-purple-100 text-purple-800 border border-purple-200';
@@ -363,10 +367,7 @@ export const SwipeableJobCard: React.FC<SwipeableJobCardProps> = ({
                         <div className="w-1.5 h-1.5 bg-gray-400 rounded-full flex-shrink-0 mt-1.5"></div>
                         <div className="flex-1 min-w-0">
                           <div className="font-semibold text-gray-900 text-sm leading-tight">
-                            Damage: {getGlassTypeName(damage.code)}
-                          </div>
-                          <div className="text-xs text-gray-700 leading-tight break-words">
-                            {damage.damageType}
+                            {getGlassTypeName(damage.code)} ({damage.damageType})
                           </div>
                         </div>
                       </div>
@@ -378,7 +379,7 @@ export const SwipeableJobCard: React.FC<SwipeableJobCardProps> = ({
                         <div className="w-1.5 h-1.5 bg-gray-400 rounded-full flex-shrink-0 mt-1.5"></div>
                         <div className="flex-1 min-w-0">
                           <div className="font-semibold text-gray-900 text-sm leading-tight">
-                            Damage: {getGlassTypeName(code)}
+                            {getGlassTypeName(code)}
                           </div>
                         </div>
                       </div>

@@ -10,6 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { GoogleLoginButton } from '@/components/auth/GoogleLoginButton';
+import { TwoFactorVerification } from '@/components/auth/TwoFactorVerification';
+import { supabase } from '@/lib/supabase';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email.'),
@@ -23,6 +25,9 @@ export function LoginForm() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showTwoFactor, setShowTwoFactor] = useState(false);
+  const [tempUserId, setTempUserId] = useState<string | null>(null);
+  const [tempUserEmail, setTempUserEmail] = useState<string | null>(null);
 
   const {
     register,
@@ -41,10 +46,18 @@ export function LoginForm() {
     setError(null);
 
     try {
-      const { error } = await signIn(data.email, data.password);
+      const result = await signIn(data.email, data.password);
       
-      if (error) {
-        setError(error.message || 'Failed to sign in. Please check your credentials.');
+      // Check if 2FA is required
+      if (result && 'requiresTwoFactor' in result && result.requiresTwoFactor) {
+        setTempUserId(result.tempUserId);
+        setTempUserEmail(result.tempUserEmail);
+        setShowTwoFactor(true);
+        return;
+      }
+      
+      if (result?.error) {
+        setError(result.error.message || 'Failed to sign in. Please check your credentials.');
         return;
       }
 
@@ -57,6 +70,47 @@ export function LoginForm() {
       setIsLoading(false);
     }
   };
+
+  const handleTwoFactorSuccess = async () => {
+    if (!tempUserId) return;
+    
+    try {
+      // Complete the 2FA authentication
+      const result = await supabase.auth.completeTwoFactorAuth(tempUserId);
+      
+      if (result?.error) {
+        setError(result.error.message || 'Failed to complete authentication.');
+        setShowTwoFactor(false);
+        return;
+      }
+
+      // Successfully authenticated, navigate to dashboard
+      navigate('/');
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.');
+      console.error(err);
+      setShowTwoFactor(false);
+    }
+  };
+
+  const handleTwoFactorCancel = () => {
+    setShowTwoFactor(false);
+    setTempUserId(null);
+    setTempUserEmail(null);
+    setError(null);
+  };
+
+  // Show 2FA verification if required
+  if (showTwoFactor && tempUserId && tempUserEmail) {
+    return (
+      <TwoFactorVerification
+        email={tempUserEmail}
+        userId={tempUserId}
+        onVerificationSuccess={handleTwoFactorSuccess}
+        onCancel={handleTwoFactorCancel}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">

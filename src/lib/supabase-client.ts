@@ -118,6 +118,18 @@ class SecureSupabaseClient {
             };
           }
 
+          // Check if 2FA is enabled for this user
+          if (data.two_factor_enabled && data.two_factor_email_enabled) {
+            // Return special response indicating 2FA is required
+            return {
+              data: { user: null, session: null },
+              error: null,
+              requiresTwoFactor: true,
+              tempUserId: data.id,
+              tempUserEmail: data.email
+            };
+          }
+
           // Create a user session
           const user: AppUser = {
             id: data.id,
@@ -245,6 +257,53 @@ class SecureSupabaseClient {
           console.log('🔵 Complete sign out successful');
         } catch (error) {
           console.error('Error signing out:', error);
+        }
+      },
+
+      completeTwoFactorAuth: async (userId: string) => {
+        try {
+          // Fetch the user data
+          const { data, error } = await directSupabase
+            .from('app_users')
+            .select('*')
+            .eq('id', userId)
+            .single();
+
+          if (error || !data) {
+            return { 
+              data: { user: null, session: null },
+              error: { message: 'User not found' } 
+            };
+          }
+
+          // Create a user session
+          const user: AppUser = {
+            id: data.id,
+            email: data.email,
+            name: data.name,
+            user_role: data.user_role || 'user',
+            verification_status: data.verification_status,
+            verification_form_data: data.verification_form_data,
+            submitted_at: data.submitted_at,
+            verified_at: data.verified_at,
+            verified_by: data.verified_by,
+            rejection_reason: data.rejection_reason
+          };
+
+          // Save the session in localStorage for persistence
+          localStorage.setItem('user_session', JSON.stringify(user));
+          
+          // Set current session and notify listeners
+          this.currentSession = { user };
+          this.notifyListeners('SIGNED_IN', this.currentSession);
+
+          return { 
+            data: { user, session: { user } },
+            error: null 
+          };
+        } catch (error) {
+          console.error('Error completing 2FA auth:', error);
+          return { data: { user: null, session: null }, error };
         }
       },
 
