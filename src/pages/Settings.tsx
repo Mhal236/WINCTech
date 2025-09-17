@@ -2,6 +2,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TwoFactorSettings } from "@/components/auth/TwoFactorSettings";
 import { Settings as SettingsIcon, User, Bell, Lock, CreditCard } from "lucide-react";
 
 const Settings = () => {
@@ -79,6 +80,9 @@ const Settings = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Two-Factor Authentication Settings */}
+          <TwoFactorSettings className="hover:shadow-lg transition-shadow duration-200" />
 
           <Card className="hover:shadow-lg transition-shadow duration-200">
             <CardHeader className="flex flex-row items-center space-y-0 pb-2 mobile-card">

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Verification Code - WindscreenCompare</title>
+    <style>
+        /* Reset styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+        }
+        
+        /* Container */
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #145484 0%, #1e6ba8 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            font-weight: normal;
+            margin: 0;
+        }
+        
+        /* Content */
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .greeting {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .message {
+            font-size: 16px;
+            margin-bottom: 30px;
+            color: #555;
+            line-height: 1.6;
+        }
+        
+        /* Verification Code Box */
+        .code-container {
+            background: #f8f9fa;
+            border: 3px solid #145484;
+            border-radius: 12px;
+            padding: 30px 20px;
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .code-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .verification-code {
+            font-size: 42px;
+            font-weight: bold;
+            color: #145484;
+            letter-spacing: 8px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+        }
+        
+        .code-expiry {
+            font-size: 14px;
+            color: #666;
+            margin-top: 15px;
+        }
+        
+        /* Security Notice */
+        .security-notice {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+            border-left: 4px solid #f39c12;
+        }
+        
+        .security-notice h3 {
+            color: #856404;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        
+        .security-notice p {
+            color: #856404;
+            font-size: 14px;
+            margin: 0;
+        }
+        
+        /* Security Tips */
+        .security-tips {
+            background: #e8f4f8;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        
+        .security-tips h3 {
+            color: #145484;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+        
+        .security-tips ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .security-tips li {
+            color: #555;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        
+        /* Footer */
+        .footer {
+            background: #f8f9fa;
+            padding: 30px 20px;
+            text-align: center;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .footer p {
+            font-size: 12px;
+            color: #666;
+            margin: 5px 0;
+        }
+        
+        .footer .company-name {
+            font-weight: bold;
+            color: #145484;
+        }
+        
+        /* Responsive */
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                margin: 0;
+                box-shadow: none;
+            }
+            
+            .content {
+                padding: 30px 20px;
+            }
+            
+            .verification-code {
+                font-size: 36px;
+                letter-spacing: 6px;
+            }
+            
+            .header {
+                padding: 25px 15px;
+            }
+            
+            .logo {
+                font-size: 24px;
+            }
+            
+            .header h1 {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">WindscreenCompare</div>
+            <h1>Two-Factor Authentication</h1>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="content">
+            <div class="greeting">Hello!</div>
+            
+            <div class="message">
+                You requested a verification code for your WindscreenCompare technician account. 
+                Please use the code below to complete your authentication:
+            </div>
+            
+            <!-- Verification Code Box -->
+            <div class="code-container">
+                <div class="code-label">Your Verification Code</div>
+                <div class="verification-code">{{ event.verification_code }}</div>
+                <div class="code-expiry">This code expires in 10 minutes</div>
+            </div>
+            
+            <!-- Security Notice -->
+            <div class="security-notice">
+                <h3>🔒 Security Notice</h3>
+                <p>If you didn't request this code, please ignore this email or contact our support team immediately.</p>
+            </div>
+            
+            <!-- Security Tips -->
+            <div class="security-tips">
+                <h3>For your security:</h3>
+                <ul>
+                    <li>Never share this code with anyone</li>
+                    <li>WindscreenCompare will never ask for this code via phone or email</li>
+                    <li>This code can only be used once</li>
+                    <li>If you're having trouble, contact our support team</li>
+                </ul>
+            </div>
+            
+            <div class="message">
+                <strong>Need help?</strong> If you're having trouble with two-factor authentication, 
+                please contact our support team and we'll be happy to assist you.
+            </div>
+            
+            <div class="message" style="margin-top: 30px;">
+                Best regards,<br>
+                <strong>The WindscreenCompare Team</strong>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p>This is an automated security message from <span class="company-name">WindscreenCompare</span>.</p>
+            <p>Please do not reply to this email.</p>
+            
+            <!-- Required Klaviyo Elements -->
+            <div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
+                <p style="font-size: 12px; color: #666; margin: 5px 0;">
+                    This is a transactional email for account security.
+                </p>
+                <p style="font-size: 11px; color: #999; margin: 10px 0;">
+                    WindscreenCompare | United Kingdom | 
+                    <a href="mailto:support@windscreencompare.com" style="color: #145484; text-decoration: none;">Contact Support</a>
+                </p>
+                <p style="font-size: 10px; color: #999; margin: 10px 0;">
+                    If you no longer wish to receive security emails, please contact our support team.
+                </p>
+            </div>
+            
+            <p style="margin-top: 15px;">&copy; 2025 WindscreenCompare. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

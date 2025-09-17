@@ -195,6 +195,10 @@ export const JobCard: React.FC<JobCardProps> = ({
   // Map spec strings to subtle color classes
   const getChipClasses = (label: string): string => {
     const l = (label || '').toLowerCase();
+    // Glass type specific colors
+    if (l === 'oee') return 'bg-green-100 text-green-800 border border-green-200';
+    if (l === 'oem') return 'bg-blue-100 text-blue-800 border border-blue-200';
+    // Other specifications
     if (l.includes('sensor') || l.includes('rain') || l.includes('camera')) return 'bg-blue-100 text-blue-800 border border-blue-200';
     if (l.includes('heated') || l.includes('heat')) return 'bg-amber-100 text-amber-800 border border-amber-200';
     if (l.includes('aerial') || l.includes('antenna')) return 'bg-purple-100 text-purple-800 border border-purple-200';
@@ -381,44 +385,40 @@ export const JobCard: React.FC<JobCardProps> = ({
             <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl p-3 sm:p-3 border border-red-100/50">
               <div className="flex items-center gap-2 mb-3">
                 <Zap className="w-4 h-4 sm:w-3 sm:h-3 text-red-600 flex-shrink-0" />
-                <span className="text-base sm:text-sm font-bold text-gray-900">Damage</span>
-              </div>
-              <div className="space-y-1">
                 {(() => {
                   const windowDamage = parseJsonField(job.window_damage);
                   const selectedWindows = parseJsonField(job.selected_windows);
                   
                   if (windowDamage.length > 0) {
                     const damageInfo = extractDamageInfo(windowDamage);
-                    return damageInfo.slice(0, 2).map((damage, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 bg-red-500 rounded-full flex-shrink-0"></div>
-                        <span className="text-xs text-gray-800 truncate">
-                          Damage: {getGlassTypeName(damage.code)} ({damage.damageType})
-                        </span>
-                      </div>
-                    ));
+                    return (
+                      <span className="text-base sm:text-sm font-bold text-gray-900">
+                        {getGlassTypeName(damageInfo[0].code)} ({damageInfo[0].damageType})
+                      </span>
+                    );
                   } else if (selectedWindows.length > 0) {
                     const glassCodes = extractGlassCodesFromWindows(selectedWindows);
-                    return glassCodes.slice(0, 2).map((code, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 bg-orange-500 rounded-full flex-shrink-0"></div>
-                        <span className="text-xs text-gray-800 truncate">
-                          Damage: {getGlassTypeName(code)}
-                        </span>
-                      </div>
-                    ));
+                    return (
+                      <span className="text-base sm:text-sm font-bold text-gray-900">
+                        {getGlassTypeName(glassCodes[0])}
+                      </span>
+                    );
+                  } else if (job.service_type) {
+                    return (
+                      <span className="text-base sm:text-sm font-bold text-gray-900">
+                        {job.service_type}
+                      </span>
+                    );
                   } else {
-                    return null;
+                    return (
+                      <span className="text-base sm:text-sm font-bold text-gray-500 italic">
+                        Service details not specified
+                      </span>
+                    );
                   }
-                })() || (job.glass_type && job.glass_type !== 'OEE' ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full flex-shrink-0"></div>
-                    <span className="text-xs text-gray-800 truncate">{job.glass_type}</span>
-                  </div>
-                ) : (
-                  <span className="text-xs text-gray-600 italic">Details not specified</span>
-                ))}
+                })()}
+              </div>
+              <div className="space-y-1">
                 {/* Specification chips */}
                 {(job.glass_type || job.window_spec || job.adas_calibration) && (
                   <div className="flex items-center gap-2 flex-wrap mt-2">
