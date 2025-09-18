@@ -86,12 +86,11 @@ export default function Login() {
 
       console.log('🔵 Google user data received:', userData);
       console.log('🔵 User email:', userData.email);
-      console.log('🔵 Email ends with @windscreencompare.com:', userData.email?.endsWith('@windscreencompare.com'));
 
-      // Check if user email is from windscreencompare.com domain
-      if (!userData.email || !userData.email.endsWith('@windscreencompare.com')) {
-        console.error('🔴 Domain check failed for email:', userData.email);
-        throw new Error('Access denied. Only @windscreencompare.com email addresses are allowed.');
+      // Check if user has a valid email
+      if (!userData.email) {
+        console.error('🔴 No email found in user data');
+        throw new Error('Access denied. No email address found.');
       }
 
       // Generate session token

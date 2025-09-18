@@ -98,13 +98,13 @@ const JobSwipe = () => {
                         <SelectItem value="board" className="flex items-center gap-2">
                           <div className="flex items-center gap-2 w-full">
                             <Briefcase className="w-4 h-4 text-blue-500" />
-                            <span>Job Board</span>
+                            <span>Buy Leads</span>
                           </div>
                         </SelectItem>
                         <SelectItem value="bids" className="flex items-center gap-2">
                           <div className="flex items-center gap-2 w-full">
                             <TrendingUp className="w-4 h-4 text-green-500" />
-                            <span>Job Bids</span>
+                            <span>Buy Jobs</span>
                           </div>
                         </SelectItem>
                       </SelectContent>

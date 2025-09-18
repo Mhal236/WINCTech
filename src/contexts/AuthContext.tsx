@@ -111,15 +111,100 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 credits: dbUser.credits
               };
             } else {
-              console.log('🔵 No database user found, using basic Google data');
-              // Fallback to basic Google data
-              userObject = {
-                id: userData.id || userData.sub,
+              console.log('🔵 No database user found, creating new user in app_users table');
+              
+              // Create user in app_users table
+              const newUserData = {
                 email: userData.email,
                 name: userData.name,
                 user_role: userData.email === 'admin@windscreencompare.com' ? 'admin' : 'pending',
-                verification_status: userData.email === 'admin@windscreencompare.com' ? 'verified' : 'non-verified'
+                verification_status: userData.email === 'admin@windscreencompare.com' ? 'verified' : 'non-verified',
+                supabase_id: userData.id || userData.sub,
+                created_at: new Date().toISOString()
               };
+              
+              try {
+                // First try to insert the user
+                const { data: insertedUser, error: insertError } = await supabase
+                  .from('app_users')
+                  .insert([newUserData])
+                  .select()
+                  .single();
+                
+                if (insertError) {
+                  console.error('🔴 Error creating user in app_users:', insertError);
+                  
+                  // If it's a duplicate key error, try to fetch the existing user
+                  if (insertError.code === '23505' || insertError.message?.includes('duplicate')) {
+                    console.log('🔵 User already exists, fetching existing record');
+                    const { data: existingUser, error: fetchError } = await supabase
+                      .from('app_users')
+                      .select('*')
+                      .eq('email', userData.email)
+                      .single();
+                    
+                    if (existingUser && !fetchError) {
+                      console.log('🟢 Found existing user:', existingUser);
+                      userObject = {
+                        id: existingUser.id,
+                        email: existingUser.email,
+                        name: existingUser.name,
+                        user_role: existingUser.user_role,
+                        verification_status: existingUser.verification_status,
+                        verification_form_data: existingUser.verification_form_data,
+                        submitted_at: existingUser.submitted_at,
+                        verified_at: existingUser.verified_at,
+                        verified_by: existingUser.verified_by,
+                        rejection_reason: existingUser.rejection_reason,
+                        credits: existingUser.credits
+                      };
+                    } else {
+                      // Still fallback to basic user object
+                      userObject = {
+                        id: userData.id || userData.sub,
+                        email: userData.email,
+                        name: userData.name,
+                        user_role: userData.email === 'admin@windscreencompare.com' ? 'admin' : 'pending',
+                        verification_status: userData.email === 'admin@windscreencompare.com' ? 'verified' : 'non-verified'
+                      };
+                    }
+                  } else {
+                    // Other error, continue with basic user object
+                    userObject = {
+                      id: userData.id || userData.sub,
+                      email: userData.email,
+                      name: userData.name,
+                      user_role: userData.email === 'admin@windscreencompare.com' ? 'admin' : 'pending',
+                      verification_status: userData.email === 'admin@windscreencompare.com' ? 'verified' : 'non-verified'
+                    };
+                  }
+                } else {
+                  console.log('🟢 Successfully created user in app_users table:', insertedUser);
+                  userObject = {
+                    id: insertedUser.id,
+                    email: insertedUser.email,
+                    name: insertedUser.name,
+                    user_role: insertedUser.user_role,
+                    verification_status: insertedUser.verification_status,
+                    verification_form_data: insertedUser.verification_form_data,
+                    submitted_at: insertedUser.submitted_at,
+                    verified_at: insertedUser.verified_at,
+                    verified_by: insertedUser.verified_by,
+                    rejection_reason: insertedUser.rejection_reason,
+                    credits: insertedUser.credits
+                  };
+                }
+              } catch (createError) {
+                console.error('🔴 Exception creating user:', createError);
+                // Fallback to basic Google data
+                userObject = {
+                  id: userData.id || userData.sub,
+                  email: userData.email,
+                  name: userData.name,
+                  user_role: userData.email === 'admin@windscreencompare.com' ? 'admin' : 'pending',
+                  verification_status: userData.email === 'admin@windscreencompare.com' ? 'verified' : 'non-verified'
+                };
+              }
             }
             
             console.log('🟢 Final Google user object:', userObject);
@@ -476,16 +561,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const userRole = user.user_role || 'pending';
     const verificationStatus = user.verification_status || 'non-verified';
     
-    // Admin has access to everything
-    if (userRole === 'admin') return true;
+    // Check verification status first - non-verified users can only access basic features
+    if (verificationStatus === 'non-verified' || verificationStatus === 'pending' || verificationStatus === 'rejected') {
+      // Non-verified users can only access user-level features (Home, Contact, Settings)
+      if (requiredRole === 'user') {
+        return true;
+      }
+      // Block access to jobs, calendar, and other admin features for non-verified users
+      return false;
+    }
     
-    // Pro-2 technicians can access everything except admin-only features
-    if (userRole === 'pro-2') {
+    // Admin has access to everything (if verified)
+    if (userRole === 'admin' && verificationStatus === 'verified') return true;
+    
+    // Pro-2 technicians can access everything except admin-only features (if verified)
+    if (userRole === 'pro-2' && verificationStatus === 'verified') {
       return ['pro-2', 'admin', 'pro-1', 'user'].includes(requiredRole);
     }
     
-    // Pro-1 technicians can access core technician features
-    if (userRole === 'pro-1') {
+    // Pro-1 technicians can access core technician features (if verified)
+    if (userRole === 'pro-1' && verificationStatus === 'verified') {
       return ['pro-1', 'user'].includes(requiredRole) || 
              (requiredRole === 'admin'); // Allow admin access for core features
     }
@@ -495,8 +590,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return ['pending', 'pro-1', 'pro-2', 'admin'].includes(userRole);
     }
     
-    // For admin-level access, check specific permissions
-    if (requiredRole === 'admin') {
+    // For admin-level access, check specific permissions (must be verified)
+    if (requiredRole === 'admin' && verificationStatus === 'verified') {
       // Admin and Pro-2 have full admin access
       if (['admin', 'pro-2'].includes(userRole)) return true;
       
@@ -504,8 +599,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (userRole === 'pro-1') return true;
     }
     
-    // For pro-2 level access, only pro-2 and admin
-    if (requiredRole === 'pro-2') {
+    // For pro-2 level access, only pro-2 and admin (must be verified)
+    if (requiredRole === 'pro-2' && verificationStatus === 'verified') {
       return ['admin', 'pro-2'].includes(userRole);
     }
     

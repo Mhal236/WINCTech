@@ -25,25 +25,20 @@ export function ProtectedRoute({ children, requiredRole = 'user' }: ProtectedRou
   if (isLoading) {
     console.log('🔵 ProtectedRoute: Showing loading...');
     return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="flex flex-col items-center space-y-4 p-8">
-          {/* Logo/Brand */}
-          <div className="w-16 h-16 bg-[#FFC107] rounded-2xl flex items-center justify-center mb-2 shadow-lg">
-            <svg className="w-8 h-8 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="w-full max-w-2xl mx-auto">
+          <div className="text-center mb-8">
+            <img 
+              src="/windscreen-compare-technician.png" 
+              alt="WindscreenCompare" 
+              className="h-12 w-auto mx-auto mb-4"
+            />
           </div>
-          
-          {/* Spinner */}
-          <div className="relative">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-[#135084]"></div>
-            <div className="absolute inset-0 rounded-full border-4 border-transparent border-r-[#FFC107] animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
-          </div>
-          
-          {/* Loading Text */}
-          <div className="text-center">
-            <h3 className="text-lg font-semibold text-gray-800 mb-1">Authenticating</h3>
-            <p className="text-sm text-gray-600">Please wait while we verify your access...</p>
+          <div className="flex flex-col items-center space-y-4">
+            <div className="w-12 h-12 bg-[#145484]/10 rounded-full flex items-center justify-center">
+              <div className="animate-spin rounded-full h-6 w-6 border-2 border-[#145484] border-t-transparent"></div>
+            </div>
+            <p className="text-gray-600 font-medium">Loading...</p>
           </div>
         </div>
       </div>
@@ -57,10 +52,20 @@ export function ProtectedRoute({ children, requiredRole = 'user' }: ProtectedRou
       return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
-  // Allow all authenticated users to access the dashboard (/) 
-  // The dashboard page will handle showing verification form
-  if (location.pathname === '/') {
-    return <>{children}</>;
+  // Check if user needs verification first
+  const needsVerification = user.verification_status === 'non-verified' || 
+                          user.verification_status === 'pending' || 
+                          user.verification_status === 'rejected' ||
+                          user.user_role === 'non-verified' ||
+                          (!user.verification_status && user.user_role === 'pending');
+
+  // For unverified users, only allow dashboard (/) - all other routes redirect
+  if (needsVerification) {
+    if (location.pathname === '/') {
+      return <>{children}</>;
+    }
+    console.log('🔵 ProtectedRoute: Non-verified user accessing restricted route, redirecting to dashboard');
+    return <Navigate to="/" replace />;
   }
 
   // Allow non-verified users to access Contact and Settings
@@ -70,17 +75,6 @@ export function ProtectedRoute({ children, requiredRole = 'user' }: ProtectedRou
 
   // For other routes, check verification status and permissions
   try {
-    // Handle non-verified users - redirect to dashboard for verification (except Contact/Settings)
-    if (user.user_role === 'non-verified' || user.verification_status === 'non-verified') {
-      console.log('🔵 ProtectedRoute: Non-verified user accessing restricted route, redirecting to dashboard');
-      return <Navigate to="/" replace />;
-    }
-
-    // Handle pending verification users - redirect to dashboard
-    if (user.verification_status === 'pending' || user.verification_status === 'rejected') {
-      console.log('🔵 ProtectedRoute: Pending/rejected user, redirecting to dashboard');
-      return <Navigate to="/" replace />;
-    }
 
     // For verified users, check role-based permissions
     if (!hasPermission(requiredRole)) {
