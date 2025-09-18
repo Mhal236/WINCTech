@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-client';
-import { CheckCircle, AlertCircle, Clock, FileText, Building, User, Phone, Calendar, Shield, ArrowRight, ArrowLeft, Check } from 'lucide-react';
+import { CheckCircle, AlertCircle, Clock, FileText, Building, User, Phone, Calendar, Shield, ArrowRight, ArrowLeft, Check, LogOut } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { useNavigate } from 'react-router-dom';
 
 // Helper function to get application details by user ID (useful for admin views)
 export const getApplicationByUserId = async (userId: string, userEmail?: string) => {
@@ -90,6 +91,11 @@ export const getPendingApplications = async () => {
 };
 
 interface VerificationFormData {
+  // Personal Information
+  first_name: string;
+  last_name: string;
+  email: string;
+  
   // Company Information
   company_name: string;
   business_type: string;
@@ -119,8 +125,8 @@ interface VerificationFormData {
 const steps = [
   {
     id: 1,
-    title: "Company Details",
-    description: "Tell us about your business",
+    title: "Personal & Company Details",
+    description: "Tell us about yourself and your business",
     icon: Building
   },
   {
@@ -144,8 +150,9 @@ const steps = [
 ];
 
 export function VerificationForm() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [existingApplication, setExistingApplication] = useState<any>(null);
@@ -156,8 +163,24 @@ export function VerificationForm() {
   console.log('🔍 VerificationForm Debug:', {
     user,
     userRole: user?.user_role,
-    verificationStatus: user?.verification_status
+    verificationStatus: user?.verification_status,
+    renderingVerificationForm: true
   });
+
+  const handleLogout = async () => {
+    try {
+      console.log('🔵 Verification form logout clicked');
+      await signOut();
+      navigate('/login', { replace: true });
+    } catch (error) {
+      console.error('Error logging out:', error);
+      toast({
+        title: "Logout Error",
+        description: "There was an error logging out. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Check for existing application when component mounts
   useEffect(() => {
@@ -200,6 +223,9 @@ export function VerificationForm() {
   }, [user?.id]);
 
   const [formData, setFormData] = useState<VerificationFormData>({
+    first_name: user?.name?.split(' ')[0] || '',
+    last_name: user?.name?.split(' ').slice(1).join(' ') || '',
+    email: user?.email || '',
     company_name: '',
     business_type: '',
     registration_number: '',
@@ -259,9 +285,10 @@ export function VerificationForm() {
   const isStepValid = () => {
     switch (currentStep) {
       case 1:
+        const nameValid = formData.first_name && formData.last_name && formData.email;
         const basicInfoValid = formData.company_name && formData.business_type;
         const vatValid = !formData.vat_registered || (formData.vat_registered && formData.vat_number);
-        return basicInfoValid && vatValid;
+        return nameValid && basicInfoValid && vatValid;
       case 2:
         return formData.contact_name && formData.contact_phone && formData.business_address && 
                formData.vehicle_registration_number && formData.vehicle_make && formData.vehicle_model;
@@ -310,17 +337,50 @@ export function VerificationForm() {
           .single();
           
         if (lookupError || !appUser) {
-          console.error('🔴 Could not find user in app_users table:', lookupError);
-          throw new Error('Could not find user record. Please try logging out and back in.');
+          console.error('🔴 Could not find user in app_users table, creating new user:', lookupError);
+          
+          // Create the user in app_users table
+          const newUserData = {
+            email: user.email,
+            name: user.name,
+            user_role: user.user_role || 'pending',
+            verification_status: user.verification_status || 'non-verified',
+            auth_provider: 'google',
+            oauth_user_id: userId,
+            created_at: new Date().toISOString()
+          };
+          
+          try {
+            const { data: insertedUser, error: insertError } = await supabase
+              .from('app_users')
+              .insert([newUserData])
+              .select('id')
+              .single();
+            
+            if (insertError) {
+              console.error('🔴 Error creating user in app_users:', insertError);
+              throw new Error('Could not create user record. Please try again.');
+            }
+            
+            userId = insertedUser.id;
+            console.log('🟢 Created new user in app_users table:', userId);
+          } catch (createError) {
+            console.error('🔴 Exception creating user:', createError);
+            throw new Error('Could not create user record. Please try again.');
+          }
+        } else {
+          userId = appUser.id;
+          console.log('🟢 Found existing user UUID:', userId);
         }
-        
-        userId = appUser.id;
-        console.log('🟢 Found user UUID:', userId);
       }
 
       // Prepare application data
       const applicationData = {
         user_id: userId,
+        // Personal Information
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        email: formData.email,
         // Company Information
         company_name: formData.company_name,
         business_type: formData.business_type,
@@ -402,17 +462,39 @@ export function VerificationForm() {
   // Show a more elegant loading state
   if (isCheckingApplication) {
     return (
-      <div className="max-w-2xl mx-auto p-6">
-        <Card className="border-0 shadow-lg">
-          <CardContent className="text-center py-12">
-            <div className="flex flex-col items-center space-y-4">
-              <div className="w-12 h-12 bg-[#135084]/10 rounded-full flex items-center justify-center">
-                <div className="animate-spin rounded-full h-6 w-6 border-2 border-[#135084] border-t-transparent"></div>
-              </div>
-              <p className="text-gray-600 font-medium">Loading application status...</p>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="w-full max-w-2xl mx-auto">
+          <div className="relative text-center mb-8">
+            {/* Logout Button - Top Right */}
+            <div className="absolute top-0 right-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLogout}
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 border-gray-300 hover:border-gray-400"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">Logout</span>
+              </Button>
             </div>
-          </CardContent>
-        </Card>
+            
+            <img 
+              src="/windscreen-compare-technician.png" 
+              alt="WindscreenCompare" 
+              className="h-12 w-auto mx-auto mb-4"
+            />
+          </div>
+          <Card className="border-0 shadow-lg">
+            <CardContent className="text-center py-12">
+              <div className="flex flex-col items-center space-y-4">
+                <div className="w-12 h-12 bg-[#135084]/10 rounded-full flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-6 w-6 border-2 border-[#135084] border-t-transparent"></div>
+                </div>
+                <p className="text-gray-600 font-medium">Loading application status...</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -436,16 +518,37 @@ export function VerificationForm() {
     };
 
     return (
-      <div className="max-w-2xl mx-auto p-6">
-        <Card className="border-0 shadow-lg">
-          <CardHeader className="text-center pb-8">
-            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center mb-6 shadow-lg">
-              <CheckCircle className="w-10 h-10 text-white" />
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="w-full max-w-2xl mx-auto">
+          <div className="relative text-center mb-8">
+            {/* Logout Button - Top Right */}
+            <div className="absolute top-0 right-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLogout}
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 border-gray-300 hover:border-gray-400"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">Logout</span>
+              </Button>
             </div>
-            <CardTitle className="text-2xl font-bold text-gray-800">Thank You for Your Application!</CardTitle>
-            <CardDescription className="text-lg text-gray-600 mt-2">
-              Your technician application has been submitted successfully.
-            </CardDescription>
+            
+            <img 
+              src="/windscreen-compare-technician.png" 
+              alt="WindscreenCompare" 
+              className="h-12 w-auto mx-auto mb-4"
+            />
+          </div>
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="text-center pb-8">
+              <div className="mx-auto w-20 h-20 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center mb-6 shadow-lg">
+                <CheckCircle className="w-10 h-10 text-white" />
+              </div>
+              <CardTitle className="text-2xl font-bold text-gray-800">Thank You for Your Application!</CardTitle>
+              <CardDescription className="text-lg text-gray-600 mt-2">
+                Your technician application has been submitted successfully.
+              </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
             <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
@@ -490,6 +593,7 @@ export function VerificationForm() {
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
     );
   }
@@ -497,8 +601,29 @@ export function VerificationForm() {
 
   if (user?.verification_status === 'rejected') {
     return (
-      <div className="max-w-2xl mx-auto p-6">
-        <Card className="border-0 shadow-lg">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="w-full max-w-2xl mx-auto">
+          <div className="relative text-center mb-8">
+            {/* Logout Button - Top Right */}
+            <div className="absolute top-0 right-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLogout}
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 border-gray-300 hover:border-gray-400"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">Logout</span>
+              </Button>
+            </div>
+            
+            <img 
+              src="/windscreen-compare-technician.png" 
+              alt="WindscreenCompare" 
+              className="h-12 w-auto mx-auto mb-4"
+            />
+          </div>
+          <Card className="border-0 shadow-lg">
           <CardHeader className="text-center pb-8">
             <div className="mx-auto w-20 h-20 bg-gradient-to-br from-red-400 to-red-600 rounded-full flex items-center justify-center mb-6 shadow-lg">
               <AlertCircle className="w-10 h-10 text-white" />
@@ -523,6 +648,7 @@ export function VerificationForm() {
             </Button>
           </CardContent>
         </Card>
+        </div>
       </div>
     );
   }
@@ -532,8 +658,35 @@ export function VerificationForm() {
   const progress = (currentStep / steps.length) * 100;
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <Card className="border-0 shadow-xl bg-white">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-8 px-4">
+      <div className="w-full max-w-4xl mx-auto">
+        {/* Standalone Header */}
+        <div className="relative text-center mb-8">
+          {/* Logout Button - Top Right */}
+          <div className="absolute top-0 right-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 border-gray-300 hover:border-gray-400"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline">Logout</span>
+            </Button>
+          </div>
+          
+          <div className="flex items-center justify-center mb-4">
+            <img 
+              src="/windscreen-compare-technician.png" 
+              alt="WindscreenCompare" 
+              className="h-12 w-auto"
+            />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Technician Verification</h1>
+          <p className="text-gray-600">Complete your application to start receiving jobs</p>
+        </div>
+        
+        <Card className="border-0 shadow-xl bg-white">
         {/* Header with progress */}
         <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
           <div className="flex items-center justify-between mb-4">
@@ -610,6 +763,42 @@ export function VerificationForm() {
             {/* Step 1: Company Details */}
             {currentStep === 1 && (
               <div className="space-y-6">
+                {/* Personal Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <Label htmlFor="first_name" className="text-base font-medium">First Name *</Label>
+                    <Input
+                      id="first_name"
+                      value={formData.first_name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, first_name: e.target.value }))}
+                      className="mt-2 h-12"
+                      placeholder="Enter your first name"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="last_name" className="text-base font-medium">Last Name *</Label>
+                    <Input
+                      id="last_name"
+                      value={formData.last_name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, last_name: e.target.value }))}
+                      className="mt-2 h-12"
+                      placeholder="Enter your last name"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <Label htmlFor="email" className="text-base font-medium">Email Address *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                    className="mt-2 h-12"
+                    placeholder="Enter your email address"
+                  />
+                </div>
+                
                 <div>
                   <Label htmlFor="company_name" className="text-base font-medium">Company Name *</Label>
                   <Input
@@ -903,6 +1092,7 @@ export function VerificationForm() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 } 

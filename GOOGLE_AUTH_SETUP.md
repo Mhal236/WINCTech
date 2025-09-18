@@ -10,7 +10,7 @@ I've implemented a Google OAuth authentication system for WINTechnician using th
 - **Updated `GoogleLoginButton`** - Now uses manual OAuth flow instead of Supabase OAuth
 - **Updated `Login` page** - Handles OAuth callback processing
 - **Updated `AuthContext`** - Supports Google session management via localStorage
-- **Domain Restriction** - Only allows `@windscreencompare.com` email addresses
+- **Open Access** - Allows any valid Google account to log in
 
 ## 🔧 Setup Instructions
 
@@ -64,7 +64,7 @@ npm run dev
    - Ensure the redirect URI in Google Console matches exactly: `http://localhost:5173/login`
 
 3. **"Access denied"**
-   - Only `@windscreencompare.com` email addresses are allowed
+   - Make sure you're using a valid Google account with an email address
 
 4. **Token exchange fails**
    - Check that your Google Client ID and Secret are correct
@@ -73,7 +73,7 @@ npm run dev
 ## 🔒 Security Notes
 
 1. **Client Secret**: In production, consider implementing a backend proxy for token exchange for enhanced security
-2. **Domain Restriction**: Only `@windscreencompare.com` emails are allowed
+2. **Open Access**: Any valid Google account can log in
 3. **HTTPS Required**: Google OAuth requires HTTPS in production
 
 ## 📋 Next Steps
@@ -81,12 +81,12 @@ npm run dev
 1. **Replace placeholder credentials** with your actual Google OAuth credentials
 2. **Test the authentication flow** thoroughly
 3. **Configure production redirect URIs** when deploying
-4. **Test with different `@windscreencompare.com` email accounts**
+4. **Test with different Google email accounts**
 
 ## 🎉 Features Included
 
 - ✅ Complete Google OAuth flow (same as WINCRM)
-- ✅ Domain-restricted authentication (`@windscreencompare.com` only)
+- ✅ Open Google authentication (any Google account)
 - ✅ Session management with localStorage
 - ✅ Integration with existing auth system
 - ✅ Proper error handling and user feedback

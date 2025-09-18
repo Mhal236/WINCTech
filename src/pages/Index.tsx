@@ -90,10 +90,30 @@ const Index = () => {
      (user.user_role === 'non-verified' || 
       (!user.user_role && user.user_role !== 'admin')));
 
-  // Show loading state during auth transitions
+  console.log('🔍 Index Debug:', {
+    user,
+    needsVerification,
+    userRole: user?.user_role,
+    verificationStatus: user?.verification_status
+  });
+
+  // For unverified users, show verification form immediately (even during loading)
+  // to prevent flashing of dashboard content
+  if (needsVerification && user) {
+    console.log('🟡 Showing verification form for unverified user');
+    return (
+      <div className="fixed inset-0 z-[9999] min-h-screen bg-gray-50 overflow-auto">
+        <PageTransition>
+          <VerificationForm />
+        </PageTransition>
+      </div>
+    );
+  }
+
+  // Show loading state during auth transitions (only for verified users or when no user)
   if (isLoading || isCheckingVerification || isProcessingOAuth) {
     return (
-      <DashboardLayout>
+      <div className="fixed inset-0 z-[9999] min-h-screen bg-gray-50 flex items-center justify-center">
         <PageTransition>
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="flex flex-col items-center space-y-4">
@@ -106,17 +126,18 @@ const Index = () => {
             </div>
           </div>
         </PageTransition>
-      </DashboardLayout>
+      </div>
     );
   }
 
+  // Show verification form for users without proper verification (fallback)
   if (needsVerification) {
     return (
-      <DashboardLayout>
+      <div className="fixed inset-0 z-[9999] min-h-screen bg-gray-50 overflow-auto">
         <PageTransition>
           <VerificationForm />
         </PageTransition>
-      </DashboardLayout>
+      </div>
     );
   }
 

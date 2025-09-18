@@ -5,11 +5,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 const plans = [
   {
     name: "Starter",
-    price: "88",
+    price: "118",
     originalPrice: "118",
     description: "Perfect for getting started with auto glass repairs",
     features: [
-      "15% company commission",
+      "20% company commission",
       "100 credits included",
       "4 credits per standard search (25 searches)",
       "VRN searching",
@@ -19,12 +19,12 @@ const plans = [
   },
   {
     name: "Pro",
-    price: "148",
+    price: "198",
     originalPrice: "198",
     description: "Best value for professional technicians",
     popular: true,
     features: [
-      "10% company commission",
+      "15% company commission",
       "350 credits included",
       "4 credits per standard search (87 searches)",
       "VRN searching",
