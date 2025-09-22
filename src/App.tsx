@@ -15,6 +15,8 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
 import Index from "./pages/Index";
+import JobSwipe from "./pages/JobSwipe";
+import Calendar from "./pages/Calendar";
 
 // Lazy load less critical pages to improve initial load time
 const Contact = lazy(() => import("./pages/Contact"));
@@ -23,10 +25,8 @@ const PriceLookup = lazy(() => import("./pages/PriceLookup"));
 const Glass = lazy(() => import("./pages/Glass"));
 const Team = lazy(() => import("./pages/Team"));
 const Settings = lazy(() => import("./pages/Settings"));
-const Calendar = lazy(() => import("./pages/Calendar"));
 const Reporting = lazy(() => import("./pages/Reporting"));
 const History = lazy(() => import("./pages/History"));
-const JobSwipe = lazy(() => import("./pages/JobSwipe"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
 const DebugAuth = lazy(() => import("./pages/DebugAuth"));
 const TonyAI = lazy(() => import("./pages/TonyAI"));
@@ -97,8 +97,8 @@ const AnimatedRoutes = () => {
   }
   
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
+    <AnimatePresence mode="popLayout">
+      <Routes location={location}>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
@@ -118,14 +118,14 @@ const AnimatedRoutes = () => {
           </ProtectedRoute>
         } />
         
-        {/* Admin-only routes */}
+        {/* Pro-1+ routes - Jobs and Calendar for technicians */}
         <Route path="/job-swipe" element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedRoute requiredRole="pro-1">
             <JobSwipe />
           </ProtectedRoute>
         } />
         <Route path="/calendar" element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedRoute requiredRole="pro-1">
             <Calendar />
           </ProtectedRoute>
         } />
@@ -157,7 +157,7 @@ const AnimatedRoutes = () => {
           </ProtectedRoute>
         } />
         <Route path="/history" element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedRoute requiredRole="pro-1">
             <History />
           </ProtectedRoute>
         } />
@@ -173,7 +173,7 @@ const AnimatedRoutes = () => {
         } />
 
         <Route path="/tony-ai" element={
-          <ProtectedRoute>
+          <ProtectedRoute requiredRole="admin">
             <TonyAI />
           </ProtectedRoute>
         } />

@@ -32,12 +32,33 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
   const [priceFilter, setPriceFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [currentPage, setCurrentPage] = useState(1);
-  const jobsPerPage = 8;
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const jobsPerPage = 5; // Limited to 5 jobs at a time
   const { user } = useAuth();
+
+  // Debug: Track component mounting and unmounting
+  useEffect(() => {
+    console.log('🟢 JobsGrid component mounted, jobType:', jobType);
+    return () => {
+      console.log('🔴 JobsGrid component unmounting');
+    };
+  }, []);
 
   // Fetch jobs from MasterCustomer table
   useEffect(() => {
+    console.log('🔵 JobsGrid fetchJobs triggered, jobType:', jobType);
     fetchJobs();
+  }, [jobType]);
+
+  // Auto-refresh jobs every 30 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      console.log('🔄 Auto-refreshing jobs after 30 minutes...');
+      fetchJobs();
+      setLastRefresh(new Date());
+    }, 30 * 60 * 1000); // 30 minutes in milliseconds
+
+    return () => clearInterval(interval);
   }, [jobType]);
 
   const fetchJobs = async () => {
@@ -58,7 +79,7 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
 
       if (data) {
         console.log('Fetched jobs:', data);
-        // Filter to ensure only quoted jobs are displayed and exclude unquoted ones
+        // Filter to ensure only quoted but unpaid jobs are displayed for job board
         let filteredJobs = data.filter(job => 
           job.status === 'quoted' && 
           job.quote_price != null && 
@@ -68,13 +89,13 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
         // Apply job type filtering
         switch (jobType) {
           case 'exclusive':
-            // For now, we'll treat exclusive jobs as high-priority or premium jobs
-            // This could be extended with a specific field in the database
+            // Exclusive jobs are now handled by ExclusiveJobsView component
+            // This filtering is kept for backward compatibility but shouldn't be used
             filteredJobs = filteredJobs.filter(job => job.quote_price >= 200);
             break;
           case 'board':
-            // Regular job board - all quoted jobs
-            // No additional filtering needed
+            // Regular job board - quoted but unpaid jobs only
+            // Jobs with 'paid' status are handled by exclusive jobs view
             break;
           case 'bids':
             // For bid jobs, we might want jobs that are still in bidding phase
@@ -99,6 +120,7 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
       });
     } finally {
       setLoading(false);
+      setLastRefresh(new Date());
     }
   };
 

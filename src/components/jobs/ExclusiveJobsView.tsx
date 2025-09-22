@@ -20,12 +20,24 @@ export const ExclusiveJobsView: React.FC<ExclusiveJobsViewProps> = ({ onJobAccep
   const [processing, setProcessing] = useState(false);
   const [lastAction, setLastAction] = useState<'accepted' | 'passed' | null>(null);
   const [acceptedJobs, setAcceptedJobs] = useState<Set<string>>(new Set());
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const { user } = useAuth();
 
   console.log('🎯 ExclusiveJobsView component mounted/rendered');
 
   useEffect(() => {
     fetchExclusiveJobs();
+  }, []);
+
+  // Auto-refresh jobs every 30 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      console.log('🔄 Auto-refreshing exclusive jobs after 30 minutes...');
+      fetchExclusiveJobs();
+      setLastRefresh(new Date());
+    }, 30 * 60 * 1000); // 30 minutes in milliseconds
+
+    return () => clearInterval(interval);
   }, []);
 
   const fetchExclusiveJobs = async () => {
@@ -38,16 +50,16 @@ export const ExclusiveJobsView: React.FC<ExclusiveJobsViewProps> = ({ onJobAccep
       const { data: directData, error: directError } = await supabase
         .from('MasterCustomer')
         .select('*')
-        .eq('status', 'quoted')
+        .eq('status', 'paid') // Only show paid jobs in exclusive view
         .not('quote_price', 'is', null)
-        .gt('quote_price', 200)
+        .gt('quote_price', 0) // Remove price filter for paid jobs
         .limit(5);
       
       console.log('🔵 Direct query result:', { directData, directError, count: directData?.length });
       
       // Now try the service
-      console.log('🔵 Calling JobService.getAvailableJobs...');
-      const { data, error } = await JobService.getAvailableJobs();
+      console.log('🔵 Calling JobService.getExclusiveJobs...');
+      const { data, error } = await JobService.getExclusiveJobs();
 
       console.log('🔵 JobService result:', { hasData: !!data, error, dataLength: data?.length });
 
@@ -65,11 +77,11 @@ export const ExclusiveJobsView: React.FC<ExclusiveJobsViewProps> = ({ onJobAccep
         console.log('🟢 Raw job data from service:', data);
         console.log('🔵 Number of jobs returned:', data.length);
         
-        // Filter for exclusive jobs (high-value jobs)
+        // Filter for exclusive jobs (paid jobs only)
         const exclusiveJobs = data.filter(job => {
-          const isValid = job.status === 'quoted' && 
+          const isValid = job.status === 'paid' && 
             job.quote_price != null && 
-            job.quote_price >= 200;
+            job.quote_price > 0;
           console.log(`🔵 Job ${job.full_name}: status=${job.status}, price=${job.quote_price}, valid=${isValid}`);
           return isValid;
         });
@@ -91,6 +103,7 @@ export const ExclusiveJobsView: React.FC<ExclusiveJobsViewProps> = ({ onJobAccep
     } finally {
       console.log('🔵 Setting loading to false');
       setLoading(false);
+      setLastRefresh(new Date());
     }
   };
 
