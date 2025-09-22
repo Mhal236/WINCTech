@@ -117,8 +117,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const newUserData = {
                 email: userData.email,
                 name: userData.name,
-                user_role: userData.email === 'admin@windscreencompare.com' ? 'admin' : 'pending',
-                verification_status: userData.email === 'admin@windscreencompare.com' ? 'verified' : 'non-verified',
+                user_role: userData.email === 'admin@windscreencompare.com' ? 'admin' : 
+                          userData.email === 'tech@windscreencompare.com' ? 'pro-1' : 'pending',
+                verification_status: userData.email === 'admin@windscreencompare.com' ? 'verified' : 
+                                   userData.email === 'tech@windscreencompare.com' ? 'verified' : 'non-verified',
                 supabase_id: userData.id || userData.sub,
                 created_at: new Date().toISOString()
               };

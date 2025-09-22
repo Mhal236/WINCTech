@@ -9,14 +9,14 @@ import { Button } from "@/components/ui/button";
 // Primary navigation items (always visible in bottom bar)
 const primaryNavItems = [
   { icon: Home, label: "Home", href: "/", requiredRole: "user" },
-  { icon: Briefcase, label: "Jobs", href: "/job-swipe", requiredRole: "admin" },
-  { icon: ClipboardList, label: "History", href: "/history", requiredRole: "admin" },
+  { icon: Briefcase, label: "Jobs", href: "/job-swipe", requiredRole: "pro-1" },
+  { icon: ClipboardList, label: "History", href: "/history", requiredRole: "pro-1" },
   { icon: Settings, label: "Settings", href: "/settings", requiredRole: "user" },
 ];
 
 // Secondary navigation items (shown in "More" menu)
 const secondaryNavItems = [
-  { icon: Calendar, label: "Calendar", href: "/calendar", requiredRole: "admin" },
+  { icon: Calendar, label: "Calendar", href: "/calendar", requiredRole: "pro-1" },
   { icon: Sparkles, label: "Tony A.I", href: "/tony-ai", requiredRole: "user" },
   { icon: Search, label: "ARGIC Search", href: "/glass-search", requiredRole: "pro-2" },
   { icon: ShoppingCart, label: "Order", href: "/price-lookup", requiredRole: "pro-2" },

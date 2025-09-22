@@ -41,7 +41,16 @@ const Calendar = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
+  // Debug: Track component mounting
   useEffect(() => {
+    console.log('🟢 Calendar component mounted, user:', user?.email);
+    return () => {
+      console.log('🔴 Calendar component unmounting');
+    };
+  }, []);
+
+  useEffect(() => {
+    console.log('🔵 Calendar fetchCalendarEvents triggered, user:', user?.email, 'date:', date?.toDateString());
     if (user?.id) {
       fetchCalendarEvents();
     }

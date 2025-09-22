@@ -61,8 +61,8 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
   ];
 
   const jobsAndCalendarNavigation = [
-    { name: "Jobs", href: "/job-swipe", icon: Briefcase, requiredRole: "admin" },
-    { name: "Calendar", href: "/calendar", icon: Calendar, requiredRole: "admin" },
+    { name: "Jobs", href: "/job-swipe", icon: Briefcase, requiredRole: "pro-1" },
+    { name: "Calendar", href: "/calendar", icon: Calendar, requiredRole: "pro-1" },
   ];
 
   const bottomNavigation = [
@@ -76,7 +76,7 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
   ];
 
   const preSettingsNavigation = [
-    { name: "History", href: "/history", icon: ClipboardList, requiredRole: "admin" },
+    { name: "History", href: "/history", icon: ClipboardList, requiredRole: "pro-1" },
   ];
 
   const renderNavItem = (item: any, isUpgrade = false) => {
@@ -239,24 +239,43 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Link
-                    to="/tony-ai"
-                    className={cn(
-                      "group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition-all duration-300",
-                      location.pathname === "/tony-ai" ? "bg-gray-100" : "hover:bg-gray-50",
-                      collapsed && "justify-center px-2"
-                    )}
-                  >
-                    <Sparkles className="h-5 w-5 flex-shrink-0 text-[#23b7c0]" />
-                    {!collapsed && (
-                      <span className="truncate bg-gradient-to-r from-[#23b7c0] via-[#1a9ca5] to-[#148189] bg-clip-text text-transparent animate-pulse">
-                        Try Tony A.I
-                      </span>
-                    )}
-                  </Link>
+                  {isAdmin ? (
+                    <Link
+                      to="/tony-ai"
+                      className={cn(
+                        "group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition-all duration-300",
+                        location.pathname === "/tony-ai" ? "bg-gray-100" : "hover:bg-gray-50",
+                        collapsed && "justify-center px-2"
+                      )}
+                    >
+                      <Sparkles className="h-5 w-5 flex-shrink-0 text-[#23b7c0]" />
+                      {!collapsed && (
+                        <span className="truncate bg-gradient-to-r from-[#23b7c0] via-[#1a9ca5] to-[#148189] bg-clip-text text-transparent animate-pulse">
+                          Try Tony A.I
+                        </span>
+                      )}
+                    </Link>
+                  ) : (
+                    <div
+                      className={cn(
+                        "group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold cursor-not-allowed opacity-60",
+                        collapsed && "justify-center px-2"
+                      )}
+                    >
+                      <Sparkles className="h-5 w-5 flex-shrink-0 text-gray-400" />
+                      {!collapsed && (
+                        <div className="flex items-center gap-2 truncate">
+                          <span className="text-gray-500">Tony A.I</span>
+                          <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
+                            Coming Soon
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </TooltipTrigger>
                 <TooltipContent side="right">
-                  <p>Preview our Windscreen A.I assistant</p>
+                  <p>{isAdmin ? "Preview our Windscreen A.I assistant" : "Tony A.I - Coming Soon (Admin Only)"}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

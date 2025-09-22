@@ -51,7 +51,36 @@ export class JobService {
         .not('quote_price', 'is', null) // Exclude jobs without pricing
         .gt('quote_price', 0) // Ensure positive pricing
         .is('job_assignments.id', null) // Only jobs without assignments
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(5); // Limit to 5 jobs at a time
+
+      return { data, error };
+    } catch (error) {
+      return { data: null, error };
+    }
+  }
+
+  /**
+   * Fetch exclusive jobs (paid status, not assigned, with valid pricing)
+   */
+  static async getExclusiveJobs(): Promise<{ data: JobData[] | null; error: any }> {
+    try {
+      const { data, error } = await supabase
+        .from('MasterCustomer')
+        .select(`
+          *,
+          job_assignments!left (
+            id,
+            technician_id,
+            status
+          )
+        `)
+        .eq('status', 'paid')
+        .not('quote_price', 'is', null) // Exclude jobs without pricing
+        .gt('quote_price', 0) // Ensure positive pricing
+        .is('job_assignments.id', null) // Only jobs without assignments
+        .order('created_at', { ascending: false })
+        .limit(5); // Limit to 5 jobs at a time
 
       return { data, error };
     } catch (error) {

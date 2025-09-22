@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ subject|default:"Updates from WindscreenCompare" }}</title>
+    <style>
+        /* Reset styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+        }
+        
+        /* Container */
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #145484 0%, #1e6ba8 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .header h1 {
+            font-size: 22px;
+            font-weight: normal;
+            margin: 0;
+        }
+        
+        /* Content */
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .greeting {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .message {
+            font-size: 16px;
+            margin-bottom: 25px;
+            color: #555;
+            line-height: 1.6;
+        }
+        
+        /* List Item Container */
+        .list-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #145484;
+        }
+        
+        .list-item h3 {
+            color: #145484;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        
+        .list-item p {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        
+        .list-item .highlight {
+            background: #145484;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        
+        /* Call to Action Button */
+        .cta-button {
+            display: inline-block;
+            background: #145484;
+            color: white;
+            padding: 12px 25px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .cta-button:hover {
+            background: #1e6ba8;
+        }
+        
+        /* Stats Container */
+        .stats-container {
+            background: #e8f4f8;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+            text-align: center;
+        }
+        
+        .stats-container h3 {
+            color: #145484;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+        
+        .stat-item {
+            display: inline-block;
+            margin: 0 15px 10px 0;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+        
+        .stat-number {
+            font-size: 20px;
+            font-weight: bold;
+            color: #145484;
+            display: block;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Footer */
+        .footer {
+            background: #f8f9fa;
+            padding: 30px 20px;
+            text-align: center;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .footer p {
+            font-size: 12px;
+            color: #666;
+            margin: 5px 0;
+        }
+        
+        .footer .company-name {
+            font-weight: bold;
+            color: #145484;
+        }
+        
+        .footer a {
+            color: #145484;
+            text-decoration: none;
+        }
+        
+        /* Responsive */
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                margin: 0;
+                box-shadow: none;
+            }
+            
+            .content {
+                padding: 30px 20px;
+            }
+            
+            .header {
+                padding: 25px 15px;
+            }
+            
+            .logo {
+                font-size: 24px;
+            }
+            
+            .header h1 {
+                font-size: 18px;
+            }
+            
+            .stat-item {
+                display: block;
+                margin: 0 0 10px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">WindscreenCompare</div>
+            <h1>{{ email_title|default:"New Customer Signup" }}</h1>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="content">
+            <div class="greeting">Hello Team!</div>
+            
+            <div class="message">
+                {{ intro_message|default:"A new person has signed up to WindscreenCompare! Here are their details:" }}
+            </div>
+            
+            <!-- New Signup Information -->
+            <div class="list-item">
+                <h3>🎉 New Signup Details</h3>
+                
+                <p><strong>Name:</strong> {{ person.first_name|default:"" }} {{ person.last_name|default:"" }}</p>
+                
+                <p><strong>Email:</strong> {{ person.email }}</p>
+                
+                <p><strong>Phone:</strong> {{ person.phone_number|default:"Not provided" }}</p>
+                
+                <p><strong>Location:</strong> {{ person.location|default:"Not provided" }}</p>
+                
+                <p><strong>City:</strong> {{ person.city|default:"Not provided" }}</p>
+                
+                <p><strong>Postcode:</strong> {{ person.postcode|default:"Not provided" }}</p>
+                
+                <p><strong>Signup Date:</strong> {{ event.timestamp|date:"F j, Y" }}</p>
+                
+                <p><strong>Signup Source:</strong> {{ person.signup_source|default:"Direct" }}</p>
+                
+                <p><strong>Vehicle:</strong> {{ person.vehicle_make|default:"" }} {{ person.vehicle_model|default:"" }} {{ person.vehicle_year|default:"" }}</p>
+                
+                <p><strong>Service Needed:</strong> {{ person.service_type|default:"Not specified" }}</p>
+                
+                <span class="highlight">New Customer</span>
+            </div>
+            
+            <!-- Stats Section (if applicable) -->
+            {% if show_stats %}
+            <div class="stats-container">
+                <h3>Your Performance Summary</h3>
+                {% if total_jobs %}
+                <div class="stat-item">
+                    <span class="stat-number">{{ total_jobs }}</span>
+                    <span class="stat-label">Total Jobs</span>
+                </div>
+                {% endif %}
+                {% if completed_jobs %}
+                <div class="stat-item">
+                    <span class="stat-number">{{ completed_jobs }}</span>
+                    <span class="stat-label">Completed</span>
+                </div>
+                {% endif %}
+                {% if pending_jobs %}
+                <div class="stat-item">
+                    <span class="stat-number">{{ pending_jobs }}</span>
+                    <span class="stat-label">Pending</span>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            <!-- Call to Action -->
+            {% if cta_url %}
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{ cta_url }}" class="cta-button">
+                    {{ cta_text|default:"View Dashboard" }}
+                </a>
+            </div>
+            {% endif %}
+            
+            <!-- Custom Message -->
+            {% if custom_message %}
+            <div class="message">
+                {{ custom_message }}
+            </div>
+            {% endif %}
+            
+            <div class="message" style="margin-top: 30px;">
+                Best regards,<br>
+                <strong>The WindscreenCompare Team</strong>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p>This email was sent to you as part of your <span class="company-name">WindscreenCompare</span> technician account.</p>
+            
+            <!-- Klaviyo Unsubscribe -->
+            <div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
+                <p style="font-size: 12px; color: #666; margin: 5px 0;">
+                    Don't want to receive these emails? 
+                    <a href="{{ unsubscribe_url }}" style="color: #145484;">Unsubscribe here</a>
+                </p>
+                <p style="font-size: 11px; color: #999; margin: 10px 0;">
+                    WindscreenCompare | United Kingdom | 
+                    <a href="mailto:support@windscreencompare.com" style="color: #145484; text-decoration: none;">Contact Support</a>
+                </p>
+                <p style="font-size: 10px; color: #999; margin: 10px 0;">
+                    <a href="{{ webview_url }}" style="color: #145484;">View this email in your browser</a>
+                </p>
+            </div>
+            
+            <p style="margin-top: 15px;">&copy; 2025 WindscreenCompare. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
