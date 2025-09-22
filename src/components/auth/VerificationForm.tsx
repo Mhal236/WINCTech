@@ -8,9 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase-client';
-import { CheckCircle, AlertCircle, Clock, FileText, Building, User, Phone, Calendar, Shield, ArrowRight, ArrowLeft, Check, LogOut } from 'lucide-react';
+import { CheckCircle, AlertCircle, Clock, FileText, Building, User, Phone, Calendar, Shield, ArrowRight, ArrowLeft, Check, LogOut, Search, Loader2, Mail } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { useNavigate } from 'react-router-dom';
+import { VehicleService } from '../../services/vehicleService';
+import { PostcodeService } from '../../services/postcodeService';
+import { EmailService } from '../../services/emailService';
 
 // Helper function to get application details by user ID (useful for admin views)
 export const getApplicationByUserId = async (userId: string, userEmail?: string) => {
@@ -106,17 +109,20 @@ interface VerificationFormData {
   years_in_business: string;
   
   // Contact Information
-  contact_name: string;
   contact_phone: string;
+  business_postcode: string;
   business_address: string;
   
   // Vehicle Information
   vehicle_registration_number: string;
   vehicle_make: string;
   vehicle_model: string;
+  driver_license_number: string;
   
   // Services & Certifications
   services_offered: string[];
+  coverage_areas: string[];
+  glass_supplier: string;
   certifications: string;
   insurance_details: string;
   additional_info: string;
@@ -125,14 +131,14 @@ interface VerificationFormData {
 const steps = [
   {
     id: 1,
-    title: "Personal & Company Details",
-    description: "Tell us about yourself and your business",
+    title: "Company Details",
+    description: "Tell us about your business",
     icon: Building
   },
   {
     id: 2,
-    title: "Contact & Vehicle Info", 
-    description: "Your contact details and vehicle information",
+    title: "Personal & Vehicle Info", 
+    description: "Your personal details and vehicle information",
     icon: User
   },
   {
@@ -159,6 +165,13 @@ export function VerificationForm() {
   const [isCheckingApplication, setIsCheckingApplication] = useState(true);
   const [isSubmissionComplete, setIsSubmissionComplete] = useState(false);
   const [submissionDetails, setSubmissionDetails] = useState<any>(null);
+  const [isLookingUpVehicle, setIsLookingUpVehicle] = useState(false);
+  const [vehicleLookupError, setVehicleLookupError] = useState<string>('');
+  const [isLookingUpPostcode, setIsLookingUpPostcode] = useState(false);
+  const [postcodeLookupError, setPostcodeLookupError] = useState<string>('');
+  const [foundAddresses, setFoundAddresses] = useState<any[]>([]);
+  const [selectedAddressIndex, setSelectedAddressIndex] = useState<string>('');
+  const [postcodeDebounceTimer, setPostcodeDebounceTimer] = useState<NodeJS.Timeout | null>(null);
 
   console.log('🔍 VerificationForm Debug:', {
     user,
@@ -222,9 +235,18 @@ export function VerificationForm() {
     return () => clearTimeout(debounceTimer);
   }, [user?.id]);
 
+  // Cleanup postcode debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (postcodeDebounceTimer) {
+        clearTimeout(postcodeDebounceTimer);
+      }
+    };
+  }, [postcodeDebounceTimer]);
+
   const [formData, setFormData] = useState<VerificationFormData>({
-    first_name: user?.name?.split(' ')[0] || '',
-    last_name: user?.name?.split(' ').slice(1).join(' ') || '',
+    first_name: '',
+    last_name: '',
     email: user?.email || '',
     company_name: '',
     business_type: '',
@@ -232,14 +254,17 @@ export function VerificationForm() {
     dvla_number: '',
     vat_registered: false,
     vat_number: '',
-    contact_name: user?.name || '',
     contact_phone: '',
+    business_postcode: '',
     business_address: '',
     vehicle_registration_number: '',
     vehicle_make: '',
     vehicle_model: '',
+    driver_license_number: '',
     years_in_business: '',
     services_offered: [],
+    coverage_areas: [],
+    glass_supplier: '',
     certifications: '',
     insurance_details: '',
     additional_info: ''
@@ -247,7 +272,7 @@ export function VerificationForm() {
 
   const businessTypes = [
     'Limited Company',
-    'Mobile Auto Glass Service',
+    'Sole Trader',
     'Partnerships'
   ];
 
@@ -261,6 +286,25 @@ export function VerificationForm() {
     'Insurance Claims'
   ];
 
+  const coverageAreas = [
+    'Central London',
+    'North London',
+    'South London',
+    'East London',
+    'West London',
+    'Greater London',
+    'Surrey',
+    'Kent',
+    'Essex',
+    'Hertfordshire',
+    'Buckinghamshire',
+    'Berkshire',
+    'Sussex',
+    'Hampshire',
+    'Oxfordshire'
+  ];
+
+
   const handleServiceToggle = (service: string) => {
     setFormData(prev => ({
       ...prev,
@@ -268,6 +312,134 @@ export function VerificationForm() {
         ? prev.services_offered.filter(s => s !== service)
         : [...prev.services_offered, service]
     }));
+  };
+
+  const handleCoverageAreaToggle = (area: string) => {
+    setFormData(prev => ({
+      ...prev,
+      coverage_areas: prev.coverage_areas.includes(area)
+        ? prev.coverage_areas.filter(a => a !== area)
+        : [...prev.coverage_areas, area]
+    }));
+  };
+
+  const handleVehicleLookup = async () => {
+    if (!formData.vehicle_registration_number) {
+      setVehicleLookupError('Please enter a vehicle registration number');
+      return;
+    }
+
+    setIsLookingUpVehicle(true);
+    setVehicleLookupError('');
+
+    try {
+      const vehicleData = await VehicleService.lookupVehicleData(formData.vehicle_registration_number);
+      
+      if (vehicleData.success) {
+        setFormData(prev => ({
+          ...prev,
+          vehicle_make: vehicleData.make,
+          vehicle_model: vehicleData.model,
+        }));
+        
+        toast({
+          title: "Vehicle Found!",
+          description: `Found ${vehicleData.make} ${vehicleData.model}`,
+          variant: "default",
+        });
+      } else {
+        setVehicleLookupError(vehicleData.error || 'Vehicle not found');
+        toast({
+          title: "Vehicle Not Found",
+          description: vehicleData.error || 'Please enter vehicle details manually',
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error looking up vehicle:', error);
+      setVehicleLookupError('Failed to lookup vehicle data');
+      toast({
+        title: "Lookup Failed",
+        description: "Please enter vehicle details manually",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLookingUpVehicle(false);
+    }
+  };
+
+  const autoLookupPostcode = async (postcode: string) => {
+    // Validate postcode format before making API call
+    if (!PostcodeService.isValidPostcode(postcode)) {
+      return; // Don't lookup invalid postcodes
+    }
+
+    setIsLookingUpPostcode(true);
+    setPostcodeLookupError('');
+    setFoundAddresses([]);
+
+    try {
+      const postcodeData = await PostcodeService.lookupAddresses(postcode);
+      
+      if (postcodeData.success) {
+        setFoundAddresses(postcodeData.addresses);
+        setSelectedAddressIndex(''); // Reset selection
+        
+        // Update the postcode format
+        setFormData(prev => ({ 
+          ...prev, 
+          business_postcode: postcodeData.postcode
+        }));
+        
+        // Don't auto-select - let user choose from dropdown even for single addresses
+      } else {
+        setPostcodeLookupError(postcodeData.error || 'Postcode not found');
+      }
+    } catch (error) {
+      console.error('Error auto-looking up postcode:', error);
+      setPostcodeLookupError('Failed to lookup postcode');
+    } finally {
+      setIsLookingUpPostcode(false);
+    }
+  };
+
+  const handlePostcodeChange = (newPostcode: string) => {
+    const upperPostcode = newPostcode.toUpperCase();
+    setFormData(prev => ({ ...prev, business_postcode: upperPostcode }));
+    setPostcodeLookupError(''); // Clear error when typing
+    setFoundAddresses([]); // Clear found addresses when typing
+    setSelectedAddressIndex(''); // Clear selection when typing
+
+    // Clear existing timer
+    if (postcodeDebounceTimer) {
+      clearTimeout(postcodeDebounceTimer);
+    }
+
+    // Set new timer for auto-lookup after user stops typing
+    const timer = setTimeout(() => {
+      if (upperPostcode.length >= 5) { // Minimum UK postcode length
+        autoLookupPostcode(upperPostcode);
+      }
+    }, 800); // Wait 800ms after user stops typing
+
+    setPostcodeDebounceTimer(timer);
+  };
+
+  const handleAddressSelection = (selectedAddress: any) => {
+    setFormData(prev => ({ 
+      ...prev, 
+      business_address: selectedAddress.fullAddress
+    }));
+    
+    // Clear the found addresses to hide the dropdown
+    setFoundAddresses([]);
+    setSelectedAddressIndex('');
+    
+    toast({
+      title: "Address Selected",
+      description: "Address has been populated in the form",
+      variant: "default",
+    });
   };
 
   const nextStep = () => {
@@ -285,15 +457,21 @@ export function VerificationForm() {
   const isStepValid = () => {
     switch (currentStep) {
       case 1:
-        const nameValid = formData.first_name && formData.last_name && formData.email;
-        const basicInfoValid = formData.company_name && formData.business_type;
-        const vatValid = !formData.vat_registered || (formData.vat_registered && formData.vat_number);
-        return nameValid && basicInfoValid && vatValid;
+        const basicInfoValid = formData.company_name && formData.business_type && formData.email;
+        
+        // Only validate VAT for Limited Company
+        const vatValid = formData.business_type !== 'Limited Company' || 
+                        !formData.vat_registered || 
+                        (formData.vat_registered && formData.vat_number);
+        
+        return basicInfoValid && vatValid;
       case 2:
-        return formData.contact_name && formData.contact_phone && formData.business_address && 
-               formData.vehicle_registration_number && formData.vehicle_make && formData.vehicle_model;
+        const nameValid = formData.first_name && formData.last_name;
+        return nameValid && formData.contact_phone && formData.business_postcode && formData.business_address && 
+               formData.vehicle_registration_number && formData.vehicle_make && formData.vehicle_model && 
+               formData.driver_license_number;
       case 3:
-        return formData.years_in_business;
+        return formData.years_in_business && formData.coverage_areas.length > 0 && formData.glass_supplier;
       case 4:
         return formData.services_offered.length > 0 && formData.insurance_details;
       default:
@@ -389,15 +567,19 @@ export function VerificationForm() {
         vat_number: formData.vat_registered ? formData.vat_number : null,
         years_in_business: formData.years_in_business,
         // Contact Information
-        contact_name: formData.contact_name,
+        contact_name: `${formData.first_name} ${formData.last_name}`.trim(),
         contact_phone: formData.contact_phone,
+        business_postcode: formData.business_postcode,
         business_address: formData.business_address,
         // Vehicle Information
         vehicle_registration_number: formData.vehicle_registration_number || null,
         vehicle_make: formData.vehicle_make || null,
         vehicle_model: formData.vehicle_model || null,
+        driver_license_number: formData.driver_license_number || null,
         // Services & Certifications
         services_offered: formData.services_offered,
+        coverage_areas: formData.coverage_areas,
+        glass_supplier: formData.glass_supplier,
         certifications: formData.certifications || null,
         insurance_details: formData.insurance_details,
         additional_info: formData.additional_info || null,
@@ -438,6 +620,29 @@ export function VerificationForm() {
       }
 
       console.log('🟢 User verification status updated successfully');
+
+      // Send application confirmation email
+      try {
+        const applicantName = `${formData.first_name} ${formData.last_name}`.trim();
+        const emailResult = await EmailService.sendApplicationConfirmation(
+          formData.email,
+          applicantName,
+          {
+            companyName: formData.company_name,
+            businessType: formData.business_type,
+            submittedAt: new Date().toLocaleString('en-GB'),
+            applicationId: applicationResult.id
+          }
+        );
+
+        if (emailResult.success) {
+          console.log('🟢 Application confirmation email sent successfully');
+        } else {
+          console.warn('⚠️ Failed to send confirmation email:', emailResult.error);
+        }
+      } catch (emailError) {
+        console.warn('⚠️ Email sending failed but application was successful:', emailError);
+      }
 
       // Set submission complete state with details
       setSubmissionDetails({
@@ -547,7 +752,7 @@ export function VerificationForm() {
               </div>
               <CardTitle className="text-2xl font-bold text-gray-800">Thank You for Your Application!</CardTitle>
               <CardDescription className="text-lg text-gray-600 mt-2">
-                Your technician application has been submitted successfully.
+                Your technician application has been submitted successfully. A confirmation email has been sent to {formData.email}.
               </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
@@ -575,7 +780,23 @@ export function VerificationForm() {
                 </div>
               </div>
             </div>
-            
+
+            {/* Email Confirmation Section */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+              <div className="flex items-center justify-center mb-4">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Mail className="w-6 h-6 text-blue-600" />
+                </div>
+              </div>
+              <h3 className="text-blue-800 font-semibold text-lg mb-2">Check Your Email</h3>
+              <p className="text-blue-700 text-sm mb-3">
+                We've sent a confirmation email to <strong>{formData.email}</strong> with your application details.
+              </p>
+              <p className="text-blue-600 text-xs">
+                If you don't see the email in your inbox, please check your spam folder.
+              </p>
+            </div>
+
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
               <h3 className="text-lg font-semibold text-blue-800 mb-2">What happens next?</h3>
               <div className="text-left space-y-2 text-blue-700">
@@ -763,30 +984,6 @@ export function VerificationForm() {
             {/* Step 1: Company Details */}
             {currentStep === 1 && (
               <div className="space-y-6">
-                {/* Personal Information */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="first_name" className="text-base font-medium">First Name *</Label>
-                    <Input
-                      id="first_name"
-                      value={formData.first_name}
-                      onChange={(e) => setFormData(prev => ({ ...prev, first_name: e.target.value }))}
-                      className="mt-2 h-12"
-                      placeholder="Enter your first name"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="last_name" className="text-base font-medium">Last Name *</Label>
-                    <Input
-                      id="last_name"
-                      value={formData.last_name}
-                      onChange={(e) => setFormData(prev => ({ ...prev, last_name: e.target.value }))}
-                      className="mt-2 h-12"
-                      placeholder="Enter your last name"
-                    />
-                  </div>
-                </div>
-                
                 <div>
                   <Label htmlFor="email" className="text-base font-medium">Email Address *</Label>
                   <Input
@@ -814,7 +1011,15 @@ export function VerificationForm() {
                   <Label htmlFor="business_type" className="text-base font-medium">Business Type *</Label>
                   <Select 
                     value={formData.business_type} 
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, business_type: value }))}
+                    onValueChange={(value) => setFormData(prev => ({ 
+                      ...prev, 
+                      business_type: value,
+                      // Clear company-specific fields when switching to Sole Trader
+                      registration_number: value === 'Sole Trader' ? '' : prev.registration_number,
+                      dvla_number: value === 'Sole Trader' ? '' : prev.dvla_number,
+                      vat_registered: value === 'Sole Trader' ? false : prev.vat_registered,
+                      vat_number: value === 'Sole Trader' ? '' : prev.vat_number
+                    }))}
                   >
                     <SelectTrigger className="mt-2 h-12">
                       <SelectValue placeholder="Select your business type" />
@@ -827,140 +1032,251 @@ export function VerificationForm() {
                   </Select>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="registration_number" className="text-base font-medium">Company Registration Number</Label>
-                    <Input
-                      id="registration_number"
-                      value={formData.registration_number}
-                      onChange={(e) => setFormData(prev => ({ ...prev, registration_number: e.target.value }))}
-                      className="mt-2 h-12"
-                      placeholder="e.g. 12345678"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="dvla_number" className="text-base font-medium">DVLA Number</Label>
-                    <Input
-                      id="dvla_number"
-                      value={formData.dvla_number}
-                      onChange={(e) => setFormData(prev => ({ ...prev, dvla_number: e.target.value }))}
-                      className="mt-2 h-12"
-                      placeholder="e.g. DVLA123456"
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
-                      id="vat_registered"
-                      checked={formData.vat_registered}
-                      onChange={(e) => setFormData(prev => ({ 
-                        ...prev, 
-                        vat_registered: e.target.checked,
-                        // Clear VAT number if unchecking
-                        vat_number: e.target.checked ? prev.vat_number : ''
-                      }))}
-                      className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                    />
-                    <Label htmlFor="vat_registered" className="text-base font-medium cursor-pointer">
-                      My business is VAT registered
-                    </Label>
-                  </div>
-                  
-                  {formData.vat_registered && (
-                    <div className="ml-8 transition-all duration-300 ease-in-out">
-                      <Label htmlFor="vat_number" className="text-base font-medium">VAT Number *</Label>
+                {/* Company Registration Fields - Only for Limited Company */}
+                {formData.business_type === 'Limited Company' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label htmlFor="registration_number" className="text-base font-medium">Company Registration Number</Label>
                       <Input
-                        id="vat_number"
-                        value={formData.vat_number}
-                        onChange={(e) => setFormData(prev => ({ ...prev, vat_number: e.target.value }))}
+                        id="registration_number"
+                        value={formData.registration_number}
+                        onChange={(e) => setFormData(prev => ({ ...prev, registration_number: e.target.value }))}
                         className="mt-2 h-12"
-                        placeholder="e.g. GB123456789"
+                        placeholder="e.g. 12345678"
                       />
                     </div>
-                  )}
-                </div>
+                    
+                    <div>
+                      <Label htmlFor="dvla_number" className="text-base font-medium">DVLA Number</Label>
+                      <Input
+                        id="dvla_number"
+                        value={formData.dvla_number}
+                        onChange={(e) => setFormData(prev => ({ ...prev, dvla_number: e.target.value }))}
+                        className="mt-2 h-12"
+                        placeholder="e.g. DVLA123456"
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                {/* VAT Registration - Only for Limited Company */}
+                {formData.business_type === 'Limited Company' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="checkbox"
+                        id="vat_registered"
+                        checked={formData.vat_registered}
+                        onChange={(e) => setFormData(prev => ({ 
+                          ...prev, 
+                          vat_registered: e.target.checked,
+                          // Clear VAT number if unchecking
+                          vat_number: e.target.checked ? prev.vat_number : ''
+                        }))}
+                        className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                      />
+                      <Label htmlFor="vat_registered" className="text-base font-medium cursor-pointer">
+                        My business is VAT registered
+                      </Label>
+                    </div>
+                    
+                    {formData.vat_registered && (
+                      <div className="ml-8 transition-all duration-300 ease-in-out">
+                        <Label htmlFor="vat_number" className="text-base font-medium">VAT Number *</Label>
+                        <Input
+                          id="vat_number"
+                          value={formData.vat_number}
+                          onChange={(e) => setFormData(prev => ({ ...prev, vat_number: e.target.value }))}
+                          className="mt-2 h-12"
+                          placeholder="e.g. GB123456789"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
             {/* Step 2: Contact Information */}
             {currentStep === 2 && (
               <div className="space-y-6">
+                {/* Personal Information */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <Label htmlFor="contact_name" className="text-base font-medium">Contact Name *</Label>
+                    <Label htmlFor="first_name" className="text-base font-medium">First Name *</Label>
                     <Input
-                      id="contact_name"
-                      value={formData.contact_name}
-                      onChange={(e) => setFormData(prev => ({ ...prev, contact_name: e.target.value }))}
+                      id="first_name"
+                      value={formData.first_name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, first_name: e.target.value }))}
                       className="mt-2 h-12"
-                      placeholder="Your full name"
+                      placeholder="Enter your first name"
                     />
                   </div>
-                  
                   <div>
-                    <Label htmlFor="contact_phone" className="text-base font-medium">Contact Phone *</Label>
+                    <Label htmlFor="last_name" className="text-base font-medium">Last Name *</Label>
                     <Input
-                      id="contact_phone"
-                      type="tel"
-                      value={formData.contact_phone}
-                      onChange={(e) => setFormData(prev => ({ ...prev, contact_phone: e.target.value }))}
+                      id="last_name"
+                      value={formData.last_name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, last_name: e.target.value }))}
                       className="mt-2 h-12"
-                      placeholder="e.g. +44 7123 456789"
+                      placeholder="Enter your last name"
                     />
                   </div>
                 </div>
                 
                 <div>
-                  <Label htmlFor="business_address" className="text-base font-medium">Business Address *</Label>
-                  <Textarea
-                    id="business_address"
-                    value={formData.business_address}
-                    onChange={(e) => setFormData(prev => ({ ...prev, business_address: e.target.value }))}
-                    className="mt-2 min-h-[100px]"
-                    placeholder="Enter your full business address including postcode"
+                  <Label htmlFor="contact_phone" className="text-base font-medium">Contact Phone *</Label>
+                  <Input
+                    id="contact_phone"
+                    type="tel"
+                    value={formData.contact_phone}
+                    onChange={(e) => setFormData(prev => ({ ...prev, contact_phone: e.target.value }))}
+                    className="mt-2 h-12"
+                    placeholder="e.g. +44 7123 456789"
                   />
+                </div>
+                
+                {/* Business Address Section */}
+                <div className="space-y-4">
+                  <h4 className="text-lg font-semibold text-gray-800">Business Address</h4>
+                  
+                  {/* Postcode Input with Auto-Lookup */}
+                  <div>
+                    <Label htmlFor="business_postcode" className="text-base font-medium">
+                      Postcode *
+                      {isLookingUpPostcode && <Loader2 className="w-4 h-4 animate-spin inline ml-2" />}
+                    </Label>
+                    <Input
+                      id="business_postcode"
+                      value={formData.business_postcode}
+                      onChange={(e) => handlePostcodeChange(e.target.value)}
+                      className="mt-2 h-12"
+                      placeholder="e.g. SW1A 1AA - addresses will appear as you type"
+                      maxLength={8}
+                    />
+                    {postcodeLookupError && (
+                      <p className="text-sm text-red-600 mt-1">{postcodeLookupError}</p>
+                    )}
+                    <p className="text-sm text-gray-500 mt-1">
+                      {foundAddresses.length > 0 
+                        ? `${foundAddresses.length} address${foundAddresses.length > 1 ? 'es' : ''} found - select one below`
+                        : 'Start typing your postcode to see available addresses'
+                      }
+                    </p>
+                  </div>
+                  
+                  {/* Address Field with Integrated Dropdown */}
+                  <div className="relative">
+                    <Label htmlFor="business_address" className="text-base font-medium">Full Address *</Label>
+                    <Textarea
+                      id="business_address"
+                      value={formData.business_address}
+                      onChange={(e) => setFormData(prev => ({ ...prev, business_address: e.target.value }))}
+                      className="mt-2 min-h-[60px] max-h-[80px]"
+                      placeholder={foundAddresses.length > 0 ? "Select an address from the dropdown below" : "Enter your full business address or use postcode lookup above"}
+                      readOnly={foundAddresses.length > 0}
+                    />
+                    
+                    {/* Address Dropdown - appears directly under the textarea */}
+                    {foundAddresses.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                        <div className="p-2 bg-gray-50 border-b border-gray-200">
+                          <p className="text-xs text-gray-600 font-medium">
+                            {foundAddresses.length} address{foundAddresses.length > 1 ? 'es' : ''} found - click to select
+                          </p>
+                        </div>
+                        {foundAddresses.map((address, index) => (
+                          <div
+                            key={index}
+                            onClick={() => handleAddressSelection(address)}
+                            className="p-3 border-b border-gray-100 last:border-b-0 cursor-pointer transition-colors hover:bg-blue-50 hover:border-l-4 hover:border-l-blue-500"
+                          >
+                            <div className="text-sm">
+                              <div className="font-medium text-gray-900">{address.line1}</div>
+                              <div className="text-gray-600 text-xs mt-1">{address.fullAddress}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Vehicle Information Section */}
                 <div className="border-t pt-6">
                   <h4 className="text-lg font-semibold text-gray-800 mb-4">Vehicle Information</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-4">
+                    {/* VRN Input with Lookup Button */}
                     <div>
                       <Label htmlFor="vehicle_registration_number" className="text-base font-medium">Vehicle Registration Number (VRN) *</Label>
-                      <Input
-                        id="vehicle_registration_number"
-                        value={formData.vehicle_registration_number}
-                        onChange={(e) => setFormData(prev => ({ ...prev, vehicle_registration_number: e.target.value.toUpperCase() }))}
-                        className="mt-2 h-12"
-                        placeholder="e.g. AB12 CDE"
-                        maxLength={8}
-                      />
+                      <div className="flex gap-2 mt-2">
+                        <Input
+                          id="vehicle_registration_number"
+                          value={formData.vehicle_registration_number}
+                          onChange={(e) => {
+                            setFormData(prev => ({ ...prev, vehicle_registration_number: e.target.value.toUpperCase() }));
+                            setVehicleLookupError(''); // Clear error when typing
+                          }}
+                          className="h-12 flex-1"
+                          placeholder="e.g. AB12 CDE"
+                          maxLength={8}
+                        />
+                        <Button
+                          type="button"
+                          onClick={handleVehicleLookup}
+                          disabled={!formData.vehicle_registration_number || isLookingUpVehicle}
+                          className="h-12 px-4 bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          {isLookingUpVehicle ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Search className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </div>
+                      {vehicleLookupError && (
+                        <p className="text-sm text-red-600 mt-1">{vehicleLookupError}</p>
+                      )}
+                      <p className="text-sm text-gray-500 mt-1">Enter your VRN and click the search button to auto-fill vehicle details</p>
                     </div>
                     
-                    <div>
-                      <Label htmlFor="vehicle_make" className="text-base font-medium">Vehicle Make *</Label>
-                      <Input
-                        id="vehicle_make"
-                        value={formData.vehicle_make}
-                        onChange={(e) => setFormData(prev => ({ ...prev, vehicle_make: e.target.value }))}
-                        className="mt-2 h-12"
-                        placeholder="e.g. Ford, BMW, Toyota"
-                      />
+                    {/* Vehicle Make and Model */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <Label htmlFor="vehicle_make" className="text-base font-medium">Vehicle Make *</Label>
+                        <Input
+                          id="vehicle_make"
+                          value={formData.vehicle_make}
+                          onChange={(e) => setFormData(prev => ({ ...prev, vehicle_make: e.target.value }))}
+                          className="mt-2 h-12"
+                          placeholder="e.g. Ford, BMW, Toyota"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="vehicle_model" className="text-base font-medium">Vehicle Model *</Label>
+                        <Input
+                          id="vehicle_model"
+                          value={formData.vehicle_model}
+                          onChange={(e) => setFormData(prev => ({ ...prev, vehicle_model: e.target.value }))}
+                          className="mt-2 h-12"
+                          placeholder="e.g. Focus, 3 Series, Corolla"
+                        />
+                      </div>
                     </div>
                     
+                    {/* Driver License Number */}
                     <div>
-                      <Label htmlFor="vehicle_model" className="text-base font-medium">Vehicle Model *</Label>
+                      <Label htmlFor="driver_license_number" className="text-base font-medium">Driver License Number *</Label>
                       <Input
-                        id="vehicle_model"
-                        value={formData.vehicle_model}
-                        onChange={(e) => setFormData(prev => ({ ...prev, vehicle_model: e.target.value }))}
+                        id="driver_license_number"
+                        value={formData.driver_license_number}
+                        onChange={(e) => setFormData(prev => ({ ...prev, driver_license_number: e.target.value.toUpperCase() }))}
                         className="mt-2 h-12"
-                        placeholder="e.g. Focus, 3 Series, Corolla"
+                        placeholder="e.g. SMITH123456AB9CD"
+                        maxLength={16}
                       />
+                      <p className="text-sm text-gray-500 mt-1">Enter your UK driving license number (16 characters)</p>
                     </div>
                   </div>
                 </div>
@@ -987,6 +1303,41 @@ export function VerificationForm() {
                       <SelectItem value="More than 10 years" className="hover:bg-gray-50">More than 10 years</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                
+                {/* Areas of Coverage */}
+                <div>
+                  <Label className="text-base font-medium">Areas of Coverage *</Label>
+                  <p className="text-sm text-gray-500 mb-4">Select all areas where you can provide services</p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {coverageAreas.map(area => (
+                      <label key={area} className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={formData.coverage_areas.includes(area)}
+                          onChange={() => handleCoverageAreaToggle(area)}
+                          className="rounded text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium text-gray-700">{area}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Selected: {formData.coverage_areas.length} area{formData.coverage_areas.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+
+                {/* Glass Supplier */}
+                <div>
+                  <Label htmlFor="glass_supplier" className="text-base font-medium">Where do you purchase glass from? *</Label>
+                  <Input
+                    id="glass_supplier"
+                    value={formData.glass_supplier}
+                    onChange={(e) => setFormData(prev => ({ ...prev, glass_supplier: e.target.value }))}
+                    className="mt-2 h-12"
+                    placeholder="e.g. Pilkington, Guardian Glass, Independent Supplier, etc."
+                  />
+                  <p className="text-sm text-gray-500 mt-1">Enter the name of your primary glass supplier or suppliers</p>
                 </div>
                 
                 <div>
@@ -1064,7 +1415,7 @@ export function VerificationForm() {
                 <Button
                   onClick={nextStep}
                   disabled={!isStepValid()}
-                  className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
+                  className="flex items-center space-x-2 bg-yellow-500 hover:bg-yellow-500"
                 >
                   <span>Next</span>
                   <ArrowRight className="w-4 h-4" />
@@ -1073,7 +1424,7 @@ export function VerificationForm() {
                 <Button
                   onClick={handleSubmit}
                   disabled={!isStepValid() || isSubmitting}
-                  className="flex items-center space-x-2 bg-green-600 hover:bg-green-700"
+                  className="flex items-center space-x-2 bg-yellow-500 hover:bg-yellow-500"
                 >
                   {isSubmitting ? (
                     <>
