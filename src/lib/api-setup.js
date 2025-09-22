@@ -353,6 +353,51 @@ export function setupApiMiddleware(server) {
       const vehicleInfo = [job.year, job.brand, job.model].filter(Boolean).join(' ') || 'Vehicle information not available';
       const location = `${job.location || ''} ${job.postcode || ''}`.trim();
 
+      // Check if technician has Google Calendar configured
+      let googleCalendarEventId = null;
+      try {
+        const { data: calendarConfig, error: configError } = await supabase
+          .from('technician_calendar_configs')
+          .select('*')
+          .eq('technician_id', technicianId)
+          .eq('sync_enabled', true)
+          .single();
+
+        if (calendarConfig && !configError) {
+          // Import Google Calendar service
+          const { googleCalendarService } = require('../services/googleCalendarService');
+          
+          // Create Google Calendar event
+          const startDateTime = new Date(`${eventDate}T${startTime}:00`);
+          const endDateTime = new Date(`${eventDate}T${endTime}:00`);
+          
+          const calendarEvent = {
+            summary: `${job.service_type || 'Windscreen Service'} - ${job.full_name}`,
+            description: `Vehicle: ${vehicleInfo}\nService: ${job.service_type || 'Windscreen Service'}\nGlass Type: ${job.glass_type || 'Standard'}\nCustomer: ${job.full_name}\nPhone: ${job.mobile || 'N/A'}\n\nJob ID: ${job.id}`,
+            start: {
+              dateTime: startDateTime.toISOString(),
+              timeZone: 'Europe/London'
+            },
+            end: {
+              dateTime: endDateTime.toISOString(),
+              timeZone: 'Europe/London'
+            },
+            location: location,
+            attendees: job.email ? [{ email: job.email }] : []
+          };
+
+          try {
+            googleCalendarEventId = await googleCalendarService.createCalendarEvent(calendarConfig, calendarEvent);
+            console.log('✅ Successfully created Google Calendar event:', googleCalendarEventId);
+          } catch (googleError) {
+            console.warn('⚠️ Failed to create Google Calendar event, but proceeding with local calendar:', googleError.message);
+          }
+        }
+      } catch (calendarError) {
+        console.warn('⚠️ Calendar sync check failed, proceeding with local calendar only:', calendarError.message);
+      }
+
+      // Create local calendar event
       const { error } = await supabase
         .from('calendar_events')
         .insert({
@@ -368,11 +413,17 @@ export function setupApiMiddleware(server) {
           customer_name: job.full_name,
           customer_phone: job.mobile,
           vehicle_info: vehicleInfo,
-          status: 'scheduled'
+          status: 'scheduled',
+          google_calendar_event_id: googleCalendarEventId
         });
 
       if (error) return res.status(500).json({ success: false, error: error.message });
-      return res.json({ success: true });
+      
+      const message = googleCalendarEventId 
+        ? 'Calendar event created successfully and synced to Google Calendar'
+        : 'Calendar event created successfully (Google Calendar sync not configured)';
+        
+      return res.json({ success: true, message, googleCalendarEventId });
     } catch (error) {
       console.error('Error in /api/jobs/create-event:', error);
       return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
