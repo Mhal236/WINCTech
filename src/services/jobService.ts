@@ -75,7 +75,7 @@ export class JobService {
             status
           )
         `)
-        .eq('status', 'paid')
+        .in('status', ['paid', 'paid - full'])
         .not('quote_price', 'is', null) // Exclude jobs without pricing
         .gt('quote_price', 0) // Ensure positive pricing
         .is('job_assignments.id', null) // Only jobs without assignments

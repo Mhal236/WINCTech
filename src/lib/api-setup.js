@@ -3,6 +3,7 @@ import * as GlassApiService from './glass-api-service.js';
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
+import Stripe from 'stripe';
 
 // Load environment variables from .env files
 dotenv.config();
@@ -40,6 +41,11 @@ export function setupApiMiddleware(server) {
     const client = createClient(url, serviceRole, { auth: { persistSession: false } });
     return { client };
   }
+
+  // Initialize Stripe
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+    apiVersion: '2024-06-20',
+  });
 
   // Example API endpoint
   app.get('/api/health', (req, res) => {
@@ -472,6 +478,177 @@ export function setupApiMiddleware(server) {
     } catch (error) {
       console.error('Error in /api/technician/jobs:', error);
       return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
+  // =============================
+  // Stripe Payment Endpoints
+  // =============================
+
+  // Create payment intent
+  app.post('/api/stripe/create-payment-intent', async (req, res) => {
+    try {
+      if (!process.env.STRIPE_SECRET_KEY) {
+        return res.status(500).json({ error: 'Stripe secret key not configured' });
+      }
+
+      const { amount, credits, currency = 'gbp', description } = req.body;
+
+      if (!amount || !credits || amount < 100) { // Minimum £1.00
+        return res.status(400).json({ error: 'Invalid amount or credits' });
+      }
+
+      // Create payment intent
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount), // Amount in pence
+        currency,
+        description: description || `Purchase ${credits} credits`,
+        metadata: {
+          credits: credits.toString(),
+          type: 'credit_purchase'
+        }
+      });
+
+      res.json({
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id
+      });
+    } catch (error) {
+      console.error('Error creating payment intent:', error);
+      res.status(500).json({ error: error.message || 'Failed to create payment intent' });
+    }
+  });
+
+  // Confirm payment and add credits to user account
+  app.post('/api/stripe/confirm-payment', async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      if (admin.error) return res.status(500).json({ success: false, error: admin.error });
+      const supabase = admin.client;
+
+      const { paymentIntentId, technicianId } = req.body;
+
+      if (!paymentIntentId || !technicianId) {
+        return res.status(400).json({ success: false, error: 'Missing paymentIntentId or technicianId' });
+      }
+
+      // Retrieve payment intent from Stripe
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+      if (paymentIntent.status !== 'succeeded') {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Payment not completed successfully' 
+        });
+      }
+
+      const credits = parseInt(paymentIntent.metadata.credits);
+      if (isNaN(credits) || credits <= 0) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Invalid credits in payment metadata' 
+        });
+      }
+
+      // Check if this payment has already been processed
+      const { data: existingTransaction, error: checkError } = await supabase
+        .from('credit_transactions')
+        .select('id')
+        .eq('stripe_payment_intent_id', paymentIntentId)
+        .single();
+
+      if (existingTransaction) {
+        return res.status(409).json({ 
+          success: false, 
+          error: 'Payment already processed' 
+        });
+      }
+
+      // Get current user credits
+      const { data: userData, error: userError } = await supabase
+        .from('technicians')
+        .select('credits')
+        .eq('id', technicianId)
+        .single();
+
+      if (userError) {
+        console.error('Error fetching user data:', userError);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Failed to fetch user data' 
+        });
+      }
+
+      const currentCredits = userData?.credits || 0;
+      const newCredits = currentCredits + credits;
+
+      // Update user credits and create transaction record
+      const { error: updateError } = await supabase
+        .from('technicians')
+        .update({ credits: newCredits })
+        .eq('id', technicianId);
+
+      if (updateError) {
+        console.error('Error updating user credits:', updateError);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Failed to update user credits' 
+        });
+      }
+
+      // Create transaction record
+      const { error: transactionError } = await supabase
+        .from('credit_transactions')
+        .insert({
+          technician_id: technicianId,
+          type: 'purchase',
+          credits: credits,
+          amount: paymentIntent.amount / 100, // Convert pence to pounds
+          currency: paymentIntent.currency.toUpperCase(),
+          stripe_payment_intent_id: paymentIntentId,
+          description: `Purchased ${credits} credits`,
+          status: 'completed'
+        });
+
+      if (transactionError) {
+        console.error('Error creating transaction record:', transactionError);
+        // Don't fail the request since credits were already added
+      }
+
+      res.json({ 
+        success: true, 
+        credits: newCredits,
+        creditsAdded: credits 
+      });
+    } catch (error) {
+      console.error('Error confirming payment:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: error.message || 'Failed to confirm payment' 
+      });
+    }
+  });
+
+  // Get payment status
+  app.get('/api/stripe/payment-status/:paymentIntentId', async (req, res) => {
+    try {
+      const { paymentIntentId } = req.params;
+      
+      if (!paymentIntentId) {
+        return res.status(400).json({ error: 'Payment intent ID required' });
+      }
+
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      
+      res.json({
+        status: paymentIntent.status,
+        amount: paymentIntent.amount,
+        currency: paymentIntent.currency,
+        credits: paymentIntent.metadata.credits
+      });
+    } catch (error) {
+      console.error('Error fetching payment status:', error);
+      res.status(500).json({ error: error.message || 'Failed to fetch payment status' });
     }
   });
 

@@ -1,10 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
-
-// Use direct Supabase client for Edge Functions
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://julpwjxzrlkbxdbphrdy.supabase.co";
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bHB3anh6cmxrYnhkYnBocmR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc0MTQ4NDUsImV4cCI6MjA1Mjk5MDg0NX0.rynZAq6bjPlpfyTaxHYcs8FdVdTo_gy95lazi2Kt5RY";
-
-const directSupabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+// Use our singleton Supabase client to prevent multiple instances
+import { supabase } from '@/lib/supabase-client';
 
 export class EmailService {
   /**
@@ -16,7 +11,7 @@ export class EmailService {
     applicationData: any
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      const { data, error } = await directSupabase.functions.invoke('send-application-confirmation', {
+      const { data, error } = await (supabase as any).functions.invoke('send-application-confirmation', {
         body: {
           to: email,
           applicantName: applicantName,
@@ -42,7 +37,7 @@ export class EmailService {
    */
   static async send2FACode(email: string, code: string): Promise<{ success: boolean; isDemo?: boolean; demoCode?: string }> {
     try {
-      const { data, error } = await directSupabase.functions.invoke('send-2fa-email', {
+      const { data, error } = await (supabase as any).functions.invoke('send-2fa-email', {
         body: {
           to: email,
           code: code

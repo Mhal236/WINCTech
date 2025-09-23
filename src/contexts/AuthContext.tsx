@@ -41,6 +41,7 @@ type AuthContextType = {
   signInWithGoogle: () => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   hasPermission: (requiredRole: string) => boolean;
+  refreshUser: () => Promise<void>;
 };
 
 // Create a default context value
@@ -52,7 +53,8 @@ const defaultContextValue: AuthContextType = {
   signUp: async () => ({ error: new Error('Not implemented') }),
   signInWithGoogle: async () => ({ error: new Error('Not implemented') }),
   signOut: async () => {},
-  hasPermission: () => false
+  hasPermission: () => false,
+  refreshUser: async () => {}
 };
 
 const AuthContext = createContext<AuthContextType>(defaultContextValue);
@@ -614,6 +616,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return false;
   };
 
+  const refreshUser = async () => {
+    try {
+      if (!user?.id) return;
+      
+      console.log('🔄 Refreshing user data...');
+      
+      // Fetch updated user data from app_users table
+      const { data: updatedUserData, error } = await supabase
+        .from('app_users')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (updatedUserData && !error) {
+        const updatedUser: User = {
+          id: updatedUserData.id,
+          email: updatedUserData.email,
+          name: updatedUserData.name,
+          user_role: updatedUserData.user_role,
+          verification_status: updatedUserData.verification_status,
+          verification_form_data: updatedUserData.verification_form_data,
+          submitted_at: updatedUserData.submitted_at,
+          verified_at: updatedUserData.verified_at,
+          verified_by: updatedUserData.verified_by,
+          rejection_reason: updatedUserData.rejection_reason,
+          credits: parseFloat(updatedUserData.credits) || 0
+        };
+        
+        setUser(updatedUser);
+        console.log('✅ User data refreshed, credits:', updatedUser.credits);
+      }
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+    }
+  };
+
   const value = {
     user,
     session,
@@ -622,7 +660,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signUp,
     signInWithGoogle,
     signOut,
-    hasPermission
+    hasPermission,
+    refreshUser
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

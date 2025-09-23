@@ -116,6 +116,11 @@ export function UserProfile({
           <>
             <div className="flex flex-col text-sm min-w-0 flex-1">
               <span className="font-medium truncate">{displayName}</span>
+              {user.user_role && (
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full mb-1 w-fit bg-[#FFC107] text-[#1D1D1F]">
+                  {user.user_role.toUpperCase()}
+                </span>
+              )}
               {user.email && (
                 <TooltipProvider>
                   <Tooltip>

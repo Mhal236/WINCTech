@@ -39,25 +39,17 @@ export default defineConfig(({ mode }) => {
       host: "::",
       port: 8080,
       proxy: {
-        // Note: We've removed all specific API proxies as they're now handled by our middleware
+        // Proxy API calls to the API server
+        '/api': {
+          target: 'http://localhost:3000',
+          changeOrigin: true,
+          secure: false,
+        }
       },
     },
     plugins: [
       react(),
-      {
-        name: 'vite-plugin-api-server',
-        configureServer(server: ViteDevServer) {
-          // Simple direct import that's guaranteed to work
-          import('./src/lib/api-setup.js')
-            .then((module: { setupApiMiddleware: (server: ViteDevServer) => void }) => {
-              // Call the setup function with the server instance
-              module.setupApiMiddleware(server);
-            })
-            .catch(error => {
-              console.error('Failed to set up API middleware:', error);
-            });
-        }
-      } as Plugin,
+      // Removed Vite API plugin since we're using standalone API server with proxy
       mode === 'development' && componentTagger(),
     ].filter(Boolean),
     resolve: {
