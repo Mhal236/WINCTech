@@ -608,9 +608,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
              (requiredRole === 'admin'); // Allow admin access for core features
     }
     
+    // Verified users can only access basic user features (Home, Settings)
+    if (userRole === 'verified' && verificationStatus === 'verified') {
+      return requiredRole === 'user'; // Only allow user-level access
+    }
+    
     // For "user" level access (Contact, Settings, Home), allow all authenticated users
     if (requiredRole === 'user') {
-      return ['pending', 'pro-1', 'pro-2', 'admin'].includes(userRole);
+      return ['pending', 'verified', 'pro-1', 'pro-2', 'admin'].includes(userRole);
     }
     
     // For admin-level access, check specific permissions (must be verified)
@@ -618,7 +623,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Admin and Pro-2 have full admin access
       if (['admin', 'pro-2'].includes(userRole)) return true;
       
-      // Pro-1 has admin access to core technician features only
+      // Pro-1 users have admin access to core technician features only
       if (userRole === 'pro-1') return true;
     }
     

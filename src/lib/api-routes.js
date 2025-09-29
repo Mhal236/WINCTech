@@ -279,10 +279,10 @@ export function createApiRouter() {
         return res.status(500).json({ success: false, error: insertErr?.message || 'Failed to create assignment' });
       }
 
-      // Update MasterCustomer
+      // Update MasterCustomer - only update technician info, keep original status
       const { error: updateErr } = await client
         .from('MasterCustomer')
-        .update({ status: 'assigned', technician_id: technicianId, technician_name: technicianName })
+        .update({ technician_id: technicianId, technician_name: technicianName })
         .eq('id', jobId);
 
       if (updateErr) {
