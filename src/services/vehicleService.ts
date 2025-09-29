@@ -21,8 +21,12 @@ export class VehicleService {
         };
       }
 
-      // Use the vehicle API endpoint on port 8080 where it's working
-      const apiUrl = `http://localhost:8080/api/vehicle/${vrn.trim()}`;
+      // Use Vercel serverless function for vehicle lookup
+      const apiUrl = import.meta.env.DEV 
+        ? `http://localhost:8080/api/vehicle/${vrn.trim()}` // Local development uses api-server.js
+        : `/api/vehicle-lookup?vrn=${encodeURIComponent(vrn.trim())}`; // Production uses Vercel function
+      
+      console.log('🔍 Vehicle API URL:', apiUrl);
       const response = await fetch(apiUrl);
       
       if (!response.ok) {

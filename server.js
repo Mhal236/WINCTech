@@ -8,6 +8,10 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Vehicle API constants
+const VEHICLE_API_URL = process.env.VITE_VEHICLE_API_URL || 'https://legacy.api.vehicledataglobal.com/api/datapackage/VehicleData';
+const VEHICLE_API_KEY = process.env.VEHICLE_API_KEY || '6193cc7a-c1b2-469c-ad41-601c6faa294c';
+
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -24,7 +28,80 @@ app.use((req, res, next) => {
   next();
 });
 
-// Example API endpoint
+// Vehicle data API endpoint (used by verification form)
+app.get('/api/vehicle/:vrn', async (req, res) => {
+  try {
+    const { vrn } = req.params;
+    
+    if (!vrn) {
+      return res.status(400).json({
+        success: false,
+        error: 'VRN is required'
+      });
+    }
+
+    console.log(`Fetching vehicle data for VRN: ${vrn}`);
+    
+    // Use the external vehicle API to get actual vehicle data
+    if (!VEHICLE_API_KEY || !VEHICLE_API_URL) {
+      console.error('Missing API key or URL in environment variables');
+      return res.status(500).json({
+        success: false,
+        error: "Missing API configuration. Check server environment."
+      });
+    }
+
+    // Build URL with API parameters
+    const url = `${VEHICLE_API_URL}?v=2&api_nullitems=1&auth_apikey=${VEHICLE_API_KEY}&key_vrm=${vrn.trim()}`;
+    
+    console.log(`Calling external vehicle API at: ${VEHICLE_API_URL}`);
+    
+    const response = await axios.get(url);
+      
+    // Check if response contains valid data
+    if (
+      response.data?.Response &&
+      response.data.Response.StatusCode === "Success" &&
+      response.data.Response.DataItems &&
+      response.data.Response.DataItems.VehicleRegistration
+    ) {
+      const registration = response.data.Response.DataItems.VehicleRegistration;
+      
+      // Return vehicle details
+      const vehicleDetails = {
+        registration: vrn.toUpperCase(),
+        make: registration.Make || "",
+        model: registration.Model || "",
+        year: registration.YearOfManufacture || "",
+        bodyStyle: registration.BodyStyle || ""
+      };
+      
+      console.log(`Vehicle data retrieved:`, vehicleDetails);
+      
+      res.json({
+        success: true,
+        vrn: vrn.toUpperCase(),
+        data: vehicleDetails
+      });
+    } else {
+      console.log("UK Vehicle API response did not contain expected vehicle data");
+      
+      return res.status(404).json({
+        success: false,
+        error: "Vehicle data not found in API response",
+        vrn: vrn.toUpperCase()
+      });
+    }
+  } catch (error) {
+    console.error('Error in vehicle endpoint:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch vehicle data'
+    });
+  }
+});
+
+// Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
