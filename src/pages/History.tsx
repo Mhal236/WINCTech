@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Clock, Filter, ArrowUp, Briefcase, Calendar, Users, MoreVertical, MapPin, Phone, Car, User, UserX, AlertTriangle, Zap, Target } from "lucide-react";
+import { Plus, Search, Clock, Filter, ArrowUp, Briefcase, Calendar, Users, MoreVertical, MapPin, Phone, Car, User, UserX, AlertTriangle, Zap, Target, Info } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -379,14 +379,14 @@ const History = () => {
                   className="max-w-sm"
                 />
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-[180px] bg-white border-gray-200 shadow-sm">
                     <SelectValue placeholder="Filter by status" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="assigned">Assigned</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
+                  <SelectContent className="bg-white border border-gray-200 shadow-lg rounded-md">
+                    <SelectItem value="all" className="hover:bg-gray-50">All Status</SelectItem>
+                    <SelectItem value="assigned" className="hover:bg-gray-50">Assigned</SelectItem>
+                    <SelectItem value="in_progress" className="hover:bg-gray-50">In Progress</SelectItem>
+                    <SelectItem value="completed" className="hover:bg-gray-50">Completed</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -516,16 +516,16 @@ const History = () => {
                                   <MoreVertical className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleViewInCalendar(job)}>
+                              <DropdownMenuContent align="end" className="bg-white border border-gray-200 shadow-lg rounded-md min-w-[160px]">
+                                <DropdownMenuItem onClick={() => handleViewInCalendar(job)} className="hover:bg-gray-50 focus:bg-gray-50">
                                   <Calendar className="h-4 w-4 mr-2" />
                                   View in Calendar
                                 </DropdownMenuItem>
-                                <DropdownMenuSeparator />
+                                <DropdownMenuSeparator className="bg-gray-200" />
                                 {job.status !== 'completed' && (
                                   <AlertDialog>
                                     <AlertDialogTrigger asChild>
-                                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                      <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="hover:bg-red-50 focus:bg-red-50 text-red-600">
                                         <UserX className="h-4 w-4 mr-2" />
                                         Unassign Job
                                       </DropdownMenuItem>
@@ -575,7 +575,11 @@ const History = () => {
                 </Card>
               ) : (
                 filteredJobs.map(job => (
-                  <Card key={job.id} className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-[#135084]">
+                  <Card 
+                    key={job.id} 
+                    className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-[#135084] cursor-pointer"
+                    onClick={() => handleJobClick(job)}
+                  >
                     <CardContent className="p-6">
                       <div className="flex justify-between items-start">
                         <div>
@@ -610,7 +614,11 @@ const History = () => {
                 </Card>
               ) : (
                 filteredJobs.map(job => (
-                  <Card key={job.id} className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-[#FFC107]">
+                  <Card 
+                    key={job.id} 
+                    className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-[#FFC107] cursor-pointer"
+                    onClick={() => handleJobClick(job)}
+                  >
                     <CardContent className="p-6">
                       <div className="flex justify-between items-start">
                         <div>
@@ -618,7 +626,68 @@ const History = () => {
                             <Zap className="w-5 h-5" />
                             {job.customer_name}
                           </h3>
-                          <p className="text-sm text-gray-600">£{job.quote_price?.toFixed(2)} • Exclusive</p>
+                          <p className="text-sm text-gray-600">£{(() => {
+                            // Helper function to count total windows affected in the job
+                            const countWindows = (): number => {
+                              try {
+                                const parseJsonField = (field: any): any[] => {
+                                  if (!field) return [];
+                                  if (Array.isArray(field)) return field;
+                                  if (typeof field === 'string') {
+                                    try {
+                                      const parsed = JSON.parse(field);
+                                      return Array.isArray(parsed) ? parsed : [];
+                                    } catch {
+                                      return [];
+                                    }
+                                  }
+                                  return [];
+                                };
+
+                                const windowDamage = parseJsonField(job.window_damage);
+                                const selectedWindows = parseJsonField(job.selected_windows);
+                                
+                                if (windowDamage.length > 0) {
+                                  // Count unique window damage entries
+                                  let count = 0;
+                                  windowDamage.forEach(damage => {
+                                    if (typeof damage === 'object' && damage !== null) {
+                                      count += Object.keys(damage).length;
+                                    }
+                                  });
+                                  return count;
+                                } else if (selectedWindows.length > 0) {
+                                  // Count glass codes from selected windows
+                                  let codes: string[] = [];
+                                  selectedWindows.forEach(window => {
+                                    if (Array.isArray(window)) {
+                                      window.forEach(item => {
+                                        if (typeof item === 'string') {
+                                          codes.push(item);
+                                        }
+                                      });
+                                    } else if (typeof window === 'string') {
+                                      codes.push(window);
+                                    }
+                                  });
+                                  return codes.length;
+                                }
+                                
+                                return 1;
+                              } catch {
+                                return 1;
+                              }
+                            };
+
+                            // Determine if this is an exclusive job and get pricing
+                            if (job.job_type === 'exclusive') {
+                              const windowCount = countWindows();
+                              const exclusivePrice = windowCount > 1 ? 170 : 140;
+                              return exclusivePrice.toFixed(2);
+                            }
+                            
+                            return job.quote_price?.toFixed(2) || '0.00';
+                          })()} • Exclusive</p>
                         </div>
                         <Badge className={`text-xs ${getStatusColor(job.status)}`}>
                           {job.status}
@@ -653,7 +722,7 @@ const History = () => {
               <div className="space-y-6">
                 {/* Job Type and Price */}
                 <div className="bg-amber-50 border border-[#FFC107] rounded-lg p-4">
-                  <div className="flex justify-between items-center">
+                  <div className={selectedJob.job_type === 'exclusive' ? "flex justify-between items-center" : ""}>
                     <div>
                       <h4 className="font-semibold text-[#1D1D1F]">
                         {selectedJob.job_type === 'exclusive' ? 'Exclusive Job' : 'Job Lead'}
@@ -664,11 +733,67 @@ const History = () => {
                           : 'Standard windscreen repair job'}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className={`text-2xl font-bold ${selectedJob.job_type === 'exclusive' ? 'text-[#FFC107]' : 'text-[#135084]'}`}>
-                        £{selectedJob.quote_price?.toFixed(2) || '0.00'}
-                      </p>
-                    </div>
+                    {selectedJob.job_type === 'exclusive' && (
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-[#FFC107]">
+                          £{(() => {
+                            // Helper function to count windows for the selected job
+                            const countWindows = (): number => {
+                              try {
+                                const parseJsonField = (field: any): any[] => {
+                                  if (!field) return [];
+                                  if (Array.isArray(field)) return field;
+                                  if (typeof field === 'string') {
+                                    try {
+                                      const parsed = JSON.parse(field);
+                                      return Array.isArray(parsed) ? parsed : [];
+                                    } catch {
+                                      return [];
+                                    }
+                                  }
+                                  return [];
+                                };
+
+                                const windowDamage = parseJsonField(selectedJob.window_damage);
+                                const selectedWindows = parseJsonField(selectedJob.selected_windows);
+                                
+                                if (windowDamage.length > 0) {
+                                  let count = 0;
+                                  windowDamage.forEach(damage => {
+                                    if (typeof damage === 'object' && damage !== null) {
+                                      count += Object.keys(damage).length;
+                                    }
+                                  });
+                                  return count;
+                                } else if (selectedWindows.length > 0) {
+                                  let codes: string[] = [];
+                                  selectedWindows.forEach(window => {
+                                    if (Array.isArray(window)) {
+                                      window.forEach(item => {
+                                        if (typeof item === 'string') {
+                                          codes.push(item);
+                                        }
+                                      });
+                                    } else if (typeof window === 'string') {
+                                      codes.push(window);
+                                    }
+                                  });
+                                  return codes.length;
+                                }
+                                
+                                return 1;
+                              } catch {
+                                return 1;
+                              }
+                            };
+
+                            const windowCount = countWindows();
+                            const exclusivePrice = windowCount > 1 ? 170 : 140;
+                            return exclusivePrice.toFixed(2);
+                          })()}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -736,6 +861,181 @@ const History = () => {
                     </CardContent>
                   </Card>
                 </div>
+
+                {/* Job Details */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Info className="h-4 w-4" />
+                      Job Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {selectedJob.service_type && (
+                      <div>
+                        <label className="text-xs font-medium text-gray-500">Service Type</label>
+                        <p className="text-sm font-medium">{selectedJob.service_type}</p>
+                      </div>
+                    )}
+                    {selectedJob.glass_type && (
+                      <div>
+                        <label className="text-xs font-medium text-gray-500">Glass Type</label>
+                        <p className="text-sm">{selectedJob.glass_type}</p>
+                      </div>
+                    )}
+                    {selectedJob.adas_calibration && (
+                      <div>
+                        <label className="text-xs font-medium text-gray-500">ADAS Calibration</label>
+                        <p className="text-sm">{selectedJob.adas_calibration}</p>
+                      </div>
+                    )}
+                    {selectedJob.delivery_type && (
+                      <div>
+                        <label className="text-xs font-medium text-gray-500">Delivery Type</label>
+                        <p className="text-sm">{selectedJob.delivery_type}</p>
+                      </div>
+                    )}
+                    {selectedJob.timeline && (
+                      <div>
+                        <label className="text-xs font-medium text-gray-500">Timeline</label>
+                        <p className="text-sm">{selectedJob.timeline}</p>
+                      </div>
+                    )}
+                    {selectedJob.duration && (
+                      <div>
+                        <label className="text-xs font-medium text-gray-500">Duration</label>
+                        <p className="text-sm">{selectedJob.duration}</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Window/Damage Details */}
+                {(() => {
+                  const parseJsonField = (field: any): any[] => {
+                    if (!field) return [];
+                    if (Array.isArray(field)) return field;
+                    if (typeof field === 'string') {
+                      try {
+                        const parsed = JSON.parse(field);
+                        return Array.isArray(parsed) ? parsed : [];
+                      } catch {
+                        return [];
+                      }
+                    }
+                    return [];
+                  };
+
+                  const windowDamage = parseJsonField(selectedJob.window_damage);
+                  const selectedWindows = parseJsonField(selectedJob.selected_windows);
+                  const windowSpec = parseJsonField(selectedJob.window_spec);
+                  
+                  const getGlassTypeName = (type: string): string => {
+                    if (!type) return '';
+                    if (type.includes('_ws') || type.toLowerCase().includes('windscreen')) return 'Windscreen';
+                    if (type.includes('_rw') || type.toLowerCase().includes('rear')) return 'Rear Window';
+                    if (type.includes('_df')) return "Driver's Front Window";
+                    if (type.includes('_pf')) return "Passenger's Front Window";
+                    if (type.includes('_dr')) return "Driver's Rear Window";
+                    if (type.includes('_pr')) return "Passenger's Rear Window";
+                    return type;
+                  };
+
+                  const extractGlassCodesFromWindows = (selectedWindows: any[]): string[] => {
+                    const codes: string[] = [];
+                    selectedWindows.forEach(window => {
+                      if (Array.isArray(window)) {
+                        window.forEach(item => {
+                          if (typeof item === 'string') {
+                            codes.push(item);
+                          }
+                        });
+                      } else if (typeof window === 'string') {
+                        codes.push(window);
+                      }
+                    });
+                    return codes;
+                  };
+
+                  const extractDamageInfo = (windowDamage: any[]): Array<{code: string, damageType: string}> => {
+                    const damageInfo: Array<{code: string, damageType: string}> = [];
+                    windowDamage.forEach(damage => {
+                      if (typeof damage === 'object' && damage !== null) {
+                        Object.entries(damage).forEach(([code, damageType]) => {
+                          damageInfo.push({ code, damageType: damageType as string });
+                        });
+                      }
+                    });
+                    return damageInfo;
+                  };
+
+                  if (windowDamage.length > 0 || selectedWindows.length > 0 || windowSpec.length > 0) {
+                    return (
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <Car className="h-4 w-4" />
+                            Window Details
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          {windowDamage.length > 0 && (
+                            <div>
+                              <label className="text-xs font-medium text-gray-500 mb-2 block">Damage Information</label>
+                              <div className="space-y-2">
+                                {extractDamageInfo(windowDamage).map((damage, index) => (
+                                  <div key={index} className="flex items-center gap-2 bg-red-50 rounded-lg p-2.5 border border-red-200">
+                                    <div className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0"></div>
+                                    <div className="flex-1">
+                                      <span className="font-semibold text-red-900 text-sm">
+                                        {getGlassTypeName(damage.code)}
+                                      </span>
+                                      <span className="text-red-700 text-sm ml-2">
+                                        ({damage.damageType})
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {selectedWindows.length > 0 && (
+                            <div>
+                              <label className="text-xs font-medium text-gray-500 mb-2 block">Selected Windows</label>
+                              <div className="space-y-2">
+                                {extractGlassCodesFromWindows(selectedWindows).map((code, index) => (
+                                  <div key={index} className="flex items-center gap-2 bg-blue-50 rounded-lg p-2.5 border border-blue-200">
+                                    <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
+                                    <div className="flex-1">
+                                      <span className="font-semibold text-blue-900 text-sm">
+                                        {getGlassTypeName(code)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {windowSpec.length > 0 && (
+                            <div>
+                              <label className="text-xs font-medium text-gray-500 mb-2 block">Specifications</label>
+                              <div className="flex flex-wrap gap-2">
+                                {windowSpec.flat().filter(Boolean).map((spec, index) => (
+                                  <span key={index} className="inline-block px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full border">
+                                    {typeof spec === 'string' ? spec : spec?.label || spec?.name || spec?.value || ''}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  }
+                  return null;
+                })()}
 
                 {/* Appointment Information */}
                 <Card>

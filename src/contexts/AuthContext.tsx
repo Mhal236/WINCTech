@@ -630,6 +630,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (updatedUserData && !error) {
+        let credits = parseFloat(updatedUserData.credits) || 0;
+        
+        // ALWAYS prioritize technicians table for credits (authoritative source for job activities)
+        const { data: technicianData, error: techError } = await supabase
+          .from('technicians')
+          .select('credits')
+          .eq('contact_email', user.email)
+          .single();
+        
+        if (technicianData && !techError && technicianData.credits !== null) {
+          credits = technicianData.credits;
+          console.log('🔄 Using credits from technicians table (authoritative):', credits);
+          
+          // If technicians table has different credits, sync app_users table
+          const appUserCredits = parseFloat(updatedUserData.credits) || 0;
+          if (Math.abs(appUserCredits - credits) > 0.01) {
+            console.log(`🔄 Syncing app_users credits: ${appUserCredits} → ${credits}`);
+            const { error: syncError } = await supabase
+              .from('app_users')
+              .update({ credits: credits.toFixed(2) })
+              .eq('id', user.id);
+            
+            if (syncError) {
+              console.error('Failed to sync app_users credits:', syncError);
+            } else {
+              console.log('✅ Synchronized app_users credits');
+            }
+          }
+        } else {
+          console.log('🔄 Fallback to app_users table credits:', credits);
+        }
+
         const updatedUser: User = {
           id: updatedUserData.id,
           email: updatedUserData.email,
@@ -641,7 +673,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           verified_at: updatedUserData.verified_at,
           verified_by: updatedUserData.verified_by,
           rejection_reason: updatedUserData.rejection_reason,
-          credits: parseFloat(updatedUserData.credits) || 0
+          credits: credits
         };
         
         setUser(updatedUser);

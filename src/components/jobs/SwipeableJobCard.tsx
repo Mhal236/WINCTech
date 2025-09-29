@@ -155,7 +155,34 @@ export const SwipeableJobCard: React.FC<SwipeableJobCardProps> = ({
     .slice(0, 2)
     .toUpperCase();
 
-  const prettyPrice = typeof job.quote_price === 'number' ? job.quote_price.toFixed(2) : job.quote_price;
+  // Helper function to count total windows affected in the job
+  const countWindows = (): number => {
+    const windowDamage = parseJsonField(job.window_damage);
+    const selectedWindows = parseJsonField(job.selected_windows);
+    
+    if (windowDamage.length > 0) {
+      const damageInfo = extractDamageInfo(windowDamage);
+      return damageInfo.length;
+    } else if (selectedWindows.length > 0) {
+      const glassCodes = extractGlassCodesFromWindows(selectedWindows);
+      return glassCodes.length;
+    }
+    
+    return 1; // Default to 1 window if no specific data available
+  };
+
+  // Helper function to get pricing for exclusive jobs
+  const getExclusiveJobPrice = (): number => {
+    const windowCount = countWindows();
+    return windowCount > 1 ? 170 : 140;
+  };
+
+  // Determine if this is an exclusive job (paid status)
+  const isExclusiveJob = job.status === 'paid' || job.status === 'paid - full';
+
+  // Get the display price - use exclusive pricing for exclusive jobs, otherwise use quote_price
+  const displayPrice = isExclusiveJob ? getExclusiveJobPrice() : job.quote_price;
+  const prettyPrice = typeof displayPrice === 'number' ? displayPrice.toFixed(2) : displayPrice;
 
   // Get urgency level for better visual hierarchy
   const getUrgencyLevel = () => {

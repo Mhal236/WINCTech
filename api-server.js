@@ -18,9 +18,18 @@ const VEHICLE_API_URL = process.env.VITE_VEHICLE_API_URL || 'https://legacy.api.
 const VEHICLE_API_KEY = process.env.VEHICLE_API_KEY || '6193cc7a-c1b2-469c-ad41-601c6faa294c';
 
 // Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2024-06-20',
-});
+let stripe = null;
+try {
+  if (process.env.STRIPE_SECRET_KEY) {
+    stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2024-06-20',
+    });
+  } else {
+    console.warn('⚠️ STRIPE_SECRET_KEY not found in environment variables. Stripe functionality will be disabled.');
+  }
+} catch (error) {
+  console.error('Failed to initialize Stripe:', error.message);
+}
 
 // Initialize Supabase
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "https://julpwjxzrlkbxdbphrdy.supabase.co";
@@ -123,6 +132,37 @@ const sendSoapRequest = async (url, options) => {
     req.end();
   });
 };
+
+// Vehicle data API endpoint (used by verification form)
+app.get('/api/vehicle/:vrn', async (req, res) => {
+  try {
+    const { vrn } = req.params;
+    
+    if (!vrn) {
+      return res.status(400).json({
+        success: false,
+        error: 'VRN is required'
+      });
+    }
+
+    // For now, return a basic response since this is mainly used for verification
+    // You can enhance this later with actual vehicle data
+    res.json({
+      success: true,
+      vrn: vrn.toUpperCase(),
+      data: {
+        registration: vrn.toUpperCase(),
+        // Add more vehicle data here when available
+      }
+    });
+  } catch (error) {
+    console.error('Error in vehicle endpoint:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch vehicle data'
+    });
+  }
+});
 
 // Main endpoint to get vehicle glass data using VRN
 app.get('/api/vehicle/glass/:vrn', async (req, res) => {
@@ -470,6 +510,10 @@ app.post('/api/stripe/create-payment-intent', async (req, res) => {
 
     if (!amount || !credits || amount < 100) { // Minimum £1.00
       return res.status(400).json({ error: 'Invalid amount or credits' });
+    }
+
+    if (!stripe) {
+      return res.status(503).json({ error: 'Stripe is not configured' });
     }
 
     // Create payment intent
@@ -1051,9 +1095,14 @@ app.post('/api/stripe/find-and-confirm-subscription', async (req, res) => {
 // =============================
 app.post('/api/jobs/accept', async (req, res) => {
   try {
+    console.log('🔵 Job accept request received:', req.body);
+    
     const admin = getSupabaseAdmin();
     if (admin.error) return res.status(500).json({ success: false, error: admin.error });
     const supabase = admin.client;
+    
+    // Add more detailed logging
+    console.log('🔧 Using Supabase key type:', SUPABASE_SERVICE_ROLE_KEY ? 'SERVICE_ROLE' : 'ANON');
 
     const { jobId, technicianId, technicianName } = req.body || {};
     if (!jobId || !technicianId || !technicianName) {
@@ -1081,10 +1130,109 @@ app.post('/api/jobs/accept', async (req, res) => {
       return res.status(500).json({ success: false, error: insertErr?.message || 'Failed to create assignment' });
     }
 
-    // Update MasterCustomer
+    // Get job details to calculate credit cost (BEFORE updating status)
+    const { data: jobData, error: jobFetchErr } = await supabase
+      .from('MasterCustomer')
+      .select('quote_price, status, selected_windows, window_damage')
+      .eq('id', jobId)
+      .single();
+
+    if (jobFetchErr || !jobData) {
+      await supabase.from('job_assignments').delete().eq('id', assignment.id);
+      return res.status(500).json({ success: false, error: 'Failed to fetch job details' });
+    }
+
+    // Calculate credit cost for job board leads (quoted status jobs)
+    let creditCost = 0;
+    let shouldDeductCredits = jobData.status === 'quoted'; // Only charge for job board leads, not exclusive jobs
+    
+    if (shouldDeductCredits && jobData.quote_price) {
+      creditCost = Math.round(jobData.quote_price * 0.1); // 10% of job value
+    }
+
+    // Get technician's current credits and deduct if needed
+    if (shouldDeductCredits && creditCost > 0) {
+      const { data: techData, error: techFetchErr } = await supabase
+        .from('technicians')
+        .select('credits')
+        .eq('id', technicianId)
+        .single();
+
+      if (techFetchErr || !techData) {
+        await supabase.from('job_assignments').delete().eq('id', assignment.id);
+        return res.status(500).json({ success: false, error: 'Failed to fetch technician credits' });
+      }
+
+      const currentCredits = techData.credits || 0;
+      if (currentCredits < creditCost) {
+        await supabase.from('job_assignments').delete().eq('id', assignment.id);
+        return res.status(400).json({ success: false, error: `Insufficient credits. Need ${creditCost} credits, have ${currentCredits}` });
+      }
+
+      const newCredits = currentCredits - creditCost;
+
+      // Update technician credits in technicians table
+      const { error: creditUpdateErr } = await supabase
+        .from('technicians')
+        .update({ credits: newCredits })
+        .eq('id', technicianId);
+
+      if (creditUpdateErr) {
+        console.error('Failed to deduct credits from technicians table:', creditUpdateErr);
+        await supabase.from('job_assignments').delete().eq('id', assignment.id);
+        return res.status(500).json({ success: false, error: 'Failed to deduct credits from technicians table' });
+      }
+
+      // Also update credits in app_users table to keep them synchronized
+      const { data: technicianEmail, error: emailFetchErr } = await supabase
+        .from('technicians')
+        .select('contact_email')
+        .eq('id', technicianId)
+        .single();
+
+      if (technicianEmail && !emailFetchErr) {
+        const { error: appUserUpdateErr } = await supabase
+          .from('app_users')
+          .update({ credits: newCredits.toFixed(2) })
+          .eq('email', technicianEmail.contact_email);
+        
+        if (appUserUpdateErr) {
+          console.error('Failed to sync credits to app_users table:', appUserUpdateErr);
+          // Don't fail the request since technicians table was updated
+        } else {
+          console.log(`✅ Synchronized ${newCredits} credits to app_users table`);
+        }
+      }
+
+      // Create credit transaction record
+      const { error: transactionErr } = await supabase
+        .from('credit_transactions')
+        .insert({
+          technician_id: technicianId,
+          type: 'usage',
+          credits: -creditCost, // Negative for deduction
+          description: `Job lead purchase: ${jobData.quote_price ? '£' + jobData.quote_price.toFixed(2) : 'N/A'} job`,
+          status: 'completed',
+          metadata: {
+            job_id: jobId,
+            assignment_id: assignment.id,
+            job_price: jobData.quote_price,
+            credit_rate: 0.1
+          }
+        });
+
+      if (transactionErr) {
+        console.error('Failed to create credit transaction:', transactionErr);
+        // Don't fail the job assignment since credits were deducted
+      }
+
+      console.log(`✅ Deducted ${creditCost} credits from technician ${technicianId}. New balance: ${newCredits}`);
+    }
+
+    // Update MasterCustomer - only update technician info, keep original status
     const { error: updateErr } = await supabase
       .from('MasterCustomer')
-      .update({ status: 'assigned', technician_id: technicianId, technician_name: technicianName })
+      .update({ technician_id: technicianId, technician_name: technicianName })
       .eq('id', jobId);
 
     if (updateErr) {
@@ -1092,7 +1240,11 @@ app.post('/api/jobs/accept', async (req, res) => {
       return res.status(500).json({ success: false, error: updateErr.message });
     }
 
-    return res.json({ success: true, assignmentId: assignment.id });
+    return res.json({ 
+      success: true, 
+      assignmentId: assignment.id, 
+      creditsDeducted: shouldDeductCredits ? creditCost : 0 
+    });
   } catch (error) {
     console.error('Error in /api/jobs/accept:', error);
     return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });

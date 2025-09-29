@@ -34,7 +34,7 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
   const [currentPage, setCurrentPage] = useState(1);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const jobsPerPage = 5; // Limited to 5 jobs at a time
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
 
   // Debug: Track component mounting and unmounting
   useEffect(() => {
@@ -295,19 +295,13 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
         console.warn('Calendar event creation failed, but job was assigned successfully');
       }
 
-      // Deduct credits if this is a credit job
+      // Note: Credit deduction is handled by the API server in JobService.acceptJob()
+      // No need to deduct credits here as it's already done server-side
+
+      // Refresh user data to update credits display in UI
       if (jobType === 'board') {
-        const creditCost = Math.round((job.quote_price || 0) * 0.1);
-        const newCredits = (technicianData.credits || 0) - creditCost;
-        
-        const { error: creditError } = await supabase
-          .from('technicians')
-          .update({ credits: newCredits })
-          .eq('id', technicianData.id);
-        
-        if (creditError) {
-          console.error('Failed to deduct credits:', creditError);
-        }
+        await refreshUser();
+        console.log('🔄 Refreshed user data after credit deduction');
       }
 
       // Update local state
