@@ -18,88 +18,50 @@ import { EmailService } from '../../services/emailService';
 // Helper function to get application details by user ID (useful for admin views)
 export const getApplicationByUserId = async (userId: string, userEmail?: string) => {
   try {
-    // If we have an email, try to find the application by email first
-    if (userEmail) {
-      console.log('🔵 Looking up application by email:', userEmail);
-      
-      try {
-        const { data, error } = await supabase
-          .from('applications')
-          .select(`
-            *,
-            app_users!applications_user_id_fkey (
-              id,
-              email,
-              name
-            )
-          `)
-          .eq('app_users.email', userEmail)
-          .order('submitted_at', { ascending: false })
-          .limit(1)
-          .single();
-        
-        if (data && !error) {
-          console.log('🟢 Found application by email:', data);
-          return { data, error: null };
-        }
-      } catch (emailError) {
-        console.log('🔵 Email lookup failed, trying by user_id');
-      }
-    }
-    
     // Check if the user ID looks like a Google OAuth ID instead of UUID
     let actualUserId = userId;
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
-      console.log('🔵 User ID appears to be OAuth ID, trying to find in app_users by email');
+      console.log('🔵 User ID appears to be OAuth ID in getApplicationByUserId:', userId);
       
+      // If we have the user email, look up the actual UUID
       if (userEmail) {
-        try {
-          const { data: appUser, error: lookupError } = await supabase
-            .from('app_users')
-            .select('id')
-            .eq('email', userEmail)
-            .single();
-            
-          if (!lookupError && appUser) {
-            actualUserId = appUser.id;
-            console.log('🟢 Found UUID for OAuth user:', actualUserId);
-          } else {
-            console.log('🔵 Could not find user in app_users, user may not have an application yet');
-            return { data: null, error: null };
-          }
-        } catch (error) {
-          console.log('🔵 User lookup by email failed, user may not have an application yet');
-          return { data: null, error: null };
+        console.log('🔵 Looking up UUID for email:', userEmail);
+        const { data: appUser, error: lookupError } = await supabase
+          .from('app_users')
+          .select('id')
+          .eq('email', userEmail)
+          .single();
+          
+        if (!lookupError && appUser) {
+          actualUserId = appUser.id;
+          console.log('🟢 Found UUID for OAuth user:', actualUserId);
+        } else {
+          console.error('🔴 Could not find UUID for OAuth user:', lookupError);
+          return { data: null, error: lookupError };
         }
       } else {
-        console.log('🔵 No email provided for OAuth ID lookup');
-        return { data: null, error: null };
+        console.log('🔴 No email provided to lookup UUID for OAuth ID');
+        return { data: null, error: new Error('OAuth ID provided without email for lookup') };
       }
     }
     
-    // Try to find application by user_id
-    try {
-      const { data, error } = await supabase
-        .from('applications')
-        .select('*')
-        .eq('user_id', actualUserId)
-        .order('submitted_at', { ascending: false })
-        .limit(1)
-        .single();
-      
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-        console.log('🔵 Application query error:', error.message);
-        return { data: null, error: null };
-      }
-      
-      return { data, error: null };
-    } catch (error) {
-      console.log('🔵 Application lookup failed, user may not have an application yet');
-      return { data: null, error: null };
+    const { data, error } = await supabase
+      .from('applications')
+      .select('*')
+      .eq('user_id', actualUserId)
+      .order('submitted_at', { ascending: false })
+      .limit(1)
+      .single();
+    
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+      console.error('Error fetching application:', error);
+      return { data: null, error };
     }
+    
+    return { data, error: null };
   } catch (error) {
-    console.log('🔵 Error in getApplicationByUserId, user may not have an application yet');
-    return { data: null, error: null };
+    console.error('Error in getApplicationByUserId:', error);
+    return { data: null, error };
   }
 };
 
@@ -211,10 +173,12 @@ export function VerificationForm() {
   const [selectedAddressIndex, setSelectedAddressIndex] = useState<string>('');
   const [postcodeDebounceTimer, setPostcodeDebounceTimer] = useState<NodeJS.Timeout | null>(null);
 
-  // Debug logging only once to prevent infinite loop
-  useEffect(() => {
-    console.log('🔍 VerificationForm mounted for user:', user?.email, 'status:', user?.verification_status);
-  }, []); // Only log once when component mounts
+  console.log('🔍 VerificationForm Debug:', {
+    user,
+    userRole: user?.user_role,
+    verificationStatus: user?.verification_status,
+    renderingVerificationForm: true
+  });
 
   const handleLogout = async () => {
     try {
@@ -243,7 +207,7 @@ export function VerificationForm() {
       const minDelay = new Promise(resolve => setTimeout(resolve, 300));
 
       try {
-        console.log('🔵 Checking for existing application for user:', user.email);
+        console.log('🔵 Checking for existing application for user:', user.id);
         const { data: application, error } = await getApplicationByUserId(user.id, user.email);
         
         // Wait for minimum delay to prevent flashing
@@ -260,7 +224,6 @@ export function VerificationForm() {
         console.error('🔴 Error checking for existing application:', error);
         // Wait for minimum delay even on error
         await minDelay;
-        setExistingApplication(null);
       } finally {
         setIsCheckingApplication(false);
       }
@@ -270,7 +233,7 @@ export function VerificationForm() {
     const debounceTimer = setTimeout(checkExistingApplication, 100);
     
     return () => clearTimeout(debounceTimer);
-  }, [user?.email]); // Changed dependency to email instead of id
+  }, [user?.id]);
 
   // Cleanup postcode debounce timer on unmount
   useEffect(() => {
@@ -743,22 +706,15 @@ export function VerificationForm() {
 
   // Show thank you screen for users with submitted applications (pending status)
   // This covers both just-submitted applications and existing submitted applications
-  const shouldShowThankYou = (isSubmissionComplete && submissionDetails) || (existingApplication && existingApplication.status === 'pending');
+  console.log('🔍 Thank you screen check:', {
+    isSubmissionComplete,
+    hasSubmissionDetails: !!submissionDetails,
+    hasExistingApplication: !!existingApplication,
+    existingApplicationStatus: existingApplication?.status,
+    shouldShowThankYou: (isSubmissionComplete && submissionDetails) || (existingApplication && existingApplication.status === 'pending')
+  });
   
-  // Debug logging for thank you screen with proper dependency control
-  useEffect(() => {
-    if (existingApplication || submissionDetails) {
-      console.log('🔍 Thank you screen check:', {
-        isSubmissionComplete,
-        hasSubmissionDetails: !!submissionDetails,
-        hasExistingApplication: !!existingApplication,
-        existingApplicationStatus: existingApplication?.status,
-        shouldShowThankYou
-      });
-    }
-  }, [existingApplication?.status, submissionDetails?.applicationId]); // Only log when these specific values change
-  
-  if (shouldShowThankYou) {
+  if ((isSubmissionComplete && submissionDetails) || (existingApplication && existingApplication.status === 'pending')) {
     // Use submission details if just submitted, otherwise use existing application data
     const displayData = submissionDetails || {
       applicationId: existingApplication?.id,

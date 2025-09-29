@@ -1,32 +1,18 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// Use direct Supabase client for better OAuth support - singleton pattern
+// Use direct Supabase client for better OAuth support
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://julpwjxzrlkbxdbphrdy.supabase.co";
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bHB3anh6cmxrYnhkYnBocmR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc0MTQ4NDUsImV4cCI6MjA1Mjk5MDg0NX0.rynZAq6bjPlpfyTaxHYcs8FdVdTo_gy95lazi2Kt5RY";
 
-// Global singleton to prevent multiple instances
-declare global {
-  interface Window {
-    __authSupabaseInstance?: any;
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+    flowType: 'pkce'
   }
-}
-
-function getAuthSupabaseClient() {
-  if (typeof window !== 'undefined' && !window.__authSupabaseInstance) {
-    window.__authSupabaseInstance = createClient(SUPABASE_URL, SUPABASE_KEY, {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true,
-        flowType: 'pkce'
-      }
-    });
-  }
-  return typeof window !== 'undefined' ? window.__authSupabaseInstance : null;
-}
-
-const supabase = getAuthSupabaseClient();
+});
 
 // Simpler User type matching our app_users table
 interface User {
@@ -371,13 +357,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             
               // Try to fetch additional data from app_users table with timeout
               try {
-                console.log('🔵 Querying app_users table by email:', sessionUser.email);
+                console.log('🔵 Querying app_users table for user:', sessionUser.id);
                 
-                // Query by email instead of OAuth ID to avoid 406 errors
                 const fetchPromise = supabase
                   .from('app_users')
                   .select('*')
-                  .eq('email', sessionUser.email)
+                  .eq('id', sessionUser.id)
                   .single();
                 
                 const timeoutPromise = new Promise((_, reject) => 
@@ -389,11 +374,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   timeoutPromise
                 ]) as any;
                 
-                console.log('🔵 Database query result:', { 
-                  hasUserData: !!userData, 
-                  dbError: dbError?.message,
-                  dbErrorCode: dbError?.code
-                });
+                console.log('🔵 Database query result:', { hasUserData: !!userData, dbError: dbError?.message });
                 
                 if (userData && !dbError) {
                   console.log('🟢 Using database user data');
@@ -411,14 +392,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     credits: userData.credits
                   };
                 } else {
-                  console.log('🔵 No database record found or timeout, using OAuth data as non-verified');
+                  console.log('🔵 No database record found or timeout, using OAuth data');
                   // For OAuth users without database record, set as non-verified
                   userObject.user_role = 'non-verified';
                   userObject.verification_status = 'non-verified';
                 }
               } catch (dbError) {
                 console.log('🔴 Database query failed:', dbError);
-                // Continue with basic user object as non-verified
+                // Continue with basic user object
                 userObject.user_role = 'non-verified';
                 userObject.verification_status = 'non-verified';
               }

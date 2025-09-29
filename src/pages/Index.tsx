@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { VerificationForm } from "@/components/auth/VerificationForm";
-import { ApplicationStatus } from "@/components/auth/ApplicationStatus";
 import { PricingPlans } from "@/components/pricing/PricingPlans";
 import { useAuth } from "@/contexts/AuthContext";
 import { PageTransition } from "@/components/PageTransition";
+import { createClient } from '@supabase/supabase-js';
 import { useNavigate } from "react-router-dom";
 
 const Index = () => {
@@ -32,9 +32,23 @@ const Index = () => {
         setIsProcessingOAuth(true);
         
         try {
-          // Note: OAuth callback handling is now managed by AuthContext
-          // Just clear the URL parameters since auth state is handled centrally
-          console.log('🔵 OAuth callback detected, clearing URL parameters');
+          // Create Supabase client for OAuth exchange
+          const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://julpwjxzrlkbxdbphrdy.supabase.co";
+          const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bHB3anh6cmxrYnhkYnBocmR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc0MTQ4NDUsImV4cCI6MjA1Mjk5MDg0NX0.rynZAq6bjPlpfyTaxHYcs8FdVdTo_gy95lazi2Kt5RY";
+          
+          const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+          
+          // Exchange the code for a session
+          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          
+          if (exchangeError) {
+            console.error('🔴 Error exchanging code for session:', exchangeError);
+          } else {
+            console.log('🟢 OAuth callback successful, session created:', !!data.session);
+            // The AuthContext will automatically detect the new session
+          }
+          
+          // Clear the URL parameters regardless of success/failure
           navigate('/', { replace: true });
         } catch (error) {
           console.error('🔴 OAuth callback processing error:', error);
@@ -65,42 +79,28 @@ const Index = () => {
     }
   }, [user, isLoading]);
 
-  // Determine what view to show based on user status
-  const isNonVerified = !user || user.verification_status === 'non-verified' || user.user_role === 'non-verified';
-  const isPendingApproval = user && (user.verification_status === 'pending' || user.user_role === 'pending');
-  const isRejected = user && user.verification_status === 'rejected';
-  const isVerified = user && !isNonVerified && !isPendingApproval && !isRejected;
+  // Show verification form for users who haven't completed verification
+  // Priority: verification_status takes precedence over user_role
+  const needsVerification = !user || 
+    (user.verification_status === 'non-verified' || 
+     user.verification_status === 'pending' || 
+     user.verification_status === 'rejected') ||
+    // Only check user_role if verification_status is not set
+    (!user.verification_status && 
+     (user.user_role === 'non-verified' || 
+      (!user.user_role && user.user_role !== 'admin')));
 
-  // Debug logging only when user status changes
-  useEffect(() => {
-    if (user) {
-      console.log('🔍 Index User Status:', {
-        email: user.email,
-        userRole: user?.user_role,
-        verificationStatus: user?.verification_status,
-        isNonVerified,
-        isPendingApproval,
-        isRejected,
-        isVerified
-      });
-    }
-  }, [user?.user_role, user?.verification_status, isNonVerified, isPendingApproval, isRejected, isVerified]);
+  console.log('🔍 Index Debug:', {
+    user,
+    needsVerification,
+    userRole: user?.user_role,
+    verificationStatus: user?.verification_status
+  });
 
-  // For users with pending applications, show application status only
-  if (isPendingApproval) {
-    console.log('🟡 Showing application status for pending user');
-    return (
-      <div className="fixed inset-0 z-[9999] min-h-screen bg-gray-50 overflow-auto">
-        <PageTransition>
-          <ApplicationStatus />
-        </PageTransition>
-      </div>
-    );
-  }
-
-  // For unverified or rejected users, show verification form
-  if ((isNonVerified || isRejected) && user) {
-    console.log('🟡 Showing verification form for unverified/rejected user');
+  // For unverified users, show verification form immediately (even during loading)
+  // to prevent flashing of dashboard content
+  if (needsVerification && user) {
+    console.log('🟡 Showing verification form for unverified user');
     return (
       <div className="fixed inset-0 z-[9999] min-h-screen bg-gray-50 overflow-auto">
         <PageTransition>
@@ -130,6 +130,16 @@ const Index = () => {
     );
   }
 
+  // Show verification form for users without proper verification (fallback)
+  if (needsVerification) {
+    return (
+      <div className="fixed inset-0 z-[9999] min-h-screen bg-gray-50 overflow-auto">
+        <PageTransition>
+          <VerificationForm />
+        </PageTransition>
+      </div>
+    );
+  }
 
   // If we reach here, user is verified and should see the main dashboard
   return (
