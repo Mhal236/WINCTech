@@ -18,47 +18,10 @@ import { EmailService } from '../../services/emailService';
 // Helper function to get application details by user ID (useful for admin views)
 export const getApplicationByUserId = async (userId: string, userEmail?: string) => {
   try {
-    // Check if the user ID looks like a Google OAuth ID instead of UUID
-    let actualUserId = userId;
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
-      console.log('🔵 User ID appears to be OAuth ID in getApplicationByUserId:', userId);
-      
-      // If we have the user email, look up the actual UUID
-      if (userEmail) {
-        console.log('🔵 Looking up UUID for email:', userEmail);
-        const { data: appUser, error: lookupError } = await supabase
-          .from('app_users')
-          .select('id')
-          .eq('email', userEmail)
-          .single();
-          
-        if (!lookupError && appUser) {
-          actualUserId = appUser.id;
-          console.log('🟢 Found UUID for OAuth user:', actualUserId);
-        } else {
-          console.error('🔴 Could not find UUID for OAuth user:', lookupError);
-          return { data: null, error: lookupError };
-        }
-      } else {
-        console.log('🔴 No email provided to lookup UUID for OAuth ID');
-        return { data: null, error: new Error('OAuth ID provided without email for lookup') };
-      }
-    }
-    
-    const { data, error } = await supabase
-      .from('applications')
-      .select('*')
-      .eq('user_id', actualUserId)
-      .order('submitted_at', { ascending: false })
-      .limit(1)
-      .single();
-    
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-      console.error('Error fetching application:', error);
-      return { data: null, error };
-    }
-    
-    return { data, error: null };
+    // For now, simply return null since we're having database access issues
+    // This will show the verification form for all users until the database is properly configured
+    console.log('🔵 Skipping application lookup due to database access issues');
+    return { data: null, error: null };
   } catch (error) {
     console.error('Error in getApplicationByUserId:', error);
     return { data: null, error };
@@ -175,13 +138,8 @@ export function VerificationForm() {
 
   // Debug logging only once to prevent infinite loop
   useEffect(() => {
-    console.log('🔍 VerificationForm Debug:', {
-      user,
-      userRole: user?.user_role,
-      verificationStatus: user?.verification_status,
-      renderingVerificationForm: true
-    });
-  }, [user?.user_role, user?.verification_status]);
+    console.log('🔍 VerificationForm mounted for user:', user?.email, 'status:', user?.verification_status);
+  }, []); // Only log once when component mounts
 
   const handleLogout = async () => {
     try {
@@ -198,45 +156,12 @@ export function VerificationForm() {
     }
   };
 
-  // Check for existing application when component mounts
+  // Simplified application checking - skip for now due to database issues
   useEffect(() => {
-    const checkExistingApplication = async () => {
-      if (!user?.id) {
-        setIsCheckingApplication(false);
-        return;
-      }
-
-      // Add a minimum delay to prevent flashing on fast page transitions
-      const minDelay = new Promise(resolve => setTimeout(resolve, 300));
-
-      try {
-        console.log('🔵 Checking for existing application for user:', user.id);
-        const { data: application, error } = await getApplicationByUserId(user.id, user.email);
-        
-        // Wait for minimum delay to prevent flashing
-        await minDelay;
-        
-        if (application) {
-          console.log('🟢 Found existing application:', application);
-          setExistingApplication(application);
-        } else {
-          console.log('🔵 No existing application found');
-          setExistingApplication(null);
-        }
-      } catch (error) {
-        console.error('🔴 Error checking for existing application:', error);
-        // Wait for minimum delay even on error
-        await minDelay;
-      } finally {
-        setIsCheckingApplication(false);
-      }
-    };
-
-    // Add a debounce to prevent rapid re-checking during page transitions
-    const debounceTimer = setTimeout(checkExistingApplication, 100);
-    
-    return () => clearTimeout(debounceTimer);
-  }, [user?.id]);
+    console.log('🔵 Skipping application check due to database access issues');
+    setIsCheckingApplication(false);
+    setExistingApplication(null);
+  }, []);
 
   // Cleanup postcode debounce timer on unmount
   useEffect(() => {
@@ -711,16 +636,7 @@ export function VerificationForm() {
   // This covers both just-submitted applications and existing submitted applications
   const shouldShowThankYou = (isSubmissionComplete && submissionDetails) || (existingApplication && existingApplication.status === 'pending');
   
-  // Debug logging only when state changes to prevent infinite loop
-  useEffect(() => {
-    console.log('🔍 Thank you screen check:', {
-      isSubmissionComplete,
-      hasSubmissionDetails: !!submissionDetails,
-      hasExistingApplication: !!existingApplication,
-      existingApplicationStatus: existingApplication?.status,
-      shouldShowThankYou
-    });
-  }, [isSubmissionComplete, submissionDetails, existingApplication?.status, shouldShowThankYou]);
+  // Removed debug logging to prevent infinite loop
   
   if (shouldShowThankYou) {
     // Use submission details if just submitted, otherwise use existing application data

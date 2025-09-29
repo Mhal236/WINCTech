@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { VerificationForm } from "@/components/auth/VerificationForm";
 import { ApplicationStatus } from "@/components/auth/ApplicationStatus";
+import { SimpleApplicationForm } from "@/components/auth/SimpleApplicationForm";
 import { PricingPlans } from "@/components/pricing/PricingPlans";
 import { useAuth } from "@/contexts/AuthContext";
 import { PageTransition } from "@/components/PageTransition";
@@ -71,15 +72,20 @@ const Index = () => {
   const isRejected = user && user.verification_status === 'rejected';
   const isVerified = user && !isNonVerified && !isPendingApproval && !isRejected;
 
-  console.log('🔍 Index Debug:', {
-    user,
-    userRole: user?.user_role,
-    verificationStatus: user?.verification_status,
-    isNonVerified,
-    isPendingApproval,
-    isRejected,
-    isVerified
-  });
+  // Debug logging only when user status changes
+  useEffect(() => {
+    if (user) {
+      console.log('🔍 Index User Status:', {
+        email: user.email,
+        userRole: user?.user_role,
+        verificationStatus: user?.verification_status,
+        isNonVerified,
+        isPendingApproval,
+        isRejected,
+        isVerified
+      });
+    }
+  }, [user?.user_role, user?.verification_status, isNonVerified, isPendingApproval, isRejected, isVerified]);
 
   // For users with pending applications, show application status only
   if (isPendingApproval) {
@@ -93,13 +99,13 @@ const Index = () => {
     );
   }
 
-  // For unverified or rejected users, show verification form
+  // For unverified or rejected users, show simple application form
   if ((isNonVerified || isRejected) && user) {
-    console.log('🟡 Showing verification form for unverified/rejected user');
+    console.log('🟡 Showing application form for unverified/rejected user');
     return (
       <div className="fixed inset-0 z-[9999] min-h-screen bg-gray-50 overflow-auto">
         <PageTransition>
-          <VerificationForm />
+          <SimpleApplicationForm />
         </PageTransition>
       </div>
     );
