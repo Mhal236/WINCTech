@@ -52,14 +52,13 @@ export function ProtectedRoute({ children, requiredRole = 'user' }: ProtectedRou
       return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
-  // Check if user needs verification first
-  const needsVerification = user.verification_status === 'non-verified' || 
-                          user.verification_status === 'pending' || 
-                          user.verification_status === 'rejected' ||
-                          user.user_role === 'non-verified' ||
-                          (!user.verification_status && user.user_role === 'pending');
+  // Check user verification status using same logic as Index.tsx
+  const isNonVerified = user.verification_status === 'non-verified' || user.user_role === 'non-verified';
+  const isPendingApproval = user.verification_status === 'pending' || user.user_role === 'pending';
+  const isRejected = user.verification_status === 'rejected';
+  const needsVerification = isNonVerified || isPendingApproval || isRejected;
 
-  // For unverified users, only allow dashboard (/) - all other routes redirect
+  // For unverified/pending/rejected users, only allow dashboard (/) - all other routes redirect
   if (needsVerification) {
     if (location.pathname === '/') {
       return <>{children}</>;

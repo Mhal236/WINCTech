@@ -173,12 +173,15 @@ export function VerificationForm() {
   const [selectedAddressIndex, setSelectedAddressIndex] = useState<string>('');
   const [postcodeDebounceTimer, setPostcodeDebounceTimer] = useState<NodeJS.Timeout | null>(null);
 
-  console.log('🔍 VerificationForm Debug:', {
-    user,
-    userRole: user?.user_role,
-    verificationStatus: user?.verification_status,
-    renderingVerificationForm: true
-  });
+  // Debug logging only once to prevent infinite loop
+  useEffect(() => {
+    console.log('🔍 VerificationForm Debug:', {
+      user,
+      userRole: user?.user_role,
+      verificationStatus: user?.verification_status,
+      renderingVerificationForm: true
+    });
+  }, [user?.user_role, user?.verification_status]);
 
   const handleLogout = async () => {
     try {
@@ -706,15 +709,20 @@ export function VerificationForm() {
 
   // Show thank you screen for users with submitted applications (pending status)
   // This covers both just-submitted applications and existing submitted applications
-  console.log('🔍 Thank you screen check:', {
-    isSubmissionComplete,
-    hasSubmissionDetails: !!submissionDetails,
-    hasExistingApplication: !!existingApplication,
-    existingApplicationStatus: existingApplication?.status,
-    shouldShowThankYou: (isSubmissionComplete && submissionDetails) || (existingApplication && existingApplication.status === 'pending')
-  });
+  const shouldShowThankYou = (isSubmissionComplete && submissionDetails) || (existingApplication && existingApplication.status === 'pending');
   
-  if ((isSubmissionComplete && submissionDetails) || (existingApplication && existingApplication.status === 'pending')) {
+  // Debug logging only when state changes to prevent infinite loop
+  useEffect(() => {
+    console.log('🔍 Thank you screen check:', {
+      isSubmissionComplete,
+      hasSubmissionDetails: !!submissionDetails,
+      hasExistingApplication: !!existingApplication,
+      existingApplicationStatus: existingApplication?.status,
+      shouldShowThankYou
+    });
+  }, [isSubmissionComplete, submissionDetails, existingApplication?.status, shouldShowThankYou]);
+  
+  if (shouldShowThankYou) {
     // Use submission details if just submitted, otherwise use existing application data
     const displayData = submissionDetails || {
       applicationId: existingApplication?.id,
