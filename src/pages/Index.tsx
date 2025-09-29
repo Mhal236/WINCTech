@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { VerificationForm } from "@/components/auth/VerificationForm";
 import { ApplicationStatus } from "@/components/auth/ApplicationStatus";
-import { SimpleApplicationForm } from "@/components/auth/SimpleApplicationForm";
 import { PricingPlans } from "@/components/pricing/PricingPlans";
 import { useAuth } from "@/contexts/AuthContext";
 import { PageTransition } from "@/components/PageTransition";
@@ -99,13 +98,13 @@ const Index = () => {
     );
   }
 
-  // For unverified or rejected users, show simple application form
+  // For unverified or rejected users, show verification form
   if ((isNonVerified || isRejected) && user) {
-    console.log('🟡 Showing application form for unverified/rejected user');
+    console.log('🟡 Showing verification form for unverified/rejected user');
     return (
       <div className="fixed inset-0 z-[9999] min-h-screen bg-gray-50 overflow-auto">
         <PageTransition>
-          <SimpleApplicationForm />
+          <VerificationForm />
         </PageTransition>
       </div>
     );

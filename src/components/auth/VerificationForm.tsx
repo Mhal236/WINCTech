@@ -18,13 +18,88 @@ import { EmailService } from '../../services/emailService';
 // Helper function to get application details by user ID (useful for admin views)
 export const getApplicationByUserId = async (userId: string, userEmail?: string) => {
   try {
-    // For now, simply return null since we're having database access issues
-    // This will show the verification form for all users until the database is properly configured
-    console.log('🔵 Skipping application lookup due to database access issues');
-    return { data: null, error: null };
+    // If we have an email, try to find the application by email first
+    if (userEmail) {
+      console.log('🔵 Looking up application by email:', userEmail);
+      
+      try {
+        const { data, error } = await supabase
+          .from('applications')
+          .select(`
+            *,
+            app_users!applications_user_id_fkey (
+              id,
+              email,
+              name
+            )
+          `)
+          .eq('app_users.email', userEmail)
+          .order('submitted_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (data && !error) {
+          console.log('🟢 Found application by email:', data);
+          return { data, error: null };
+        }
+      } catch (emailError) {
+        console.log('🔵 Email lookup failed, trying by user_id');
+      }
+    }
+    
+    // Check if the user ID looks like a Google OAuth ID instead of UUID
+    let actualUserId = userId;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+      console.log('🔵 User ID appears to be OAuth ID, trying to find in app_users by email');
+      
+      if (userEmail) {
+        try {
+          const { data: appUser, error: lookupError } = await supabase
+            .from('app_users')
+            .select('id')
+            .eq('email', userEmail)
+            .single();
+            
+          if (!lookupError && appUser) {
+            actualUserId = appUser.id;
+            console.log('🟢 Found UUID for OAuth user:', actualUserId);
+          } else {
+            console.log('🔵 Could not find user in app_users, user may not have an application yet');
+            return { data: null, error: null };
+          }
+        } catch (error) {
+          console.log('🔵 User lookup by email failed, user may not have an application yet');
+          return { data: null, error: null };
+        }
+      } else {
+        console.log('🔵 No email provided for OAuth ID lookup');
+        return { data: null, error: null };
+      }
+    }
+    
+    // Try to find application by user_id
+    try {
+      const { data, error } = await supabase
+        .from('applications')
+        .select('*')
+        .eq('user_id', actualUserId)
+        .order('submitted_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+        console.log('🔵 Application query error:', error.message);
+        return { data: null, error: null };
+      }
+      
+      return { data, error: null };
+    } catch (error) {
+      console.log('🔵 Application lookup failed, user may not have an application yet');
+      return { data: null, error: null };
+    }
   } catch (error) {
-    console.error('Error in getApplicationByUserId:', error);
-    return { data: null, error };
+    console.log('🔵 Error in getApplicationByUserId, user may not have an application yet');
+    return { data: null, error: null };
   }
 };
 
@@ -156,12 +231,46 @@ export function VerificationForm() {
     }
   };
 
-  // Simplified application checking - skip for now due to database issues
+  // Check for existing application when component mounts
   useEffect(() => {
-    console.log('🔵 Skipping application check due to database access issues');
-    setIsCheckingApplication(false);
-    setExistingApplication(null);
-  }, []);
+    const checkExistingApplication = async () => {
+      if (!user?.id) {
+        setIsCheckingApplication(false);
+        return;
+      }
+
+      // Add a minimum delay to prevent flashing on fast page transitions
+      const minDelay = new Promise(resolve => setTimeout(resolve, 300));
+
+      try {
+        console.log('🔵 Checking for existing application for user:', user.email);
+        const { data: application, error } = await getApplicationByUserId(user.id, user.email);
+        
+        // Wait for minimum delay to prevent flashing
+        await minDelay;
+        
+        if (application) {
+          console.log('🟢 Found existing application:', application);
+          setExistingApplication(application);
+        } else {
+          console.log('🔵 No existing application found');
+          setExistingApplication(null);
+        }
+      } catch (error) {
+        console.error('🔴 Error checking for existing application:', error);
+        // Wait for minimum delay even on error
+        await minDelay;
+        setExistingApplication(null);
+      } finally {
+        setIsCheckingApplication(false);
+      }
+    };
+
+    // Add a debounce to prevent rapid re-checking during page transitions
+    const debounceTimer = setTimeout(checkExistingApplication, 100);
+    
+    return () => clearTimeout(debounceTimer);
+  }, [user?.email]); // Changed dependency to email instead of id
 
   // Cleanup postcode debounce timer on unmount
   useEffect(() => {
@@ -636,7 +745,18 @@ export function VerificationForm() {
   // This covers both just-submitted applications and existing submitted applications
   const shouldShowThankYou = (isSubmissionComplete && submissionDetails) || (existingApplication && existingApplication.status === 'pending');
   
-  // Removed debug logging to prevent infinite loop
+  // Debug logging for thank you screen with proper dependency control
+  useEffect(() => {
+    if (existingApplication || submissionDetails) {
+      console.log('🔍 Thank you screen check:', {
+        isSubmissionComplete,
+        hasSubmissionDetails: !!submissionDetails,
+        hasExistingApplication: !!existingApplication,
+        existingApplicationStatus: existingApplication?.status,
+        shouldShowThankYou
+      });
+    }
+  }, [existingApplication?.status, submissionDetails?.applicationId]); // Only log when these specific values change
   
   if (shouldShowThankYou) {
     // Use submission details if just submitted, otherwise use existing application data
