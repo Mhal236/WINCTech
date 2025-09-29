@@ -145,21 +145,63 @@ app.get('/api/vehicle/:vrn', async (req, res) => {
       });
     }
 
-    // For now, return a basic response since this is mainly used for verification
-    // You can enhance this later with actual vehicle data
-    res.json({
-      success: true,
-      vrn: vrn.toUpperCase(),
-      data: {
+    console.log(`Fetching vehicle data for VRN: ${vrn}`);
+    
+    // Use the external vehicle API to get actual vehicle data
+    if (!VEHICLE_API_KEY || !VEHICLE_API_URL) {
+      console.error('Missing API key or URL in environment variables');
+      return res.status(500).json({
+        success: false,
+        error: "Missing API configuration. Check server environment."
+      });
+    }
+
+    // Build URL with API parameters
+    const url = `${VEHICLE_API_URL}?v=2&api_nullitems=1&auth_apikey=${VEHICLE_API_KEY}&key_vrm=${vrn.trim()}`;
+    
+    console.log(`Calling external vehicle API at: ${VEHICLE_API_URL}`);
+    
+    const response = await axios.get(url);
+      
+    // Check if response contains valid data
+    if (
+      response.data?.Response &&
+      response.data.Response.StatusCode === "Success" &&
+      response.data.Response.DataItems &&
+      response.data.Response.DataItems.VehicleRegistration
+    ) {
+      const registration = response.data.Response.DataItems.VehicleRegistration;
+      
+      // Return vehicle details
+      const vehicleDetails = {
         registration: vrn.toUpperCase(),
-        // Add more vehicle data here when available
-      }
-    });
+        make: registration.Make || "",
+        model: registration.Model || "",
+        year: registration.YearOfManufacture || "",
+        bodyStyle: registration.BodyStyle || ""
+      };
+      
+      console.log(`Vehicle data retrieved:`, vehicleDetails);
+      
+      res.json({
+        success: true,
+        vrn: vrn.toUpperCase(),
+        data: vehicleDetails
+      });
+    } else {
+      console.log("UK Vehicle API response did not contain expected vehicle data");
+      
+      return res.status(404).json({
+        success: false,
+        error: "Vehicle data not found in API response",
+        vrn: vrn.toUpperCase()
+      });
+    }
   } catch (error) {
     console.error('Error in vehicle endpoint:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch vehicle data'
+      error: error.message || 'Failed to fetch vehicle data'
     });
   }
 });

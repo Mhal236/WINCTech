@@ -79,38 +79,7 @@ const Index = () => {
     }
   }, [user, isLoading]);
 
-  // Show verification form for users who haven't completed verification
-  // Priority: verification_status takes precedence over user_role
-  const needsVerification = !user || 
-    (user.verification_status === 'non-verified' || 
-     user.verification_status === 'pending' || 
-     user.verification_status === 'rejected') ||
-    // Only check user_role if verification_status is not set
-    (!user.verification_status && 
-     (user.user_role === 'non-verified' || 
-      (!user.user_role && user.user_role !== 'admin')));
-
-  console.log('🔍 Index Debug:', {
-    user,
-    needsVerification,
-    userRole: user?.user_role,
-    verificationStatus: user?.verification_status
-  });
-
-  // For unverified users, show verification form immediately (even during loading)
-  // to prevent flashing of dashboard content
-  if (needsVerification && user) {
-    console.log('🟡 Showing verification form for unverified user');
-    return (
-      <div className="fixed inset-0 z-[9999] min-h-screen bg-gray-50 overflow-auto">
-        <PageTransition>
-          <VerificationForm />
-        </PageTransition>
-      </div>
-    );
-  }
-
-  // Show loading state during auth transitions (only for verified users or when no user)
+  // Show loading state during auth transitions first
   if (isLoading || isCheckingVerification || isProcessingOAuth) {
     return (
       <div className="fixed inset-0 z-[9999] min-h-screen bg-gray-50 flex items-center justify-center">
@@ -130,8 +99,29 @@ const Index = () => {
     );
   }
 
-  // Show verification form for users without proper verification (fallback)
-  if (needsVerification) {
+  // Check if user needs verification - comprehensive check
+  // Priority: verification_status takes precedence over user_role
+  const isVerified = user && (
+    user.verification_status === 'approved' || 
+    user.verification_status === 'pro-1' || 
+    user.verification_status === 'pro-2' ||
+    user.user_role === 'admin' ||
+    user.user_role === 'verified' ||
+    user.user_role === 'pro-1' ||
+    user.user_role === 'pro-2'
+  );
+
+  console.log('🔍 Index Debug:', {
+    user,
+    isVerified,
+    userRole: user?.user_role,
+    verificationStatus: user?.verification_status
+  });
+
+  // If user exists but is not verified, show verification form
+  // This catches all unverified states: non-verified, pending, rejected, null, etc.
+  if (user && !isVerified) {
+    console.log('🟡 Showing verification form for unverified user');
     return (
       <div className="fixed inset-0 z-[9999] min-h-screen bg-gray-50 overflow-auto">
         <PageTransition>

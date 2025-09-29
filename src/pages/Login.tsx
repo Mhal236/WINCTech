@@ -131,10 +131,12 @@ export default function Login() {
   };
 
   // If user is already authenticated and not loading, redirect to dashboard
-  if (!isLoading && user && session && !searchParams.get('code')) {
+  // Note: We check for user OR session to handle cases where one might load faster
+  if (!isLoading && (user || session) && !searchParams.get('code')) {
     console.log('🔵 User already authenticated, redirecting to dashboard');
     return <Navigate to="/" replace />;
   }
+
 
   // Show loading during OAuth callback processing
   if (isProcessingCallback) {
