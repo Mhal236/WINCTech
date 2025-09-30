@@ -45,10 +45,12 @@ export const getApplicationByUserId = async (userId: string, userEmail?: string)
       }
     }
     
+    // Look for pending applications first, then drafts
     const { data, error } = await supabase
       .from('applications')
       .select('*')
       .eq('user_id', actualUserId)
+      .in('status', ['pending', 'approved', 'rejected']) // Don't return drafts in this function
       .order('submitted_at', { ascending: false })
       .limit(1)
       .single();
@@ -244,31 +246,343 @@ export function VerificationForm() {
     };
   }, [postcodeDebounceTimer]);
 
-  const [formData, setFormData] = useState<VerificationFormData>({
-    first_name: '',
-    last_name: '',
-    email: user?.email || '',
-    company_name: '',
-    business_type: '',
-    registration_number: '',
-    dvla_number: '',
-    vat_registered: false,
-    vat_number: '',
-    contact_phone: '',
-    business_postcode: '',
-    business_address: '',
-    vehicle_registration_number: '',
-    vehicle_make: '',
-    vehicle_model: '',
-    driver_license_number: '',
-    years_in_business: '',
-    services_offered: [],
-    coverage_areas: [],
-    glass_supplier: '',
-    certifications: '',
-    insurance_details: '',
-    additional_info: ''
-  });
+  // Form persistence helper functions
+  const getStorageKey = () => `verification_form_${user?.id || 'temp'}`;
+  
+  const saveFormData = (data: VerificationFormData) => {
+    try {
+      localStorage.setItem(getStorageKey(), JSON.stringify(data));
+      console.log('🟢 Form data saved to localStorage');
+    } catch (error) {
+      console.warn('⚠️ Failed to save form data to localStorage:', error);
+    }
+  };
+
+  const loadFormData = (): VerificationFormData | null => {
+    try {
+      const saved = localStorage.getItem(getStorageKey());
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        console.log('🟢 Form data loaded from localStorage');
+        return parsed;
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to load form data from localStorage:', error);
+    }
+    return null;
+  };
+
+  const clearFormData = () => {
+    try {
+      localStorage.removeItem(getStorageKey());
+      console.log('🟢 Form data cleared from localStorage');
+    } catch (error) {
+      console.warn('⚠️ Failed to clear form data from localStorage:', error);
+    }
+  };
+
+  // Initialize form data with saved data or defaults
+  const initializeFormData = (): VerificationFormData => {
+    const savedData = loadFormData();
+    const defaultData: VerificationFormData = {
+      first_name: '',
+      last_name: '',
+      email: user?.email || '',
+      company_name: '',
+      business_type: '',
+      registration_number: '',
+      dvla_number: '',
+      vat_registered: false,
+      vat_number: '',
+      contact_phone: '',
+      business_postcode: '',
+      business_address: '',
+      vehicle_registration_number: '',
+      vehicle_make: '',
+      vehicle_model: '',
+      driver_license_number: '',
+      years_in_business: '',
+      services_offered: [],
+      coverage_areas: [],
+      glass_supplier: '',
+      certifications: '',
+      insurance_details: '',
+      additional_info: ''
+    };
+
+    if (savedData) {
+      // Merge saved data with defaults, ensuring email is always current
+      return {
+        ...defaultData,
+        ...savedData,
+        email: user?.email || savedData.email || ''
+      };
+    }
+
+    return defaultData;
+  };
+
+  // Load draft data from Supabase on component mount
+  useEffect(() => {
+    const loadDraftData = async () => {
+      if (!user?.id || existingApplication || isCheckingApplication) return;
+
+      try {
+        const draftData = await loadDraftFromSupabase();
+        if (draftData) {
+          console.log('🟢 Loading draft data from Supabase');
+          setFormData(draftData);
+          // Also save to localStorage for offline access
+          saveFormData(draftData);
+        }
+      } catch (error) {
+        console.error('🔴 Error loading draft data:', error);
+      }
+    };
+
+    // Only load draft once when component mounts and user is available
+    if (user?.id && !isCheckingApplication && !existingApplication) {
+      loadDraftData();
+    }
+  }, [user?.id]); // Remove dependencies that cause re-renders
+
+  const [formData, setFormData] = useState<VerificationFormData>(initializeFormData());
+  const [draftApplicationId, setDraftApplicationId] = useState<string | null>(null);
+  const [isSavingToDB, setIsSavingToDB] = useState(false);
+
+  // Auto-save form data to localStorage whenever it changes (debounced)
+  useEffect(() => {
+    if (user?.id && formData.email) { // Only save if we have meaningful data
+      const timeoutId = setTimeout(() => {
+        saveFormData(formData);
+      }, 500); // Debounce saves by 500ms
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [formData, user?.id]);
+
+  // Enhanced setFormData that automatically saves to localStorage
+  const updateFormData = (updater: (prev: VerificationFormData) => VerificationFormData) => {
+    setFormData(prev => {
+      const newData = updater(prev);
+      // Save will happen in the useEffect above
+      return newData;
+    });
+  };
+
+  // Save draft application to Supabase
+  const saveDraftToSupabase = async (stepCompleted: number) => {
+    if (!user?.id || isSavingToDB) return;
+
+    setIsSavingToDB(true);
+    try {
+      // Ensure we have a valid UUID for user_id and that user exists in app_users
+      let userId = user.id;
+      let isOAuthId = !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+      
+      console.log('🔵 Draft save: Checking user in app_users table. User ID:', userId, 'Is OAuth ID:', isOAuthId);
+      
+      // Always check if user exists in app_users table by email first
+      const { data: appUser, error: lookupError } = await supabase
+        .from('app_users')
+        .select('id')
+        .eq('email', user.email)
+        .single();
+        
+      if (lookupError || !appUser) {
+        console.log('🔵 User not found in app_users for draft save, creating new user record. Error:', lookupError);
+        
+        // Create the user in app_users table using auth.uid() as primary key
+        const newUserData = {
+          id: userId, // Use the auth.uid() as the primary key for RLS compatibility
+          email: user.email,
+          name: user.name || user.email,
+          user_role: 'pending',
+          verification_status: 'non-verified',
+          auth_provider: isOAuthId ? 'google' : 'email',
+          oauth_user_id: isOAuthId ? userId : null,
+          created_at: new Date().toISOString()
+        };
+        
+        console.log('🔵 Draft save: Attempting to create user in app_users with data:', newUserData);
+        
+        const { data: insertedUser, error: insertError } = await supabase
+          .from('app_users')
+          .insert(newUserData)
+          .select('id')
+          .single();
+        
+        console.log('🔵 Draft save: Insert result:', { data: insertedUser, error: insertError });
+        
+        if (insertError) {
+          console.error('🔴 Error creating user in app_users for draft save:', insertError);
+          return;
+        }
+        
+        if (!insertedUser || !insertedUser.id) {
+          console.error('🔴 Draft save: No user data returned from insert');
+          return;
+        }
+        
+        userId = insertedUser.id;
+        console.log('🟢 Created new user in app_users table for draft save with ID:', userId);
+      } else {
+        userId = appUser.id;
+        console.log('🟢 Found existing user in app_users for draft save:', userId);
+      }
+
+      // Prepare application data for current step
+      const applicationData = {
+        user_id: userId,
+        // Personal Information
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        email: formData.email,
+        // Company Information
+        company_name: formData.company_name,
+        business_type: formData.business_type,
+        registration_number: formData.registration_number || null,
+        dvla_number: formData.dvla_number || null,
+        vat_number: formData.vat_registered ? formData.vat_number : null,
+        years_in_business: formData.years_in_business,
+        // Contact Information
+        contact_phone: formData.contact_phone,
+        business_postcode: formData.business_postcode,
+        business_address: formData.business_address,
+        // Vehicle Information
+        vehicle_registration_number: formData.vehicle_registration_number || null,
+        vehicle_make: formData.vehicle_make || null,
+        vehicle_model: formData.vehicle_model || null,
+        driver_license_number: formData.driver_license_number || null,
+        // Services & Certifications
+        services_offered: formData.services_offered,
+        coverage_areas: formData.coverage_areas,
+        glass_supplier: formData.glass_supplier,
+        certifications: formData.certifications || null,
+        insurance_details: formData.insurance_details,
+        additional_info: formData.additional_info || null,
+        // Status
+        status: 'draft',
+        updated_at: new Date().toISOString()
+      };
+
+      if (draftApplicationId) {
+        // Update existing draft
+        const { data, error } = await supabase
+          .from('applications')
+          .update(applicationData)
+          .eq('id', draftApplicationId)
+          .eq('user_id', userId)
+          .select('*')
+          .single();
+
+        if (error) {
+          console.error('🔴 Error updating draft application:', error);
+        } else {
+          console.log(`🟢 Draft application updated after step ${stepCompleted}:`, data);
+        }
+      } else {
+        // Create new draft
+        const { data, error } = await supabase
+          .from('applications')
+          .insert({ ...applicationData, created_at: new Date().toISOString() })
+          .select('*')
+          .single();
+
+        if (error) {
+          console.error('🔴 Error creating draft application:', error);
+        } else {
+          console.log(`🟢 Draft application created after step ${stepCompleted}:`, data);
+          setDraftApplicationId(data.id);
+        }
+      }
+    } catch (error) {
+      console.error('🔴 Error saving draft to Supabase:', error);
+    } finally {
+      setIsSavingToDB(false);
+    }
+  };
+
+  // Load existing draft from Supabase
+  const loadDraftFromSupabase = async () => {
+    if (!user?.id) return null;
+
+    try {
+      let userId = user.id;
+      let isOAuthId = !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+      
+      console.log('🔵 Draft load: Checking user in app_users table. User ID:', userId, 'Is OAuth ID:', isOAuthId);
+      
+      // Always check if user exists in app_users table, regardless of ID format
+      const { data: appUser, error: lookupError } = await supabase
+        .from('app_users')
+        .select('id')
+        .eq(isOAuthId ? 'email' : 'id', isOAuthId ? user.email : userId)
+        .single();
+        
+      if (lookupError || !appUser) {
+        console.log('🔵 User not found in app_users during draft load, will be created on first save. Error:', lookupError);
+        return null; // No draft to load, user will be created on first save
+      }
+      
+      userId = appUser.id;
+      console.log('🟢 Found existing user in app_users for draft load:', userId);
+
+      // Look for existing draft application
+      const { data, error } = await supabase
+        .from('applications')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('status', 'draft')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+        console.error('🔴 Error loading draft application:', error);
+        return null;
+      }
+
+      if (data) {
+        console.log('🟢 Found existing draft application:', data);
+        setDraftApplicationId(data.id);
+        
+        // Convert database data back to form data
+        const draftFormData: VerificationFormData = {
+          first_name: data.first_name || '',
+          last_name: data.last_name || '',
+          email: data.email || user.email || '',
+          company_name: data.company_name || '',
+          business_type: data.business_type || '',
+          registration_number: data.registration_number || '',
+          dvla_number: data.dvla_number || '',
+          vat_registered: !!data.vat_number,
+          vat_number: data.vat_number || '',
+          years_in_business: data.years_in_business || '',
+          contact_phone: data.contact_phone || '',
+          business_postcode: data.business_postcode || '',
+          business_address: data.business_address || '',
+          vehicle_registration_number: data.vehicle_registration_number || '',
+          vehicle_make: data.vehicle_make || '',
+          vehicle_model: data.vehicle_model || '',
+          driver_license_number: data.driver_license_number || '',
+          services_offered: data.services_offered || [],
+          coverage_areas: data.coverage_areas || [],
+          glass_supplier: data.glass_supplier || '',
+          certifications: data.certifications || '',
+          insurance_details: data.insurance_details || '',
+          additional_info: data.additional_info || ''
+        };
+
+        return draftFormData;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('🔴 Error in loadDraftFromSupabase:', error);
+      return null;
+    }
+  };
 
   const businessTypes = [
     'Limited Company',
@@ -306,7 +620,7 @@ export function VerificationForm() {
 
 
   const handleServiceToggle = (service: string) => {
-    setFormData(prev => ({
+    updateFormData(prev => ({
       ...prev,
       services_offered: prev.services_offered.includes(service)
         ? prev.services_offered.filter(s => s !== service)
@@ -315,7 +629,7 @@ export function VerificationForm() {
   };
 
   const handleCoverageAreaToggle = (area: string) => {
-    setFormData(prev => ({
+    updateFormData(prev => ({
       ...prev,
       coverage_areas: prev.coverage_areas.includes(area)
         ? prev.coverage_areas.filter(a => a !== area)
@@ -336,7 +650,7 @@ export function VerificationForm() {
       const vehicleData = await VehicleService.lookupVehicleData(formData.vehicle_registration_number);
       
       if (vehicleData.success) {
-        setFormData(prev => ({
+        updateFormData(prev => ({
           ...prev,
           vehicle_make: vehicleData.make,
           vehicle_model: vehicleData.model,
@@ -386,7 +700,7 @@ export function VerificationForm() {
         setSelectedAddressIndex(''); // Reset selection
         
         // Update the postcode format
-        setFormData(prev => ({ 
+        updateFormData(prev => ({ 
           ...prev, 
           business_postcode: postcodeData.postcode
         }));
@@ -405,7 +719,7 @@ export function VerificationForm() {
 
   const handlePostcodeChange = (newPostcode: string) => {
     const upperPostcode = newPostcode.toUpperCase();
-    setFormData(prev => ({ ...prev, business_postcode: upperPostcode }));
+    updateFormData(prev => ({ ...prev, business_postcode: upperPostcode }));
     setPostcodeLookupError(''); // Clear error when typing
     setFoundAddresses([]); // Clear found addresses when typing
     setSelectedAddressIndex(''); // Clear selection when typing
@@ -426,7 +740,7 @@ export function VerificationForm() {
   };
 
   const handleAddressSelection = (selectedAddress: any) => {
-    setFormData(prev => ({ 
+    updateFormData(prev => ({ 
       ...prev, 
       business_address: selectedAddress.fullAddress
     }));
@@ -442,8 +756,10 @@ export function VerificationForm() {
     });
   };
 
-  const nextStep = () => {
+  const nextStep = async () => {
     if (currentStep < steps.length) {
+      // Save current step progress to Supabase before moving to next step
+      await saveDraftToSupabase(currentStep);
       setCurrentStep(currentStep + 1);
     }
   };
@@ -473,7 +789,8 @@ export function VerificationForm() {
       case 3:
         return formData.years_in_business && formData.coverage_areas.length > 0 && formData.glass_supplier;
       case 4:
-        return formData.services_offered.length > 0 && formData.insurance_details;
+        // Allow progression even if insurance_details is empty (user can say "No" to insurance)
+        return formData.services_offered.length > 0;
       default:
         return false;
     }
@@ -487,7 +804,7 @@ export function VerificationForm() {
         throw new Error('User not authenticated');
       }
 
-      // Check if user already has a pending application
+      // Check if user already has a pending application (but allow draft conversion)
       if (existingApplication && existingApplication.status === 'pending') {
         toast({
           title: "Application Already Submitted",
@@ -500,56 +817,79 @@ export function VerificationForm() {
 
       console.log('🔵 Submitting verification application for user:', user.id);
 
-      // Ensure we have a valid UUID for user_id
+      // Ensure we have a valid UUID for user_id and that user exists in app_users
       let userId = user.id;
+      let isOAuthId = !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
       
-      // Check if the user ID looks like a Google OAuth ID (numeric string) instead of UUID
-      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
-        console.log('🔵 User ID appears to be OAuth ID, looking up UUID from app_users table');
+      console.log('🔵 Checking user in app_users table. User ID:', userId, 'Is OAuth ID:', isOAuthId);
+      
+      // Always check if user exists in app_users table, regardless of ID format
+      const { data: appUser, error: lookupError } = await supabase
+        .from('app_users')
+        .select('id')
+        .eq(isOAuthId ? 'email' : 'id', isOAuthId ? user.email : userId)
+        .single();
         
-        // Look up the actual UUID from app_users table
-        const { data: appUser, error: lookupError } = await supabase
-          .from('app_users')
-          .select('id')
-          .eq('email', user.email)
-          .single();
+      if (lookupError || !appUser) {
+        console.log('🔵 User not found in app_users table, creating new user. Error:', lookupError);
+        
+        // Create the user in app_users table using auth.uid() as primary key
+        const newUserData = {
+          id: userId, // Use the auth.uid() as the primary key for RLS compatibility
+          email: user.email,
+          name: user.name || user.email,
+          user_role: 'pending',
+          verification_status: 'non-verified',
+          auth_provider: isOAuthId ? 'google' : 'email',
+          oauth_user_id: isOAuthId ? userId : null,
+          created_at: new Date().toISOString()
+        };
+        
+        console.log('🔵 Attempting to create user in app_users with data:', newUserData);
+        
+        try {
+          const { data: insertedUser, error: insertError } = await supabase
+            .from('app_users')
+            .insert(newUserData)
+            .select('id')
+            .single();
           
-        if (lookupError || !appUser) {
-          console.error('🔴 Could not find user in app_users table, creating new user:', lookupError);
+          console.log('🔵 Insert result:', { data: insertedUser, error: insertError });
           
-          // Create the user in app_users table
-          const newUserData = {
-            email: user.email,
-            name: user.name,
-            user_role: user.user_role || 'pending',
-            verification_status: user.verification_status || 'non-verified',
-            auth_provider: 'google',
-            oauth_user_id: userId,
-            created_at: new Date().toISOString()
-          };
-          
-          try {
-            const { data: insertedUser, error: insertError } = await supabase
-              .from('app_users')
-              .insert([newUserData])
-              .select('id')
-              .single();
-            
-            if (insertError) {
-              console.error('🔴 Error creating user in app_users:', insertError);
-              throw new Error('Could not create user record. Please try again.');
-            }
-            
-            userId = insertedUser.id;
-            console.log('🟢 Created new user in app_users table:', userId);
-          } catch (createError) {
-            console.error('🔴 Exception creating user:', createError);
-            throw new Error('Could not create user record. Please try again.');
+          if (insertError) {
+            console.error('🔴 Error creating user in app_users:', insertError);
+            throw new Error(`Could not create user record: ${insertError.message}`);
           }
-        } else {
-          userId = appUser.id;
-          console.log('🟢 Found existing user UUID:', userId);
+          
+          if (!insertedUser || !insertedUser.id) {
+            console.error('🔴 No user data returned from insert');
+            throw new Error('User creation succeeded but no ID returned');
+          }
+          
+          userId = insertedUser.id;
+          console.log('🟢 Created new user in app_users table with ID:', userId);
+          
+          // Verify the user was actually created
+          const { data: verifyUser, error: verifyError } = await supabase
+            .from('app_users')
+            .select('id, email')
+            .eq('id', userId)
+            .single();
+            
+          if (verifyError || !verifyUser) {
+            console.error('🔴 User creation verification failed:', verifyError);
+            throw new Error('User creation could not be verified');
+          }
+          
+          console.log('🟢 User creation verified:', verifyUser);
+          
+        } catch (createError) {
+          console.error('🔴 Exception creating user:', createError);
+          throw new Error(`Could not create user record: ${createError.message}`);
         }
+      } else {
+        userId = appUser.id;
+        console.log('🟢 Found existing user in app_users table:', userId);
       }
 
       // Prepare application data
@@ -590,12 +930,40 @@ export function VerificationForm() {
 
       console.log('🔵 Application data to submit:', applicationData);
 
-      // Insert application record
-      const { data: applicationResult, error: applicationError } = await supabase
-        .from('applications')
-        .insert([applicationData])
-        .select('*')
-        .single();
+      let applicationResult;
+      let applicationError;
+
+      if (draftApplicationId) {
+        // Update existing draft to completed application
+        const result = await supabase
+          .from('applications')
+          .update({
+            ...applicationData,
+            status: 'pending',
+            submitted_at: new Date().toISOString()
+          })
+          .eq('id', draftApplicationId)
+          .eq('user_id', userId)
+          .select('*')
+          .single();
+        
+        applicationResult = result.data;
+        applicationError = result.error;
+        
+        if (!applicationError) {
+          console.log('🟢 Draft application converted to pending:', applicationResult);
+        }
+      } else {
+        // Insert new application record
+        const result = await supabase
+          .from('applications')
+          .insert(applicationData)
+          .select('*')
+          .single();
+        
+        applicationResult = result.data;
+        applicationError = result.error;
+      }
 
       if (applicationError) {
         console.error('🔴 Error creating application:', applicationError);
@@ -644,6 +1012,9 @@ export function VerificationForm() {
         console.warn('⚠️ Email sending failed but application was successful:', emailError);
       }
 
+      // Clear saved form data since application was successfully submitted
+      clearFormData();
+
       // Set submission complete state with details
       setSubmissionDetails({
         applicationId: applicationResult.id,
@@ -667,7 +1038,7 @@ export function VerificationForm() {
   // Show a more elegant loading state
   if (isCheckingApplication) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-2 sm:px-4">
         <div className="w-full max-w-2xl mx-auto">
           <div className="relative text-center mb-8">
             {/* Logout Button - Top Right */}
@@ -723,7 +1094,7 @@ export function VerificationForm() {
     };
 
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-2 sm:px-4">
         <div className="w-full max-w-2xl mx-auto">
           <div className="relative text-center mb-8">
             {/* Logout Button - Top Right */}
@@ -822,7 +1193,7 @@ export function VerificationForm() {
 
   if (user?.verification_status === 'rejected') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-2 sm:px-4">
         <div className="w-full max-w-2xl mx-auto">
           <div className="relative text-center mb-8">
             {/* Logout Button - Top Right */}
@@ -879,51 +1250,51 @@ export function VerificationForm() {
   const progress = (currentStep / steps.length) * 100;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-8 px-4">
+    <div className="min-h-screen bg-gray-50 py-4 sm:py-8 px-2 sm:px-4">
       <div className="w-full max-w-4xl mx-auto">
         {/* Standalone Header */}
-        <div className="relative text-center mb-8">
+        <div className="relative text-center mb-4 sm:mb-8">
           {/* Logout Button - Top Right */}
           <div className="absolute top-0 right-0">
             <Button
               variant="outline"
               size="sm"
               onClick={handleLogout}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 border-gray-300 hover:border-gray-400"
+              className="flex items-center gap-1 sm:gap-2 text-gray-600 hover:text-gray-900 border-gray-300 hover:border-gray-400 text-xs sm:text-sm px-2 sm:px-3"
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-3 w-3 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">Logout</span>
             </Button>
           </div>
           
-          <div className="flex items-center justify-center mb-4">
+          <div className="flex items-center justify-center mb-3 sm:mb-4">
             <img 
               src="/windscreen-compare-technician.png" 
               alt="WindscreenCompare" 
-              className="h-12 w-auto"
+              className="h-8 sm:h-12 w-auto"
             />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Technician Verification</h1>
-          <p className="text-gray-600">Complete your application to start receiving jobs</p>
+          <h1 className="text-xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-2 px-4">Technician Verification</h1>
+          <p className="text-sm sm:text-base text-gray-600 px-4">Complete your application to start receiving jobs</p>
         </div>
         
         <Card className="border-0 shadow-xl bg-white">
         {/* Header with progress */}
-        <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                <FileText className="w-6 h-6 text-white" />
+        <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 space-y-3 sm:space-y-0">
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <div className="w-8 h-8 sm:w-12 sm:h-12 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
+                <FileText className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
               </div>
-              <div>
-                <CardTitle className="text-2xl font-bold">Technician Application</CardTitle>
-                <CardDescription className="text-blue-100">
+              <div className="min-w-0 flex-1">
+                <CardTitle className="text-lg sm:text-2xl font-bold truncate">Technician Application</CardTitle>
+                <CardDescription className="text-blue-100 text-xs sm:text-sm hidden sm:block">
                   Apply to join our network of verified technicians
                 </CardDescription>
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-white/80 text-sm">Step {currentStep} of {steps.length}</div>
+            <div className="text-center sm:text-right">
+              <div className="text-white/80 text-sm font-medium">Step {currentStep} of {steps.length}</div>
             </div>
           </div>
           
@@ -936,15 +1307,15 @@ export function VerificationForm() {
           </div>
           
           {/* Step indicators */}
-          <div className="flex justify-between mt-6">
+          <div className="flex justify-between mt-4 sm:mt-6 px-2 sm:px-0">
             {steps.map((step, index) => {
               const isActive = step.id === currentStep;
               const isCompleted = step.id < currentStep;
               const StepIconComponent = step.icon;
               
               return (
-                <div key={step.id} className="flex flex-col items-center">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
+                <div key={step.id} className="flex flex-col items-center flex-1 max-w-[80px] sm:max-w-none">
+                  <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
                     isCompleted 
                       ? 'bg-green-500 text-white' 
                       : isActive 
@@ -952,15 +1323,16 @@ export function VerificationForm() {
                         : 'bg-white/20 text-white/60'
                   }`}>
                     {isCompleted ? (
-                      <Check className="w-5 h-5" />
+                      <Check className="w-4 h-4 sm:w-5 sm:h-5" />
                     ) : (
-                      <StepIconComponent className="w-5 h-5" />
+                      <StepIconComponent className="w-4 h-4 sm:w-5 sm:h-5" />
                     )}
                   </div>
-                  <span className={`text-xs mt-2 transition-all duration-300 ${
+                  <span className={`text-[10px] sm:text-xs mt-1 sm:mt-2 transition-all duration-300 text-center leading-tight ${
                     isActive ? 'text-white font-medium' : 'text-white/60'
                   }`}>
-                    {step.title}
+                    <span className="hidden sm:inline">{step.title}</span>
+                    <span className="sm:hidden">{step.title.split(' ')[0]}</span>
                   </span>
                 </div>
               );
@@ -968,50 +1340,53 @@ export function VerificationForm() {
           </div>
         </CardHeader>
         
-        <CardContent className="p-8">
+        <CardContent className="p-4 sm:p-8">
+          {/* Form auto-save notification */}
+         
+
           {/* Current step content */}
-          <div className="mb-8">
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <StepIcon className="w-6 h-6 text-blue-600" />
+          <div className="mb-6 sm:mb-8">
+            <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <StepIcon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
               </div>
-              <div>
-                <h3 className="text-xl font-semibold text-gray-800">{currentStepData.title}</h3>
-                <p className="text-gray-600">{currentStepData.description}</p>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-800">{currentStepData.title}</h3>
+                <p className="text-sm sm:text-base text-gray-600">{currentStepData.description}</p>
               </div>
             </div>
 
             {/* Step 1: Company Details */}
             {currentStep === 1 && (
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 <div>
-                  <Label htmlFor="email" className="text-base font-medium">Email Address *</Label>
+                  <Label htmlFor="email" className="text-sm sm:text-base font-medium block mb-2">Email Address *</Label>
                   <Input
                     id="email"
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    className="mt-2 h-12"
+                    onChange={(e) => updateFormData(prev => ({ ...prev, email: e.target.value }))}
+                    className="h-11 sm:h-12 text-base"
                     placeholder="Enter your email address"
                   />
                 </div>
                 
                 <div>
-                  <Label htmlFor="company_name" className="text-base font-medium">Company Name *</Label>
+                  <Label htmlFor="company_name" className="text-sm sm:text-base font-medium block mb-2">Company Name *</Label>
                   <Input
                     id="company_name"
                     value={formData.company_name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, company_name: e.target.value }))}
-                    className="mt-2 h-12"
+                    onChange={(e) => updateFormData(prev => ({ ...prev, company_name: e.target.value }))}
+                    className="h-11 sm:h-12 text-base"
                     placeholder="Enter your company name"
                   />
                 </div>
                 
                 <div>
-                  <Label htmlFor="business_type" className="text-base font-medium">Business Type *</Label>
+                  <Label htmlFor="business_type" className="text-sm sm:text-base font-medium block mb-2">Business Type *</Label>
                   <Select 
                     value={formData.business_type} 
-                    onValueChange={(value) => setFormData(prev => ({ 
+                    onValueChange={(value) => updateFormData(prev => ({ 
                       ...prev, 
                       business_type: value,
                       // Clear company-specific fields when switching to Sole Trader
@@ -1021,7 +1396,7 @@ export function VerificationForm() {
                       vat_number: value === 'Sole Trader' ? '' : prev.vat_number
                     }))}
                   >
-                    <SelectTrigger className="mt-2 h-12">
+                    <SelectTrigger className="h-11 sm:h-12 text-base">
                       <SelectValue placeholder="Select your business type" />
                     </SelectTrigger>
                     <SelectContent className="bg-white border border-gray-200 shadow-lg">
@@ -1034,25 +1409,25 @@ export function VerificationForm() {
                 
                 {/* Company Registration Fields - Only for Limited Company */}
                 {formData.business_type === 'Limited Company' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     <div>
-                      <Label htmlFor="registration_number" className="text-base font-medium">Company Registration Number</Label>
+                      <Label htmlFor="registration_number" className="text-sm sm:text-base font-medium block mb-2">Company Registration Number</Label>
                       <Input
                         id="registration_number"
                         value={formData.registration_number}
-                        onChange={(e) => setFormData(prev => ({ ...prev, registration_number: e.target.value }))}
-                        className="mt-2 h-12"
+                        onChange={(e) => updateFormData(prev => ({ ...prev, registration_number: e.target.value }))}
+                        className="h-11 sm:h-12 text-base"
                         placeholder="e.g. 12345678"
                       />
                     </div>
                     
                     <div>
-                      <Label htmlFor="dvla_number" className="text-base font-medium">DVLA Number</Label>
+                      <Label htmlFor="dvla_number" className="text-sm sm:text-base font-medium block mb-2">DVLA Number</Label>
                       <Input
                         id="dvla_number"
                         value={formData.dvla_number}
-                        onChange={(e) => setFormData(prev => ({ ...prev, dvla_number: e.target.value }))}
-                        className="mt-2 h-12"
+                        onChange={(e) => updateFormData(prev => ({ ...prev, dvla_number: e.target.value }))}
+                        className="h-11 sm:h-12 text-base"
                         placeholder="e.g. DVLA123456"
                       />
                     </div>
@@ -1067,7 +1442,7 @@ export function VerificationForm() {
                         type="checkbox"
                         id="vat_registered"
                         checked={formData.vat_registered}
-                        onChange={(e) => setFormData(prev => ({ 
+                        onChange={(e) => updateFormData(prev => ({ 
                           ...prev, 
                           vat_registered: e.target.checked,
                           // Clear VAT number if unchecking
@@ -1075,19 +1450,19 @@ export function VerificationForm() {
                         }))}
                         className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                       />
-                      <Label htmlFor="vat_registered" className="text-base font-medium cursor-pointer">
+                      <Label htmlFor="vat_registered" className="text-sm sm:text-base font-medium cursor-pointer">
                         My business is VAT registered
                       </Label>
                     </div>
                     
                     {formData.vat_registered && (
-                      <div className="ml-8 transition-all duration-300 ease-in-out">
-                        <Label htmlFor="vat_number" className="text-base font-medium">VAT Number *</Label>
+                      <div className="ml-6 sm:ml-8 transition-all duration-300 ease-in-out">
+                        <Label htmlFor="vat_number" className="text-sm sm:text-base font-medium block mb-2">VAT Number *</Label>
                         <Input
                           id="vat_number"
                           value={formData.vat_number}
-                          onChange={(e) => setFormData(prev => ({ ...prev, vat_number: e.target.value }))}
-                          className="mt-2 h-12"
+                          onChange={(e) => updateFormData(prev => ({ ...prev, vat_number: e.target.value }))}
+                          className="h-11 sm:h-12 text-base"
                           placeholder="e.g. GB123456789"
                         />
                       </div>
@@ -1099,39 +1474,39 @@ export function VerificationForm() {
 
             {/* Step 2: Contact Information */}
             {currentStep === 2 && (
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 {/* Personal Information */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                   <div>
-                    <Label htmlFor="first_name" className="text-base font-medium">First Name *</Label>
+                    <Label htmlFor="first_name" className="text-sm sm:text-base font-medium block mb-2">First Name *</Label>
                     <Input
                       id="first_name"
                       value={formData.first_name}
-                      onChange={(e) => setFormData(prev => ({ ...prev, first_name: e.target.value }))}
-                      className="mt-2 h-12"
+                      onChange={(e) => updateFormData(prev => ({ ...prev, first_name: e.target.value }))}
+                      className="h-11 sm:h-12 text-base"
                       placeholder="Enter your first name"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="last_name" className="text-base font-medium">Last Name *</Label>
+                    <Label htmlFor="last_name" className="text-sm sm:text-base font-medium block mb-2">Last Name *</Label>
                     <Input
                       id="last_name"
                       value={formData.last_name}
-                      onChange={(e) => setFormData(prev => ({ ...prev, last_name: e.target.value }))}
-                      className="mt-2 h-12"
+                      onChange={(e) => updateFormData(prev => ({ ...prev, last_name: e.target.value }))}
+                      className="h-11 sm:h-12 text-base"
                       placeholder="Enter your last name"
                     />
                   </div>
                 </div>
                 
                 <div>
-                  <Label htmlFor="contact_phone" className="text-base font-medium">Contact Phone *</Label>
+                  <Label htmlFor="contact_phone" className="text-sm sm:text-base font-medium block mb-2">Contact Phone *</Label>
                   <Input
                     id="contact_phone"
                     type="tel"
                     value={formData.contact_phone}
-                    onChange={(e) => setFormData(prev => ({ ...prev, contact_phone: e.target.value }))}
-                    className="mt-2 h-12"
+                    onChange={(e) => updateFormData(prev => ({ ...prev, contact_phone: e.target.value }))}
+                    className="h-11 sm:h-12 text-base"
                     placeholder="e.g. +44 7123 456789"
                   />
                 </div>
@@ -1142,7 +1517,7 @@ export function VerificationForm() {
                   
                   {/* Postcode Input with Auto-Lookup */}
                   <div>
-                    <Label htmlFor="business_postcode" className="text-base font-medium">
+                    <Label htmlFor="business_postcode" className="text-sm sm:text-base font-medium block mb-2">
                       Postcode *
                       {isLookingUpPostcode && <Loader2 className="w-4 h-4 animate-spin inline ml-2" />}
                     </Label>
@@ -1150,7 +1525,7 @@ export function VerificationForm() {
                       id="business_postcode"
                       value={formData.business_postcode}
                       onChange={(e) => handlePostcodeChange(e.target.value)}
-                      className="mt-2 h-12"
+                      className="h-11 sm:h-12 text-base"
                       placeholder="e.g. SW1A 1AA - addresses will appear as you type"
                       maxLength={8}
                     />
@@ -1167,12 +1542,12 @@ export function VerificationForm() {
                   
                   {/* Address Field with Integrated Dropdown */}
                   <div className="relative">
-                    <Label htmlFor="business_address" className="text-base font-medium">Full Address *</Label>
+                    <Label htmlFor="business_address" className="text-sm sm:text-base font-medium block mb-2">Full Address *</Label>
                     <Textarea
                       id="business_address"
                       value={formData.business_address}
-                      onChange={(e) => setFormData(prev => ({ ...prev, business_address: e.target.value }))}
-                      className="mt-2 min-h-[60px] max-h-[80px]"
+                      onChange={(e) => updateFormData(prev => ({ ...prev, business_address: e.target.value }))}
+                      className="min-h-[60px] max-h-[80px] text-base"
                       placeholder={foundAddresses.length > 0 ? "Select an address from the dropdown below" : "Enter your full business address or use postcode lookup above"}
                       readOnly={foundAddresses.length > 0}
                     />
@@ -1208,13 +1583,13 @@ export function VerificationForm() {
                   <div className="space-y-4">
                     {/* VRN Input with Lookup Button */}
                     <div>
-                      <Label htmlFor="vehicle_registration_number" className="text-base font-medium">Vehicle Registration Number (VRN) *</Label>
+                      <Label htmlFor="vehicle_registration_number" className="text-sm sm:text-base font-medium block mb-2">Vehicle Registration Number (VRN) *</Label>
                       <div className="flex gap-2 mt-2">
                         <Input
                           id="vehicle_registration_number"
                           value={formData.vehicle_registration_number}
                           onChange={(e) => {
-                            setFormData(prev => ({ ...prev, vehicle_registration_number: e.target.value.toUpperCase() }));
+                            updateFormData(prev => ({ ...prev, vehicle_registration_number: e.target.value.toUpperCase() }));
                             setVehicleLookupError(''); // Clear error when typing
                           }}
                           className="h-12 flex-1"
@@ -1241,25 +1616,25 @@ export function VerificationForm() {
                     </div>
                     
                     {/* Vehicle Make and Model */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                       <div>
-                        <Label htmlFor="vehicle_make" className="text-base font-medium">Vehicle Make *</Label>
+                        <Label htmlFor="vehicle_make" className="text-sm sm:text-base font-medium block mb-2">Vehicle Make *</Label>
                         <Input
                           id="vehicle_make"
                           value={formData.vehicle_make}
-                          onChange={(e) => setFormData(prev => ({ ...prev, vehicle_make: e.target.value }))}
-                          className="mt-2 h-12"
+                          onChange={(e) => updateFormData(prev => ({ ...prev, vehicle_make: e.target.value }))}
+                          className="h-11 sm:h-12 text-base"
                           placeholder="e.g. Ford, BMW, Toyota"
                         />
                       </div>
                       
                       <div>
-                        <Label htmlFor="vehicle_model" className="text-base font-medium">Vehicle Model *</Label>
+                        <Label htmlFor="vehicle_model" className="text-sm sm:text-base font-medium block mb-2">Vehicle Model *</Label>
                         <Input
                           id="vehicle_model"
                           value={formData.vehicle_model}
-                          onChange={(e) => setFormData(prev => ({ ...prev, vehicle_model: e.target.value }))}
-                          className="mt-2 h-12"
+                          onChange={(e) => updateFormData(prev => ({ ...prev, vehicle_model: e.target.value }))}
+                          className="h-11 sm:h-12 text-base"
                           placeholder="e.g. Focus, 3 Series, Corolla"
                         />
                       </div>
@@ -1267,12 +1642,12 @@ export function VerificationForm() {
                     
                     {/* Driver License Number */}
                     <div>
-                      <Label htmlFor="driver_license_number" className="text-base font-medium">Driver License Number *</Label>
+                      <Label htmlFor="driver_license_number" className="text-sm sm:text-base font-medium block mb-2">Driver License Number *</Label>
                       <Input
                         id="driver_license_number"
                         value={formData.driver_license_number}
-                        onChange={(e) => setFormData(prev => ({ ...prev, driver_license_number: e.target.value.toUpperCase() }))}
-                        className="mt-2 h-12"
+                        onChange={(e) => updateFormData(prev => ({ ...prev, driver_license_number: e.target.value.toUpperCase() }))}
+                        className="h-11 sm:h-12 text-base"
                         placeholder="e.g. SMITH123456AB9CD"
                         maxLength={16}
                       />
@@ -1287,12 +1662,12 @@ export function VerificationForm() {
             {currentStep === 3 && (
               <div className="space-y-6">
                 <div>
-                  <Label htmlFor="years_in_business" className="text-base font-medium">Years in Business *</Label>
+                  <Label htmlFor="years_in_business" className="text-sm sm:text-base font-medium block mb-2">Years in Business *</Label>
                   <Select 
                     value={formData.years_in_business} 
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, years_in_business: value }))}
+                    onValueChange={(value) => updateFormData(prev => ({ ...prev, years_in_business: value }))}
                   >
-                    <SelectTrigger className="mt-2 h-12">
+                    <SelectTrigger className="h-11 sm:h-12 text-base">
                       <SelectValue placeholder="How long have you been in business?" />
                     </SelectTrigger>
                     <SelectContent className="bg-white border border-gray-200 shadow-lg">
@@ -1307,11 +1682,11 @@ export function VerificationForm() {
                 
                 {/* Areas of Coverage */}
                 <div>
-                  <Label className="text-base font-medium">Areas of Coverage *</Label>
+                  <Label className="text-sm sm:text-base font-medium block mb-2">Areas of Coverage *</Label>
                   <p className="text-sm text-gray-500 mb-4">Select all areas where you can provide services</p>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {coverageAreas.map(area => (
-                      <label key={area} className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                      <label key={area} className="flex items-center space-x-3 p-3 sm:p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors min-h-[48px] touch-manipulation">
                         <input
                           type="checkbox"
                           checked={formData.coverage_areas.includes(area)}
@@ -1329,23 +1704,23 @@ export function VerificationForm() {
 
                 {/* Glass Supplier */}
                 <div>
-                  <Label htmlFor="glass_supplier" className="text-base font-medium">Where do you purchase glass from? *</Label>
+                  <Label htmlFor="glass_supplier" className="text-sm sm:text-base font-medium block mb-2">Where do you purchase glass from? *</Label>
                   <Input
                     id="glass_supplier"
                     value={formData.glass_supplier}
-                    onChange={(e) => setFormData(prev => ({ ...prev, glass_supplier: e.target.value }))}
-                    className="mt-2 h-12"
+                    onChange={(e) => updateFormData(prev => ({ ...prev, glass_supplier: e.target.value }))}
+                    className="h-11 sm:h-12 text-base"
                     placeholder="e.g. Pilkington, Guardian Glass, Independent Supplier, etc."
                   />
                   <p className="text-sm text-gray-500 mt-1">Enter the name of your primary glass supplier or suppliers</p>
                 </div>
                 
                 <div>
-                  <Label className="text-base font-medium">Certifications & Qualifications</Label>
+                  <Label className="text-sm sm:text-base font-medium block mb-2">Certifications & Qualifications</Label>
                   <Textarea
                     value={formData.certifications}
-                    onChange={(e) => setFormData(prev => ({ ...prev, certifications: e.target.value }))}
-                    className="mt-2 min-h-[120px]"
+                    onChange={(e) => updateFormData(prev => ({ ...prev, certifications: e.target.value }))}
+                    className="min-h-[100px] sm:min-h-[120px] text-base"
                     placeholder="List any relevant certifications, licenses, or qualifications (e.g. FENSA, GQA, industry training)"
                   />
                 </div>
@@ -1356,11 +1731,11 @@ export function VerificationForm() {
             {currentStep === 4 && (
               <div className="space-y-6">
                 <div>
-                  <Label className="text-base font-medium">Services Offered *</Label>
+                  <Label className="text-sm sm:text-base font-medium block mb-2">Services Offered *</Label>
                   <p className="text-sm text-gray-500 mb-4">Select all services that you provide</p>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {serviceOptions.map(service => (
-                      <label key={service} className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                      <label key={service} className="flex items-center space-x-3 p-3 sm:p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors min-h-[48px] touch-manipulation">
                         <input
                           type="checkbox"
                           checked={formData.services_offered.includes(service)}
@@ -1374,23 +1749,26 @@ export function VerificationForm() {
                 </div>
                 
                 <div>
-                  <Label htmlFor="insurance_details" className="text-base font-medium">Insurance Details *</Label>
+                  <Label htmlFor="insurance_details" className="text-sm sm:text-base font-medium block mb-2">Insurance Details</Label>
                   <Textarea
                     id="insurance_details"
                     value={formData.insurance_details}
-                    onChange={(e) => setFormData(prev => ({ ...prev, insurance_details: e.target.value }))}
-                    className="mt-2 min-h-[100px]"
-                    placeholder="Provide details about your business insurance coverage (Public Liability, Professional Indemnity, etc.)"
+                    onChange={(e) => updateFormData(prev => ({ ...prev, insurance_details: e.target.value }))}
+                    className="min-h-[80px] sm:min-h-[100px] text-base"
+                    placeholder="Provide details about your business insurance coverage (Public Liability, Professional Indemnity, etc.) or type 'No insurance' if you don't have coverage"
                   />
+                  <p className="text-sm text-gray-500 mt-1">
+                    If you don't have insurance, you can type "No insurance" or "Not applicable" and still proceed with your application.
+                  </p>
                 </div>
                 
                 <div>
-                  <Label htmlFor="additional_info" className="text-base font-medium">Additional Information</Label>
+                  <Label htmlFor="additional_info" className="text-sm sm:text-base font-medium block mb-2">Additional Information</Label>
                   <Textarea
                     id="additional_info"
                     value={formData.additional_info}
-                    onChange={(e) => setFormData(prev => ({ ...prev, additional_info: e.target.value }))}
-                    className="mt-2 min-h-[100px]"
+                    onChange={(e) => updateFormData(prev => ({ ...prev, additional_info: e.target.value }))}
+                    className="min-h-[80px] sm:min-h-[100px] text-base"
                     placeholder="Any additional information that would help us verify your business"
                   />
                 </div>
@@ -1399,42 +1777,45 @@ export function VerificationForm() {
           </div>
 
           {/* Navigation buttons */}
-          <div className="flex justify-between items-center pt-6 border-t">
+          <div className="flex flex-col sm:flex-row justify-between items-center sm:items-center pt-4 sm:pt-6 border-t space-y-2 sm:space-y-0">
             <Button
               variant="outline"
               onClick={prevStep}
               disabled={currentStep === 1}
-              className="flex items-center space-x-2"
+              className="flex items-center justify-center space-x-1 sm:space-x-2 h-10 sm:h-10 text-sm sm:text-sm px-4 sm:px-6 order-2 sm:order-1 rounded-md font-medium"
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Previous</span>
+              <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Previous</span>
+              <span className="sm:hidden">Back</span>
             </Button>
             
-            <div className="flex space-x-3">
+            <div className="flex justify-center sm:justify-start space-x-2 sm:space-x-3 order-1 sm:order-2">
               {currentStep < steps.length ? (
                 <Button
                   onClick={nextStep}
                   disabled={!isStepValid()}
-                  className="flex items-center space-x-2 bg-yellow-500 hover:bg-yellow-500"
+                  className="flex items-center justify-center space-x-1 sm:space-x-2 bg-yellow-500 hover:bg-yellow-600 h-10 sm:h-10 text-sm sm:text-sm px-4 sm:px-6 rounded-md font-medium"
                 >
                   <span>Next</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
                 </Button>
               ) : (
                 <Button
                   onClick={handleSubmit}
                   disabled={!isStepValid() || isSubmitting}
-                  className="flex items-center space-x-2 bg-yellow-500 hover:bg-yellow-500"
+                  className="flex items-center justify-center space-x-1 sm:space-x-2 bg-yellow-500 hover:bg-yellow-600 h-10 sm:h-10 text-sm sm:text-sm px-4 sm:px-6 rounded-md font-medium"
                 >
                   {isSubmitting ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Submitting...</span>
+                      <span className="hidden sm:inline">Submitting...</span>
+                      <span className="sm:hidden">Saving...</span>
                     </>
                   ) : (
                     <>
-                      <Check className="w-4 h-4" />
-                      <span>Submit Application</span>
+                      <Check className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Submit Application</span>
+                      <span className="sm:hidden">Submit</span>
                     </>
                   )}
                 </Button>
