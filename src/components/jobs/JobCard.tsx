@@ -337,29 +337,31 @@ export const JobCard: React.FC<JobCardProps> = ({
       
       <CardContent className="p-3 sm:p-4">
         {/* Mobile: Vertical Layout, Desktop: Horizontal Layout */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
           
           {/* Top Section - Vehicle & Customer (Mobile: Full width, Desktop: Left) */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 overflow-hidden">
             {/* Vehicle Header */}
             <div className="flex items-center gap-2 sm:gap-3 mb-3">
               <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg">
                 <Car className="w-5 h-5 sm:w-4 sm:h-4 text-white" />
               </div>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 pr-4 sm:pr-8">
                 <h3 className="text-lg sm:text-base font-bold text-gray-900 truncate group-hover:text-indigo-700 transition-colors">
                   {getVehicleDisplay()}
                 </h3>
-                <div className="flex flex-wrap items-center gap-2 mt-1">
-                  <Badge variant="secondary" className="text-xs font-semibold bg-gray-100 text-gray-700 px-2 py-1 rounded-full">
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant="secondary" className="text-xs font-semibold bg-gray-100 text-gray-700 px-2 py-1 rounded-full flex-shrink-0">
                     {job.vehicle_reg || 'No Reg'}
                   </Badge>
-                  {job.timeline && (
-                    <Badge className={`text-xs font-medium px-2 py-1 rounded-full ${getPriorityColor(job.timeline, job.appointment_date)}`}>
+                </div>
+                {job.timeline && (
+                  <div className="mt-1">
+                    <Badge className={`text-xs font-medium px-2 py-1 rounded-full inline-block ${getPriorityColor(job.timeline, job.appointment_date)}`}>
                       {job.timeline}
                     </Badge>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
             
@@ -476,7 +478,7 @@ export const JobCard: React.FC<JobCardProps> = ({
           </div>
 
           {/* Mobile: Full width Price & Action, Desktop: Right aligned */}
-          <div className="flex flex-col gap-3 sm:min-w-[200px]">
+          <div className="flex flex-col gap-3 sm:min-w-[200px] sm:max-w-[200px] flex-shrink-0">
             {/* Price - Always above button when showCredits is true */}
             {showCredits ? (
               <div className="bg-white border-2 border-[#2165ab] text-[#2165ab] px-4 py-3 sm:px-3 sm:py-2 rounded-xl shadow-md flex-shrink-0">

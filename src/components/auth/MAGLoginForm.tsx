@@ -19,9 +19,10 @@ type MAGLoginFormValues = z.infer<typeof magLoginSchema>;
 interface MAGLoginFormProps {
   onLoginSuccess: (credentials: { email: string; password: string }) => void;
   onContinueAsGuest: () => void;
+  provider?: 'mag' | 'pughs';
 }
 
-export function MAGLoginForm({ onLoginSuccess, onContinueAsGuest }: MAGLoginFormProps) {
+export function MAGLoginForm({ onLoginSuccess, onContinueAsGuest, provider = 'mag' }: MAGLoginFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -67,9 +68,11 @@ export function MAGLoginForm({ onLoginSuccess, onContinueAsGuest }: MAGLoginForm
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold text-[#145484]">Glass Order Access</CardTitle>
+        <CardTitle className="text-2xl font-bold text-[#145484]">
+          {provider === 'mag' ? 'Master Auto Glass' : 'Pughs'} Login
+        </CardTitle>
         <CardDescription>
-          Log in with your MAG credentials or continue as a guest
+          Log in with your {provider === 'mag' ? 'MAG' : 'Pughs'} credentials or continue as a guest
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -81,11 +84,11 @@ export function MAGLoginForm({ onLoginSuccess, onContinueAsGuest }: MAGLoginForm
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">MAG Email</Label>
+            <Label htmlFor="email">{provider === 'mag' ? 'MAG' : 'Pughs'} Email</Label>
             <Input
               id="email"
               type="email"
-              placeholder="Enter your MAG email"
+              placeholder={`Enter your ${provider === 'mag' ? 'MAG' : 'Pughs'} email`}
               {...register('email')}
               className="border-[#145484] focus:ring-[#145484]"
             />
@@ -95,11 +98,11 @@ export function MAGLoginForm({ onLoginSuccess, onContinueAsGuest }: MAGLoginForm
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">MAG Password</Label>
+            <Label htmlFor="password">{provider === 'mag' ? 'MAG' : 'Pughs'} Password</Label>
             <Input
               id="password"
               type="password"
-              placeholder="Enter your MAG password"
+              placeholder={`Enter your ${provider === 'mag' ? 'MAG' : 'Pughs'} password`}
               {...register('password')}
               className="border-[#145484] focus:ring-[#145484]"
             />
@@ -113,7 +116,7 @@ export function MAGLoginForm({ onLoginSuccess, onContinueAsGuest }: MAGLoginForm
             className="w-full bg-[#145484] hover:bg-[#145484]/90"
             disabled={isLoading}
           >
-            {isLoading ? 'Logging in...' : 'Log In with MAG'}
+            {isLoading ? 'Logging in...' : `Log In with ${provider === 'mag' ? 'MAG' : 'Pughs'}`}
           </Button>
         </form>
 

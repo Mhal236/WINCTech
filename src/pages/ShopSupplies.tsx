@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ExternalLink, Star, Search, Filter, Package, Truck, Shield, Award } from "lucide-react";
-import { PageTransition } from "@/components/PageTransition";
+import { SlidePageTransition } from "@/components/PageTransition";
 
 // Dummy promotional products data
 const dummyProducts = [
@@ -140,19 +140,19 @@ export default function ShopSupplies() {
   };
 
   return (
-    <Sidebar>
-      <PageTransition>
-        <div className="min-h-screen bg-gray-50">
-          {/* Header */}
-          <div className="bg-white border-b border-gray-200">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <DashboardLayout>
+      <SlidePageTransition>
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+          {/* Enhanced Header */}
+          <div className="bg-white shadow-sm border-b border-gray-200">
+            <div className="px-6 py-8">
+              <div className="hidden sm:flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                 <div>
-                  <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                    <Package className="h-8 w-8 text-blue-600" />
-                    Shop Supplies
-                  </h1>
-                  <p className="mt-2 text-gray-600">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Package className="h-10 w-10 text-blue-600" />
+                    <h1 className="text-4xl font-bold text-gray-900">Shop Supplies</h1>
+                  </div>
+                  <p className="text-gray-600 text-lg">
                     Professional tools and supplies for windscreen technicians
                   </p>
                 </div>
@@ -308,7 +308,7 @@ export default function ShopSupplies() {
             )}
           </div>
         </div>
-      </PageTransition>
-    </Sidebar>
+      </SlidePageTransition>
+    </DashboardLayout>
   );
 }

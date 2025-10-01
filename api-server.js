@@ -563,6 +563,7 @@ app.post('/api/stripe/create-payment-intent', async (req, res) => {
       amount: Math.round(amount), // Amount in pence
       currency,
       description: description || `Purchase ${credits} credits`,
+      payment_method_types: ['card'], // Only allow card payments
       metadata: {
         credits: credits.toString(),
         type: 'credit_purchase'
@@ -733,6 +734,211 @@ app.post('/api/stripe/confirm-payment', async (req, res) => {
   });
 
 // =============================
+// Stripe Webhooks
+// =============================
+
+// Stripe webhook handler for automatic subscription processing
+app.post('/api/stripe/webhook', express.raw({type: 'application/json'}), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!webhookSecret) {
+    console.error('Stripe webhook secret not configured');
+    return res.status(400).send('Webhook secret not configured');
+  }
+
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+  } catch (err) {
+    console.error('Webhook signature verification failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  console.log('Received Stripe webhook event:', event.type);
+
+  try {
+    const admin = getSupabaseAdmin();
+    if (admin.error) {
+      console.error('Supabase admin error:', admin.error);
+      return res.status(500).send('Database connection error');
+    }
+    const supabase = admin.client;
+
+    switch (event.type) {
+      case 'invoice.payment_succeeded':
+        const invoice = event.data.object;
+        
+        // Only process subscription invoices (not one-time payments)
+        if (invoice.subscription) {
+          console.log('Processing successful subscription payment for invoice:', invoice.id);
+          
+          // Get subscription details
+          const subscription = await stripe.subscriptions.retrieve(invoice.subscription, {
+            expand: ['items.data.price.product']
+          });
+
+          // Find user by customer ID
+          const { data: users, error: userError } = await supabase
+            .from('app_users')
+            .select('id, email')
+            .eq('stripe_customer_id', invoice.customer)
+            .limit(1);
+
+          if (userError || !users || users.length === 0) {
+            console.error('User not found for customer:', invoice.customer);
+            break;
+          }
+
+          const user = users[0];
+          const priceId = subscription.items.data[0].price.id;
+          
+          // Determine role and credits based on price ID
+          let assignedRole = 'pro-1';
+          let planName = 'Starter';
+          let creditsToAdd = 100;
+
+          // Check against environment variables for exact price ID matching
+          if (priceId === process.env.STRIPE_STARTER_MONTHLY_PRICE || 
+              priceId === process.env.STRIPE_STARTER_ANNUAL_PRICE) {
+            assignedRole = 'pro-1';
+            planName = 'Starter';
+            creditsToAdd = 100;
+          } else if (priceId === process.env.STRIPE_PROFESSIONAL_MONTHLY_PRICE || 
+                     priceId === process.env.STRIPE_PROFESSIONAL_ANNUAL_PRICE) {
+            assignedRole = 'pro-2';
+            planName = 'Professional';
+            creditsToAdd = 350;
+          } else if (priceId === process.env.STRIPE_ENTERPRISE_MONTHLY_PRICE) {
+            assignedRole = 'pro-2';
+            planName = 'Enterprise';
+            creditsToAdd = 1500;
+          } else {
+            // Fallback to string matching for development/testing
+            if (priceId.includes('starter') || priceId.includes('118')) {
+              assignedRole = 'pro-1';
+              planName = 'Starter';
+              creditsToAdd = 100;
+            } else if (priceId.includes('professional') || priceId.includes('198')) {
+              assignedRole = 'pro-2';
+              planName = 'Professional';
+              creditsToAdd = 350;
+            } else if (priceId.includes('enterprise') || priceId.includes('150')) {
+              assignedRole = 'pro-2';
+              planName = 'Enterprise';
+              creditsToAdd = 1500;
+            }
+          }
+
+          console.log(`Webhook: Assigning role ${assignedRole} to user ${user.id} for plan ${planName}`);
+
+          // Update user role and credits
+          const { error: roleUpdateError } = await supabase
+            .from('app_users')
+            .update({ 
+              user_role: assignedRole,
+              credits: creditsToAdd,
+              stripe_customer_id: invoice.customer // Ensure customer ID is stored
+            })
+            .eq('id', user.id);
+
+          if (roleUpdateError) {
+            console.error('Webhook: Error updating user role:', roleUpdateError);
+            break;
+          }
+
+          // Create or update subscription record
+          const { error: subscriptionError } = await supabase
+            .from('user_subscriptions')
+            .upsert({
+              user_id: user.id,
+              stripe_subscription_id: subscription.id,
+              stripe_customer_id: invoice.customer,
+              price_id: priceId,
+              status: subscription.status,
+              assigned_role: assignedRole,
+              plan_name: planName,
+              current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+              current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'user_id'
+            });
+
+          if (subscriptionError) {
+            console.error('Webhook: Error creating subscription record:', subscriptionError);
+          } else {
+            console.log(`Webhook: Successfully upgraded user ${user.email} to ${assignedRole} (${planName})`);
+          }
+        }
+        break;
+
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted':
+        const subscriptionEvent = event.data.object;
+        
+        // Find user by customer ID
+        const { data: subUsers, error: subUserError } = await supabase
+          .from('app_users')
+          .select('id, email')
+          .eq('stripe_customer_id', subscriptionEvent.customer)
+          .limit(1);
+
+        if (subUserError || !subUsers || subUsers.length === 0) {
+          console.error('User not found for subscription event, customer:', subscriptionEvent.customer);
+          break;
+        }
+
+        const subUser = subUsers[0];
+
+        if (event.type === 'customer.subscription.deleted' || 
+            subscriptionEvent.status === 'canceled' || 
+            subscriptionEvent.status === 'unpaid') {
+          
+          console.log(`Webhook: Downgrading user ${subUser.email} due to subscription ${event.type}`);
+          
+          // Downgrade user to basic role
+          const { error: downgradeError } = await supabase
+            .from('app_users')
+            .update({ 
+              user_role: 'user', // Basic role
+              credits: 0 // Remove credits
+            })
+            .eq('id', subUser.id);
+
+          if (downgradeError) {
+            console.error('Webhook: Error downgrading user:', downgradeError);
+          }
+
+          // Update subscription status
+          const { error: statusError } = await supabase
+            .from('user_subscriptions')
+            .update({
+              status: subscriptionEvent.status,
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', subUser.id);
+
+          if (statusError) {
+            console.error('Webhook: Error updating subscription status:', statusError);
+          }
+        }
+        break;
+
+      default:
+        console.log(`Unhandled webhook event type: ${event.type}`);
+    }
+
+    res.json({received: true});
+  } catch (error) {
+    console.error('Webhook processing error:', error);
+    res.status(500).send('Webhook processing failed');
+  }
+});
+
+// =============================
 // Stripe Subscription Endpoints
 // =============================
 
@@ -787,7 +993,8 @@ app.post('/api/stripe/create-subscription', async (req, res) => {
       items: [{ price: actualPriceId }],
       payment_behavior: 'default_incomplete',
       payment_settings: {
-        save_default_payment_method: 'on_subscription'
+        save_default_payment_method: 'on_subscription',
+        payment_method_types: ['card'] // Only allow card payments for subscriptions
       },
       expand: ['latest_invoice.payment_intent'],
       metadata: {
@@ -800,6 +1007,22 @@ app.post('/api/stripe/create-subscription', async (req, res) => {
 
     if (!clientSecret) {
       throw new Error('Failed to create subscription payment intent');
+    }
+
+    // Store customer ID in user record for webhook processing
+    const admin = getSupabaseAdmin();
+    if (admin.client) {
+      const { error: customerUpdateError } = await admin.client
+        .from('app_users')
+        .update({ stripe_customer_id: customer.id })
+        .eq('id', userId);
+      
+      if (customerUpdateError) {
+        console.error('Error storing customer ID:', customerUpdateError);
+        // Don't fail the request, just log the error
+      } else {
+        console.log(`Stored customer ID ${customer.id} for user ${userId}`);
+      }
     }
 
     res.json({
@@ -889,6 +1112,10 @@ app.post('/api/stripe/confirm-subscription', async (req, res) => {
       assignedRole = 'pro-2';
       planName = 'Professional';
       creditsToAdd = 350;
+    } else if (priceId.includes('enterprise') || priceId.includes('150')) {
+      assignedRole = 'pro-2';
+      planName = 'Enterprise';
+      creditsToAdd = 1500;
     }
 
     console.log(`Assigning role ${assignedRole} for plan ${planName}`);

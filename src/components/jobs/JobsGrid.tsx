@@ -549,14 +549,14 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
         </div>
         
         {/* Jobs List - Mobile Optimized Cards */}
-        <div className="space-y-4 sm:space-y-3 max-w-7xl mx-auto px-2 sm:px-0">
+        <div className="space-y-4 sm:space-y-3 max-w-7xl mx-auto px-4 sm:px-0">
           {(() => {
             const startIndex = (currentPage - 1) * jobsPerPage;
             const endIndex = startIndex + jobsPerPage;
             const currentJobs = filteredJobs.slice(startIndex, endIndex);
             
             return currentJobs.map((job) => (
-              <div key={job.id} className="w-full">
+              <div key={job.id} className="w-full max-w-md mx-auto sm:max-w-none">
                 <JobCard
                   job={job}
                   onAccept={handleAcceptJob}

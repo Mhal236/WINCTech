@@ -22,6 +22,7 @@ import { PageTransition } from "@/components/PageTransition";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import PaymentModal from "@/components/payments/PaymentModal";
+import SubscriptionModal from "@/components/subscriptions/SubscriptionModal";
 
 // Credit packages
 const creditPackages = [
@@ -29,7 +30,7 @@ const creditPackages = [
     id: "starter",
     name: "Starter Pack",
     credits: 100,
-    price: 25.99,
+    price: 49.99,
     originalPrice: null,
     description: "Perfect for getting started",
     icon: Zap,
@@ -46,7 +47,7 @@ const creditPackages = [
     id: "professional",
     name: "Professional Pack",
     credits: 500,
-    price: 49.99,
+    price: 99.99,
     originalPrice: null,
     description: "Most popular choice for professionals",
     icon: Star,
@@ -64,15 +65,16 @@ const creditPackages = [
     id: "enterprise",
     name: "Enterprise Pack",
     credits: 1500,
-    price: 99.99,
+    price: 150.00,
     originalPrice: null,
-    description: "For high-volume users",
+    description: "Monthly subscription for high-volume users",
     icon: Crown,
     color: "bg-[#1D1D1F]",
     popular: false,
+    isSubscription: true, // Mark as subscription
     features: [
-      "1,500 credits",
-      "Valid for 18 months",
+      "1,500 credits per month",
+      "Monthly recurring billing",
       "24/7 phone support",
       "All features access",
       "50% bonus credits",
@@ -85,22 +87,43 @@ export default function TopUp() {
   const { user, refreshUser } = useAuth();
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [paymentData, setPaymentData] = useState<{
     amount: number;
     credits: number;
     packageName?: string;
+  } | null>(null);
+  const [subscriptionData, setSubscriptionData] = useState<{
+    priceId: string;
+    planName: string;
+    price: number;
+    credits: number;
+    role: string;
   } | null>(null);
 
 
   const handlePurchase = (packageId: string) => {
     const pkg = creditPackages.find(p => p.id === packageId);
     if (pkg) {
-      setPaymentData({
-        amount: pkg.price,
-        credits: pkg.credits,
-        packageName: pkg.name
-      });
-      setIsPaymentModalOpen(true);
+      if (pkg.isSubscription) {
+        // Handle Enterprise pack as subscription
+        setSubscriptionData({
+          priceId: 'STRIPE_ENTERPRISE_MONTHLY_PRICE', // Environment variable for Enterprise monthly price
+          planName: pkg.name,
+          price: pkg.price,
+          credits: pkg.credits,
+          role: 'pro-2' // Enterprise users get pro-2 role
+        });
+        setIsSubscriptionModalOpen(true);
+      } else {
+        // Handle Starter and Professional as one-time payments
+        setPaymentData({
+          amount: pkg.price,
+          credits: pkg.credits,
+          packageName: pkg.name
+        });
+        setIsPaymentModalOpen(true);
+      }
     }
   };
 
@@ -114,6 +137,19 @@ export default function TopUp() {
     toast({
       title: "Payment Successful!",
       description: `Your account has been updated with the new credits.`,
+    });
+  };
+
+  const handleSubscriptionSuccess = async (role: string, planName: string) => {
+    // Refresh user data to update role and credits
+    await refreshUser();
+    setIsSubscriptionModalOpen(false);
+    setSubscriptionData(null);
+    setSelectedPackage(null);
+    
+    toast({
+      title: "Subscription Activated!",
+      description: `Welcome to ${planName}! Your account has been upgraded.`,
     });
   };
 
@@ -193,16 +229,21 @@ export default function TopUp() {
                         <div className="text-center">
                           <div className="flex items-center justify-center gap-2">
                             <span className="text-3xl font-bold text-gray-900">£{pkg.price}</span>
+                            {pkg.isSubscription && (
+                              <span className="text-lg text-gray-600">/month</span>
+                            )}
                             {pkg.originalPrice && (
                               <span className="text-lg text-gray-500 line-through">£{pkg.originalPrice}</span>
                             )}
                           </div>
                           <div className="flex items-center justify-center gap-1 mt-1">
                             <Coins className="h-4 w-4 text-[#FFC107]" />
-                            <span className="text-lg font-semibold text-gray-700">{pkg.credits} credits</span>
+                            <span className="text-lg font-semibold text-gray-700">
+                              {pkg.credits} credits{pkg.isSubscription ? " per month" : ""}
+                            </span>
                           </div>
                           <p className="text-sm text-gray-500 mt-1">
-                            £{(pkg.price / pkg.credits).toFixed(3)} per credit
+                            £{(pkg.price / pkg.credits).toFixed(3)} per credit{pkg.isSubscription ? " monthly" : ""}
                           </p>
                         </div>
 
@@ -223,7 +264,7 @@ export default function TopUp() {
                           } ${pkg.popular ? 'bg-[#FFC107] hover:bg-[#FFC107]/90 text-[#1D1D1F] font-semibold' : ''}`}
                           variant={isSelected ? "default" : "outline"}
                         >
-                          {isSelected ? "Selected" : "Select Package"}
+                          {isSelected ? "Selected" : pkg.isSubscription ? "Subscribe Monthly" : "Select Package"}
                           <ArrowRight className="h-4 w-4 ml-2" />
                         </Button>
                       </CardContent>
@@ -270,6 +311,21 @@ export default function TopUp() {
             credits={paymentData.credits}
             packageName={paymentData.packageName}
             onSuccess={handlePaymentSuccess}
+          />
+        )}
+
+        {/* Subscription Modal */}
+        {subscriptionData && (
+          <SubscriptionModal
+            isOpen={isSubscriptionModalOpen}
+            onClose={() => setIsSubscriptionModalOpen(false)}
+            priceId={subscriptionData.priceId}
+            planName={subscriptionData.planName}
+            price={subscriptionData.price}
+            isAnnual={false}
+            credits={subscriptionData.credits}
+            role={subscriptionData.role}
+            onSuccess={handleSubscriptionSuccess}
           />
         )}
       </PageTransition>

@@ -133,10 +133,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const newUserData = {
                 email: userData.email,
                 name: userData.name,
-                user_role: userData.email === 'admin@windscreencompare.com' ? 'admin' : 
+                user_role: userData.email === 'admin@windscreencompare.com' || userData.email === 'mehrdad@windscreencompare.com' ? 'admin' : 
                           userData.email === 'tech@windscreencompare.com' ? 'pro-1' : 'pending',
-                verification_status: userData.email === 'admin@windscreencompare.com' ? 'verified' : 
+                verification_status: userData.email === 'admin@windscreencompare.com' || userData.email === 'mehrdad@windscreencompare.com' ? 'verified' : 
                                    userData.email === 'tech@windscreencompare.com' ? 'verified' : 'non-verified',
+                credits: userData.email === 'admin@windscreencompare.com' || userData.email === 'mehrdad@windscreencompare.com' ? 1000 : 0, // Give admin users 1000 credits
                 supabase_id: userData.id || userData.sub,
                 created_at: new Date().toISOString()
               };

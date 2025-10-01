@@ -23,6 +23,7 @@ const Contact = lazy(() => import("./pages/Contact"));
 const Quotes = lazy(() => import("./pages/Quotes"));
 const PriceLookup = lazy(() => import("./pages/PriceLookup"));
 const Glass = lazy(() => import("./pages/Glass"));
+const VrnSearch = lazy(() => import("./pages/VrnSearch"));
 const Team = lazy(() => import("./pages/Team"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Reporting = lazy(() => import("./pages/Reporting"));
@@ -139,6 +140,11 @@ const AnimatedRoutes = () => {
         <Route path="/glass-search" element={
           <ProtectedRoute requiredRole="admin">
             <Glass />
+          </ProtectedRoute>
+        } />
+        <Route path="/vrn-search" element={
+          <ProtectedRoute requiredRole="admin">
+            <VrnSearch />
           </ProtectedRoute>
         } />
         <Route path="/shop-supplies" element={

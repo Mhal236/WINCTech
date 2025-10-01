@@ -96,6 +96,15 @@ const getGlassTypeIcon = (quote: CompanyQuote, selection: GlassSelection) => {
 
 const PriceLookupContent = () => {
   const { magUser, logoutMAG } = useMAGAuth();
+  const [selectedProvider, setSelectedProvider] = useState<'mag' | 'pughs'>('mag'); // Default to MAG
+
+  const handleProviderSwitch = (provider: 'mag' | 'pughs') => {
+    if (provider !== selectedProvider) {
+      setSelectedProvider(provider);
+      // Log out current user when switching providers
+      logoutMAG();
+    }
+  };
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const jobId = searchParams.get('jobId');
@@ -1027,18 +1036,63 @@ const PriceLookupContent = () => {
             <div className="animate-fadeIn">
               <div className="mb-8">
                 <div className="flex justify-between items-start">
-                  <div>
-                    <h1 className="text-3xl font-bold text-[#135084]">Glass Order Quote</h1>
-                    <p className="mt-2 text-gray-600">Get instant quotes for your vehicle glass needs</p>
+                  <div className="flex items-start gap-6">
+                    {/* Provider Selection Logos */}
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => handleProviderSwitch('mag')}
+                        className={`relative p-2 rounded-lg border-2 transition-all duration-300 ${
+                          selectedProvider === 'mag'
+                            ? 'border-blue-500 bg-blue-50 shadow-md scale-105'
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                        title="Switch to Master Auto Glass"
+                      >
+                        <img
+                          src="/MAG.png"
+                          alt="Master Auto Glass"
+                          className="h-10 w-auto object-contain"
+                        />
+                        {selectedProvider === 'mag' && (
+                          <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse" />
+                        )}
+                      </button>
+
+                      <button
+                        onClick={() => handleProviderSwitch('pughs')}
+                        className={`relative p-2 rounded-lg border-2 transition-all duration-300 ${
+                          selectedProvider === 'pughs'
+                            ? 'border-green-500 bg-green-50 shadow-md scale-105'
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                        title="Switch to Pughs"
+                      >
+                        <img
+                          src="/pughs_logo.png"
+                          alt="Pughs"
+                          className="h-10 w-auto object-contain"
+                        />
+                        {selectedProvider === 'pughs' && (
+                          <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
+                        )}
+                      </button>
+                    </div>
+
+                    <div>
+                      <h1 className="text-3xl font-bold text-[#135084]">Glass Order Quote</h1>
+                      <p className="mt-2 text-gray-600">
+                        Get instant quotes for your vehicle glass needs via {selectedProvider === 'mag' ? 'Master Auto Glass' : 'Pughs'}
+                      </p>
+                    </div>
                   </div>
                   
-                  {/* MAG User Status */}
+                  {/* Provider User Status */}
                   <div className="flex items-center gap-4">
                     <div className="text-right">
                       <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${magUser?.isAuthenticated ? 'bg-green-500' : 'bg-orange-500'}`}></div>
                         <span className="text-sm font-medium text-gray-700">
-                          {magUser?.isAuthenticated ? 'MAG Account' : 'Guest Mode'}
+                          {magUser?.isAuthenticated ? `${selectedProvider === 'mag' ? 'MAG' : 'Pughs'} Account` : 'Guest Mode'}
                         </span>
                       </div>
                       <p className="text-xs text-gray-500">
@@ -1526,23 +1580,82 @@ const PriceLookup = () => {
 // Component that shows either MAG login or the main content
 const PriceLookupWithAuth = () => {
   const { magUser, loginWithMAG, continueAsGuest } = useMAGAuth();
+  const [selectedProvider, setSelectedProvider] = useState<'mag' | 'pughs'>('mag'); // Default to MAG
 
-  // If user hasn't authenticated with MAG yet, show login form
+  // If user hasn't authenticated with MAG yet, show login form with provider selection
   if (!magUser) {
     return (
       <DashboardLayout>
         <ModalPageTransition>
           <div className="min-h-screen flex items-center justify-center p-4">
-            <MAGLoginForm
-              onLoginSuccess={async (credentials) => {
-                try {
-                  await loginWithMAG(credentials);
-                } catch (error) {
-                  console.error('Login failed:', error);
-                }
-              }}
-              onContinueAsGuest={continueAsGuest}
-            />
+            <div className="w-full max-w-md">
+              {/* Provider Selection */}
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-center text-gray-900 mb-6">
+                  Glass Order System
+                </h2>
+                <div className="flex items-center justify-center gap-4 mb-6">
+                  {/* MAG Logo */}
+                  <button
+                    onClick={() => setSelectedProvider('mag')}
+                    className={`relative p-3 rounded-xl border-2 transition-all duration-300 ${
+                      selectedProvider === 'mag'
+                        ? 'border-blue-500 bg-blue-50 shadow-lg scale-105'
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <img
+                      src="/MAG.png"
+                      alt="Master Auto Glass"
+                      className="h-12 w-auto object-contain"
+                    />
+                    {selectedProvider === 'mag' && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full animate-pulse" />
+                    )}
+                  </button>
+
+                  {/* Pughs Logo */}
+                  <button
+                    onClick={() => setSelectedProvider('pughs')}
+                    className={`relative p-3 rounded-xl border-2 transition-all duration-300 ${
+                      selectedProvider === 'pughs'
+                        ? 'border-green-500 bg-green-50 shadow-lg scale-105'
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <img
+                      src="/pughs_logo.png"
+                      alt="Pughs"
+                      className="h-12 w-auto object-contain"
+                    />
+                    {selectedProvider === 'pughs' && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse" />
+                    )}
+                  </button>
+                </div>
+                
+                <div className="text-center mb-4">
+                  <p className="text-sm text-gray-600">
+                    Selected: <span className="font-semibold">
+                      {selectedProvider === 'mag' ? 'Master Auto Glass' : 'Pughs'}
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Login Form */}
+              <MAGLoginForm
+                onLoginSuccess={async (credentials) => {
+                  try {
+                    await loginWithMAG(credentials);
+                  } catch (error) {
+                    console.error('Login failed:', error);
+                  }
+                }}
+                onContinueAsGuest={continueAsGuest}
+                provider={selectedProvider}
+              />
+            </div>
           </div>
         </ModalPageTransition>
       </DashboardLayout>

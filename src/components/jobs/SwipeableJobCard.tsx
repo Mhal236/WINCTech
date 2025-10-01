@@ -142,6 +142,19 @@ export const SwipeableJobCard: React.FC<SwipeableJobCardProps> = ({
         x.set(0);
       }, 250);
     },
+    onTouchEndOrOnMouseUp: () => {
+      // If the swipe didn't complete (didn't trigger onSwipedLeft/Right), 
+      // animate back to center
+      const currentX = x.get();
+      if (Math.abs(currentX) > 0 && Math.abs(currentX) < 200) {
+        animate(x, 0, { 
+          duration: 0.3,
+          type: "spring",
+          stiffness: 300,
+          damping: 30
+        });
+      }
+    },
     delta: 40,
     preventScrollOnSwipe: true,
     trackMouse: true
@@ -271,18 +284,6 @@ export const SwipeableJobCard: React.FC<SwipeableJobCardProps> = ({
           {/* Header */}
           <div className="relative px-6 pt-8 pb-6 bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/40 border-b border-gray-200/60">
             
-            {/* Urgency indicator */}
-            {urgencyLevel !== 'normal' && (
-              <div className={`absolute top-4 right-4 px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 ${
-                urgencyLevel === 'urgent' 
-                  ? 'bg-red-50 text-red-700 border border-red-200' 
-                  : 'bg-amber-50 text-amber-700 border border-amber-200'
-              }`}>
-                <AlertTriangle className="w-3 h-3" />
-                {urgencyLevel === 'urgent' ? 'Today' : 'Tomorrow'}
-              </div>
-            )}
-            
             <div className="relative z-10">
               {/* Compact header with better space utilization */}
               <div className="flex items-start justify-between mb-4">
@@ -299,9 +300,19 @@ export const SwipeableJobCard: React.FC<SwipeableJobCardProps> = ({
                     </motion.div>
                     <h2 className="text-lg font-black text-gray-900 leading-tight">{vehicleTitle}</h2>
                   </div>
-                  {/* Secondary info: registration only to avoid duplication */}
-                  <div className="text-xs text-gray-600 font-medium leading-tight">
+                  {/* Secondary info: registration and urgency indicator */}
+                  <div className="flex items-center gap-2 text-xs text-gray-600 font-medium leading-tight">
                     <span className="font-bold text-gray-800">{job.vehicle_reg || 'N/A'}</span>
+                    {urgencyLevel !== 'normal' && (
+                      <div className={`px-2 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1 ${
+                        urgencyLevel === 'urgent' 
+                          ? 'bg-red-50 text-red-700 border border-red-200' 
+                          : 'bg-amber-50 text-amber-700 border border-amber-200'
+                      }`}>
+                        <AlertTriangle className="w-3 h-3" />
+                        {urgencyLevel === 'urgent' ? 'Today' : 'Tomorrow'}
+                      </div>
+                    )}
                   </div>
                 </div>
                 

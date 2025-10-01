@@ -137,6 +137,7 @@ function PaymentForm({
                 applePay: 'never',
                 googlePay: 'never'
               },
+              paymentMethodTypes: ['card'], // Explicitly only allow cards
               defaultValues: {
                 billingDetails: {
                   name: user?.name || '',

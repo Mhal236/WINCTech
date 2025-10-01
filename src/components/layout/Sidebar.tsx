@@ -18,6 +18,7 @@ import {
   Sparkles,
   Package,
   Globe,
+  Car,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useState } from "react";
@@ -35,6 +36,7 @@ const logo = "/windscreen-compare-technician.png";
 export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [settingsExpanded, setSettingsExpanded] = useState(false);
+  const [argicSearchExpanded, setArgicSearchExpanded] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -65,8 +67,18 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
     { name: "Calendar", href: "/calendar", icon: Calendar, requiredRole: "pro-1" },
   ];
 
+  // ARGIC Search with submenu
+  const argicSearchNavigation = {
+    name: "ARGIC Search",
+    icon: Search,
+    requiredRole: "pro-2",
+    submenu: [
+      { name: "Glass Search", href: "/glass-search", icon: Search, requiredRole: "pro-2" },
+      { name: "VRN Search", href: "/vrn-search", icon: Car, requiredRole: "pro-2" },
+    ]
+  };
+
   const bottomNavigation = [
-    { name: "ARGIC Search", href: "/glass-search", icon: Search, requiredRole: "pro-2" },
     { name: "Glass Order", href: "/price-lookup", icon: ShoppingCart, requiredRole: "pro-2" },
     { name: "Shop Supplies", href: "/shop-supplies", icon: Package, requiredRole: "pro-2" },
   ];
@@ -147,6 +159,100 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
     );
   };
 
+  const renderSubmenuNavigation = (parentItem: any, isExpanded: boolean, setExpanded: (expanded: boolean) => void) => {
+    const hasAccess = hasPermission(parentItem.requiredRole);
+    const isAnySubmenuActive = parentItem.submenu?.some((subItem: any) => location.pathname === subItem.href);
+
+    return (
+      <div key={parentItem.name}>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              {hasAccess ? (
+                <button
+                  onClick={() => setExpanded(!isExpanded)}
+                  className={cn(
+                    "group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150 w-full",
+                    "hover:bg-gray-50 hover:text-gray-900",
+                    isAnySubmenuActive
+                      ? "bg-gray-100 text-gray-900 font-semibold" 
+                      : "text-gray-600",
+                    collapsed && "justify-center px-2"
+                  )}
+                >
+                  <parentItem.icon className={cn(
+                    "h-5 w-5 flex-shrink-0 transition-colors",
+                    isAnySubmenuActive ? "text-gray-700" : "text-gray-400 group-hover:text-gray-600"
+                  )} />
+                  {!collapsed && (
+                    <>
+                      <span className="truncate">{parentItem.name}</span>
+                      <ChevronDown className={cn(
+                        "ml-auto h-4 w-4 transition-transform duration-200",
+                        isExpanded && "rotate-180"
+                      )} />
+                    </>
+                  )}
+                </button>
+              ) : (
+                <div
+                  className={cn(
+                    "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium cursor-not-allowed",
+                    "text-gray-400 bg-gray-50",
+                    collapsed && "justify-center px-2"
+                  )}
+                >
+                  <parentItem.icon className="h-5 w-5 flex-shrink-0 text-gray-400" />
+                  {!collapsed && (
+                    <>
+                      <span className="truncate">{parentItem.name}</span>
+                      <LockIcon className="ml-auto h-4 w-4" />
+                    </>
+                  )}
+                </div>
+              )}
+            </TooltipTrigger>
+            {!hasAccess && (
+              <TooltipContent side="right">
+                <p>You don't have permission to access this section</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
+        
+        {/* Submenu items */}
+        {hasAccess && isExpanded && !collapsed && (
+          <div className="ml-6 mt-1 space-y-1">
+            {parentItem.submenu?.map((subItem: any) => (
+              <TooltipProvider key={subItem.name}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link
+                      to={subItem.href}
+                      className={cn(
+                        "group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150",
+                        "hover:bg-gray-50 hover:text-gray-900",
+                        location.pathname === subItem.href 
+                          ? "bg-gray-100 text-gray-900 font-semibold" 
+                          : "text-gray-600"
+                      )}
+                    >
+                      <subItem.icon className={cn(
+                        "h-4 w-4 flex-shrink-0 transition-colors",
+                        location.pathname === subItem.href ? "text-gray-700" : "text-gray-400 group-hover:text-gray-600"
+                      )} />
+                      <span className="truncate">{subItem.name}</span>
+                    </Link>
+                  </TooltipTrigger>
+                </Tooltip>
+              </TooltipProvider>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="flex h-screen w-full overflow-hidden">
       {/* Sidebar - Hidden on mobile */}
@@ -216,8 +322,9 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
               <Separator className="bg-gray-200" />
             </div>
 
-            {/* Bottom Navigation */}
+            {/* ARGIC Search with submenu and Bottom Navigation */}
             <div className="p-3 space-y-1">
+              {renderSubmenuNavigation(argicSearchNavigation, argicSearchExpanded, setArgicSearchExpanded)}
               {bottomNavigation.map((item) => renderNavItem(item))}
             </div>
 
