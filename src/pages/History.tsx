@@ -127,7 +127,7 @@ const History = () => {
     try {
       setLoading(true);
       
-      console.log('🔵 History: Fetching jobs for user:', { userId: user.id, email: user.email });
+      console.log('History: Fetching jobs for user:', { userId: user.id, email: user.email });
       
       // Get technician ID first
       let technicianId = null;
@@ -137,7 +137,7 @@ const History = () => {
         .eq('user_id', user.id)
         .single();
       
-      console.log('🔵 History: Technician lookup by user_id result:', { techData1, techError1 });
+      console.log('History: Technician lookup by user_id result:', { techData1, techError1 });
       
       if (techData1) {
         technicianId = techData1.id;
@@ -156,10 +156,10 @@ const History = () => {
         }
       }
 
-      console.log('🔵 History: Final technician ID:', technicianId);
+      console.log('History: Final technician ID:', technicianId);
 
       if (!technicianId) {
-        console.log('🔴 History: No technician found for user');
+        console.log('History: No technician found for user');
         return;
       }
 

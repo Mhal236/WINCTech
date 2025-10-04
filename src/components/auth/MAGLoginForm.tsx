@@ -142,7 +142,7 @@ export function MAGLoginForm({ onLoginSuccess, onContinueAsGuest, provider = 'ma
         
           
           <div className="space-y-1">
-            <p>MAG Login provides:</p>
+            <p>{provider === 'mag' ? 'MAG' : 'Pughs'} Login provides:</p>
             <ul className="text-left space-y-1">
               <li>• Access to your account pricing</li>
               <li>• Personalized quotes and discounts</li>
