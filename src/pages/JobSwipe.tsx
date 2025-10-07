@@ -90,7 +90,7 @@ const JobSwipe = () => {
         <>
           <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
           {/* Enhanced Header */}
-          <div className="bg-white shadow-sm border-b border-gray-200">
+          <div className="bg-white shadow-sm border-b border-gray-200 rounded-b-2xl">
             <div className="px-6 py-8">
               <div className="flex flex-col gap-6">
                 <div>
@@ -111,7 +111,7 @@ const JobSwipe = () => {
                       <div 
                         className={cn(
                           "absolute top-1.5 h-[calc(100%-12px)] rounded-xl transition-all duration-500 ease-out",
-                          "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 shadow-lg",
+                          "bg-gradient-to-br from-blue-500 via-blue-400 to-blue-500 shadow-lg",
                           selectedJobType === 'exclusive' && "left-1.5 w-[calc(33.333%-4px)]",
                           selectedJobType === 'board' && "left-[calc(33.333%+1px)] w-[calc(33.333%-4px)]",
                           selectedJobType === 'bids' && "left-[calc(66.666%+1px)] w-[calc(33.333%-4px)]"
@@ -122,9 +122,9 @@ const JobSwipe = () => {
                       <div 
                         className={cn(
                           "absolute top-1.5 h-[calc(100%-12px)] rounded-xl transition-all duration-500 ease-out blur-sm opacity-20",
-                          selectedJobType === 'exclusive' && "left-1.5 w-[calc(33.333%-4px)] bg-amber-400",
+                          selectedJobType === 'exclusive' && "left-1.5 w-[calc(33.333%-4px)] bg-blue-400",
                           selectedJobType === 'board' && "left-[calc(33.333%+1px)] w-[calc(33.333%-4px)] bg-blue-400",
-                          selectedJobType === 'bids' && "left-[calc(66.666%+1px)] w-[calc(33.333%-4px)] bg-emerald-400"
+                          selectedJobType === 'bids' && "left-[calc(66.666%+1px)] w-[calc(33.333%-4px)] bg-blue-400"
                         )}
                       />
                       
@@ -133,7 +133,7 @@ const JobSwipe = () => {
                         <button
                           onClick={() => handleJobTypeChange('exclusive')}
                           className={cn(
-                            "relative z-20 flex flex-col items-center justify-center py-3 px-3 rounded-xl transition-all duration-500",
+                            "relative z-20 flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all duration-500",
                             "group hover:scale-[1.01] active:scale-[0.99]",
                             selectedJobType === 'exclusive'
                               ? "text-white"
@@ -141,13 +141,13 @@ const JobSwipe = () => {
                           )}
                         >
                           <Star className={cn(
-                            "w-5 h-5 mb-2 transition-all duration-500",
+                            "w-3.5 h-3.5 mb-1 transition-all duration-500",
                             selectedJobType === 'exclusive' 
-                              ? "text-amber-300 drop-shadow-sm" 
-                              : "text-gray-400 group-hover:text-amber-400"
+                              ? "text-white drop-shadow-sm" 
+                              : "text-gray-400 group-hover:text-blue-400"
                           )} />
                           <span className={cn(
-                            "text-sm font-medium tracking-wider transition-all duration-500",
+                            "text-xs font-medium tracking-wider transition-all duration-500",
                             selectedJobType === 'exclusive' 
                               ? "text-white/95 font-semibold" 
                               : "text-gray-600 group-hover:text-gray-800"
@@ -155,7 +155,7 @@ const JobSwipe = () => {
                             EXCLUSIVE
                           </span>
                           <div className={cn(
-                            "text-xs mt-1 transition-all duration-500",
+                            "text-[10px] mt-0.5 transition-all duration-500",
                             selectedJobType === 'exclusive' 
                               ? "text-white/70" 
                               : "text-gray-400 group-hover:text-gray-500"
@@ -167,7 +167,7 @@ const JobSwipe = () => {
                         <button
                           onClick={() => handleJobTypeChange('board')}
                           className={cn(
-                            "relative z-20 flex flex-col items-center justify-center py-3 px-3 rounded-xl transition-all duration-500",
+                            "relative z-20 flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all duration-500",
                             "group hover:scale-[1.01] active:scale-[0.99]",
                             selectedJobType === 'board'
                               ? "text-white"
@@ -175,13 +175,13 @@ const JobSwipe = () => {
                           )}
                         >
                           <Briefcase className={cn(
-                            "w-5 h-5 mb-2 transition-all duration-500",
+                            "w-3.5 h-3.5 mb-1 transition-all duration-500",
                             selectedJobType === 'board' 
-                              ? "text-blue-300 drop-shadow-sm" 
+                              ? "text-white drop-shadow-sm" 
                               : "text-gray-400 group-hover:text-blue-400"
                           )} />
                           <span className={cn(
-                            "text-sm font-medium tracking-wider transition-all duration-500",
+                            "text-xs font-medium tracking-wider transition-all duration-500",
                             selectedJobType === 'board' 
                               ? "text-white/95 font-semibold" 
                               : "text-gray-600 group-hover:text-gray-800"
@@ -189,7 +189,7 @@ const JobSwipe = () => {
                             BUY LEADS
                           </span>
                           <div className={cn(
-                            "text-xs mt-1 transition-all duration-500",
+                            "text-[10px] mt-0.5 transition-all duration-500",
                             selectedJobType === 'board' 
                               ? "text-white/70" 
                               : "text-gray-400 group-hover:text-gray-500"
@@ -201,7 +201,7 @@ const JobSwipe = () => {
                         <button
                           onClick={() => handleJobTypeChange('bids')}
                           className={cn(
-                            "relative z-20 flex flex-col items-center justify-center py-3 px-3 rounded-xl transition-all duration-500",
+                            "relative z-20 flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all duration-500",
                             "group hover:scale-[1.01] active:scale-[0.99]",
                             selectedJobType === 'bids'
                               ? "text-white"
@@ -209,13 +209,13 @@ const JobSwipe = () => {
                           )}
                         >
                           <TrendingUp className={cn(
-                            "w-5 h-5 mb-2 transition-all duration-500",
+                            "w-3.5 h-3.5 mb-1 transition-all duration-500",
                             selectedJobType === 'bids' 
-                              ? "text-emerald-300 drop-shadow-sm" 
-                              : "text-gray-400 group-hover:text-emerald-400"
+                              ? "text-white drop-shadow-sm" 
+                              : "text-gray-400 group-hover:text-blue-400"
                           )} />
                           <span className={cn(
-                            "text-sm font-medium tracking-wider transition-all duration-500",
+                            "text-xs font-medium tracking-wider transition-all duration-500",
                             selectedJobType === 'bids' 
                               ? "text-white/95 font-semibold" 
                               : "text-gray-600 group-hover:text-gray-800"
@@ -223,7 +223,7 @@ const JobSwipe = () => {
                             BUY JOBS
                           </span>
                           <div className={cn(
-                            "text-xs mt-1 transition-all duration-500",
+                            "text-[10px] mt-0.5 transition-all duration-500",
                             selectedJobType === 'bids' 
                               ? "text-white/70" 
                               : "text-gray-400 group-hover:text-gray-500"
@@ -306,12 +306,7 @@ const JobSwipe = () => {
                                   </div>
                                 </div>
                                 {isSelected && (
-                                  <div className={cn(
-                                    "w-2 h-2 rounded-full",
-                                    info.color === 'yellow' && "bg-yellow-500",
-                                    info.color === 'blue' && "bg-blue-500",
-                                    info.color === 'green' && "bg-green-500"
-                                  )} />
+                                  <div className="w-2 h-2 rounded-full bg-blue-500" />
                                 )}
                               </button>
                             );

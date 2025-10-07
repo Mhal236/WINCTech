@@ -170,7 +170,62 @@ app.get('/api/vehicle/:vrn', async (req, res) => {
       response.data.Response.DataItems &&
       response.data.Response.DataItems.VehicleRegistration
     ) {
-      const registration = response.data.Response.DataItems.VehicleRegistration;
+      const dataItems = response.data.Response.DataItems;
+      const registration = dataItems.VehicleRegistration;
+      const technicalDetails = dataItems.TechnicalDetails;
+      const smmtDetails = dataItems.SmmtDetails;
+      
+      // Log all available fields from the API to see what we have
+      console.log('🔍 Full Response Data from API:', JSON.stringify({
+        registration: registration,
+        technicalDetails: technicalDetails?.Dimensions,
+        smmtDetails: smmtDetails
+      }, null, 2));
+      
+      // Also fetch vehicle image
+      let vehicleImageUrl = null;
+      try {
+        const imageApiBaseUrl = process.env.VITE_IMAGE_VEHICLE_API_URL || 'https://legacy.api.vehicledataglobal.com/api/datapackage/VehicleImageData?v=2&auth_apikey=';
+        const imageApiUrl = `${imageApiBaseUrl}${VEHICLE_API_KEY}&key_vrm=${encodeURIComponent(vrn.trim())}`;
+        console.log(`📸 Fetching vehicle image for VRN: ${vrn}`);
+        console.log(`📸 Image API URL: ${imageApiUrl}`);
+        
+        const imageResponse = await axios.get(imageApiUrl);
+        console.log(`📸 Image API Response Status: ${imageResponse.status}`);
+        
+        if (imageResponse.status === 200 && imageResponse.data) {
+          const imageData = imageResponse.data;
+          console.log('📸 Vehicle Image API Full Response:', JSON.stringify(imageData, null, 2));
+          
+          // Extract image URL from response
+          if (imageData?.Response?.DataItems?.VehicleImages?.ImageDetailsList?.length > 0) {
+            vehicleImageUrl = imageData.Response.DataItems.VehicleImages.ImageDetailsList[0].ImageUrl;
+            console.log(`✅ Found vehicle image: ${vehicleImageUrl}`);
+          } else {
+            console.log(`⚠️ No vehicle image found in response structure`);
+            console.log(`📸 Response structure: Response=${!!imageData?.Response}, DataItems=${!!imageData?.Response?.DataItems}, VehicleImages=${!!imageData?.Response?.DataItems?.VehicleImages}, ImageDetailsList=${!!imageData?.Response?.DataItems?.VehicleImages?.ImageDetailsList}`);
+          }
+        }
+      } catch (imageError) {
+        console.error('❌ Error fetching vehicle image:', imageError.message);
+        if (imageError.response) {
+          console.error('❌ Image API Error Response:', imageError.response.status, imageError.response.data);
+        }
+        // Continue without image if fetch fails
+      }
+      
+      // Extract data from nested objects
+      const dimensions = technicalDetails?.Dimensions || {};
+      
+      // Helper function to categorize wheelbase
+      const getWheelbaseType = (wheelbase) => {
+        if (!wheelbase) return "";
+        const wb = parseFloat(wheelbase);
+        if (wb < 2700) return "Short Wheelbase";
+        if (wb >= 2700 && wb < 3000) return "Standard Wheelbase";
+        if (wb >= 3000) return "Long Wheelbase";
+        return "";
+      };
       
       // Return vehicle details
       const vehicleDetails = {
@@ -178,7 +233,21 @@ app.get('/api/vehicle/:vrn', async (req, res) => {
         make: registration.Make || "",
         model: registration.Model || "",
         year: registration.YearOfManufacture || "",
-        bodyStyle: registration.BodyStyle || ""
+        bodyStyle: smmtDetails?.BodyStyle || "",
+        bodyShape: dimensions.BodyShape || "",
+        colour: registration.Colour || "",
+        transmission: registration.Transmission || smmtDetails?.Transmission || "",
+        doors: dimensions.NumberOfDoors || registration.SeatingCapacity || "",
+        seats: dimensions.NumberOfSeats || registration.SeatingCapacity || "",
+        wheelbaseType: getWheelbaseType(dimensions.WheelBase),
+        fuelTankCapacity: dimensions.FuelTankCapacity || "",
+        numberOfAxles: dimensions.NumberOfAxles || "",
+        payloadVolume: dimensions.PayloadVolume || "",
+        cabType: smmtDetails?.CabType || "",
+        platformName: "",
+        platformIsShared: null,
+        vin: registration.Vin || registration.VIN || "",
+        vehicle_image_url: vehicleImageUrl
       };
       
       console.log(`Vehicle data retrieved:`, vehicleDetails);

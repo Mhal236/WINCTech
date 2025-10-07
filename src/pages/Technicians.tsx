@@ -64,27 +64,38 @@ const technicians = [
 const Technicians = () => {
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <UsersRound className="h-8 w-8 text-[#145484]" />
-            <h1 className="text-2xl md:text-3xl font-semibold text-[#145484]">Technicians</h1>
-          </div>
-          <div className="flex gap-2">
-            <div className="relative w-full md:w-auto">
-              <MagnifyingGlassIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-              <Input
-                type="search"
-                placeholder="Search technicians..."
-                className="w-full md:w-[300px] pl-8 bg-white"
-              />
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        {/* Enhanced Header */}
+        <div className="bg-white shadow-sm border-b border-gray-200 rounded-b-2xl">
+          <div className="px-6 py-8">
+            <div className="flex flex-col gap-6">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <h1 className="text-4xl font-bold text-gray-900">Technicians</h1>
+                </div>
+                <p className="text-gray-600 text-lg">
+                  Manage and view all technicians in your network
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <div className="relative w-full md:w-auto">
+                  <MagnifyingGlassIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                  <Input
+                    type="search"
+                    placeholder="Search technicians..."
+                    className="w-full md:w-[300px] pl-8 bg-white"
+                  />
+                </div>
+                <Button>
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Add New
+                </Button>
+              </div>
             </div>
-            <Button>
-              <PlusCircle className="h-4 w-4 mr-2" />
-              Add New
-            </Button>
           </div>
         </div>
+
+        <div className="p-4 sm:p-6 space-y-6">
 
         <Card>
           <CardHeader className="pb-2">
@@ -180,6 +191,7 @@ const Technicians = () => {
             </Table>
           </CardContent>
         </Card>
+      </div>
       </div>
     </DashboardLayout>
   );

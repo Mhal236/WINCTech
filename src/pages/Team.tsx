@@ -7,19 +7,33 @@ import { Users, Search, Mail, Phone } from "lucide-react";
 const Team = () => {
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <h1 className="text-2xl md:text-3xl font-semibold text-[#135084]">Team Members</h1>
-          <div className="flex items-center gap-4 w-full md:w-auto">
-            <Input
-              placeholder="Search team members..."
-              className="w-full md:w-64 border-[#135084] focus:ring-[#135084]"
-            />
-            <Button variant="secondary" size="icon" className="bg-[#135084] hover:bg-[#135084]/90">
-              <Search className="h-4 w-4" />
-            </Button>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        {/* Enhanced Header */}
+        <div className="bg-white shadow-sm border-b border-gray-200 rounded-b-2xl">
+          <div className="px-6 py-8">
+            <div className="flex flex-col gap-6">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <h1 className="text-4xl font-bold text-gray-900">Team Members</h1>
+                </div>
+                <p className="text-gray-600 text-lg">
+                  Manage and communicate with your team
+                </p>
+              </div>
+              <div className="flex items-center gap-4 w-full md:w-auto">
+                <Input
+                  placeholder="Search team members..."
+                  className="w-full md:w-64 border-[#135084] focus:ring-[#135084]"
+                />
+                <Button variant="secondary" size="icon" className="bg-[#135084] hover:bg-[#135084]/90">
+                  <Search className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
+
+        <div className="p-4 sm:p-6 space-y-6">
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {[1, 2, 3, 4, 5, 6].map((member) => (
@@ -47,6 +61,7 @@ const Team = () => {
             </Card>
           ))}
         </div>
+      </div>
       </div>
     </DashboardLayout>
   );

@@ -330,17 +330,28 @@ const History = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-semibold text-[#135084]">Jobs Dashboard</h1>
-            <p className="text-gray-500 mt-1">Manage and track all jobs</p>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        {/* Enhanced Header */}
+        <div className="bg-white shadow-sm border-b border-gray-200 rounded-b-2xl">
+          <div className="px-6 py-8">
+            <div className="flex flex-col gap-6">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <h1 className="text-4xl font-bold text-gray-900">Jobs Dashboard</h1>
+                </div>
+                <p className="text-gray-600 text-lg">
+                  Manage and track all jobs
+                </p>
+              </div>
+              <Button className="bg-[#135084] hover:bg-[#135084]/90 w-fit">
+                <Plus className="h-5 w-5 mr-2" />
+                New Job
+              </Button>
+            </div>
           </div>
-          <Button className="bg-[#135084] hover:bg-[#135084]/90">
-            <Plus className="h-5 w-5 mr-2" />
-            New Job
-          </Button>
         </div>
+
+        <div className="p-4 sm:p-6 space-y-8">
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1100,6 +1111,7 @@ const History = () => {
             </DialogContent>
           </Dialog>
         )}
+      </div>
       </div>
     </DashboardLayout>
   );

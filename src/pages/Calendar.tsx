@@ -197,30 +197,40 @@ const Calendar = () => {
 
   return (
     <DashboardLayout>
-      <div className="p-4 sm:p-6 space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Calendar</h1>
-            <p className="text-gray-600 mt-1">Manage your scheduled jobs and appointments</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button 
-              onClick={fetchCalendarEvents} 
-              variant="outline" 
-              size="sm"
-              disabled={loading}
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              {loading ? 'Loading...' : 'Refresh'}
-            </Button>
-            <Badge variant="secondary" className="hidden sm:flex items-center gap-1">
-              <Activity className="w-3 h-3" />
-              {calendarEvents.length} Total Jobs
-            </Badge>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        {/* Enhanced Header */}
+        <div className="bg-white shadow-sm border-b border-gray-200 rounded-b-2xl">
+          <div className="px-6 py-8">
+            <div className="flex flex-col gap-6">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <h1 className="text-4xl font-bold text-gray-900">My Calendar</h1>
+                </div>
+                <p className="text-gray-600 text-lg">
+                  Manage your scheduled jobs and appointments
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button 
+                  onClick={fetchCalendarEvents} 
+                  variant="outline" 
+                  size="sm"
+                  disabled={loading}
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  {loading ? 'Loading...' : 'Refresh'}
+                </Button>
+                <Badge variant="secondary" className="hidden sm:flex items-center gap-1">
+                  <Activity className="w-3 h-3" />
+                  {calendarEvents.length} Total Jobs
+                </Badge>
+              </div>
+            </div>
           </div>
         </div>
+
+        <div className="p-4 sm:p-6 space-y-6">
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -558,6 +568,7 @@ const Calendar = () => {
             </Card>
           </div>
         </div>
+      </div>
       </div>
     </DashboardLayout>
   );

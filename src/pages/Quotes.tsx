@@ -7,19 +7,33 @@ import { ClipboardList, Search, Download } from "lucide-react";
 const Quotes = () => {
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <h1 className="text-2xl md:text-3xl font-semibold text-[#3d99be]">Quotes</h1>
-          <div className="flex items-center gap-4 w-full md:w-auto">
-            <Input
-              placeholder="Search quotes..."
-              className="w-full md:w-64 border-[#3d99be] focus:ring-[#3d99be]"
-            />
-            <Button variant="secondary" size="icon" className="bg-[#3d99be] hover:bg-[#2d7994]">
-              <Search className="h-4 w-4" />
-            </Button>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        {/* Enhanced Header */}
+        <div className="bg-white shadow-sm border-b border-gray-200 rounded-b-2xl">
+          <div className="px-6 py-8">
+            <div className="flex flex-col gap-6">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <h1 className="text-4xl font-bold text-gray-900">Quotes</h1>
+                </div>
+                <p className="text-gray-600 text-lg">
+                  View and manage customer quotes
+                </p>
+              </div>
+              <div className="flex items-center gap-4 w-full md:w-auto">
+                <Input
+                  placeholder="Search quotes..."
+                  className="w-full md:w-64 border-[#3d99be] focus:ring-[#3d99be]"
+                />
+                <Button variant="secondary" size="icon" className="bg-[#3d99be] hover:bg-[#2d7994]">
+                  <Search className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
+
+        <div className="p-4 sm:p-6 space-y-6">
 
         <div className="grid gap-4 md:gap-6">
           <Card className="hover:shadow-lg transition-shadow duration-200">
@@ -54,6 +68,7 @@ const Quotes = () => {
             </CardContent>
           </Card>
         </div>
+      </div>
       </div>
     </DashboardLayout>
   );

@@ -220,29 +220,43 @@ const Glass = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <h1 className="text-2xl md:text-3xl font-semibold text-[#3d99be]">Glass Inventory</h1>
-          {availableDepots.length > 0 && (
-            <div className="w-full md:w-64">
-              <Select 
-                value={selectedDepot}
-                onValueChange={setSelectedDepot}
-              >
-                <SelectTrigger className="w-full border-[#3d99be] focus:ring-[#3d99be]">
-                  <SelectValue placeholder="Select depot" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableDepots.map((depot) => (
-                    <SelectItem key={depot.code} value={depot.code}>
-                      {depot.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        {/* Enhanced Header */}
+        <div className="bg-white shadow-sm border-b border-gray-200 rounded-b-2xl">
+          <div className="px-6 py-8">
+            <div className="flex flex-col gap-6">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <h1 className="text-4xl font-bold text-gray-900">Glass Inventory</h1>
+                </div>
+                <p className="text-gray-600 text-lg">
+                  Search and check availability of windscreen glass products
+                </p>
+              </div>
+              {availableDepots.length > 0 && (
+                <div className="w-full md:w-64">
+                  <Select 
+                    value={selectedDepot}
+                    onValueChange={setSelectedDepot}
+                  >
+                    <SelectTrigger className="w-full border-[#3d99be] focus:ring-[#3d99be]">
+                      <SelectValue placeholder="Select depot" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableDepots.map((depot) => (
+                        <SelectItem key={depot.code} value={depot.code}>
+                          {depot.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
+
+        <div className="p-4 sm:p-6 space-y-6">
 
         <Tabs defaultValue="vrn-vin" className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
@@ -360,6 +374,7 @@ const Glass = () => {
             <p className="text-gray-500">No glass products found. Please search to see results.</p>
           </div>
         )}
+      </div>
       </div>
     </DashboardLayout>
   );

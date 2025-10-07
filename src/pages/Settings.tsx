@@ -199,10 +199,24 @@ const Settings = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-4 sm:space-y-6">
-        <div className="flex items-center gap-3 sm:gap-4">
-          <h1 className="mobile-heading font-semibold text-[#145484]">Settings</h1>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        {/* Enhanced Header */}
+        <div className="bg-white shadow-sm border-b border-gray-200 rounded-b-2xl">
+          <div className="px-6 py-8">
+            <div className="flex flex-col gap-6">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <h1 className="text-4xl font-bold text-gray-900">Settings</h1>
+                </div>
+                <p className="text-gray-600 text-lg">
+                  Manage your account settings and preferences
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
+
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
 
         <Tabs defaultValue="general" className="w-full">
           <TabsList className="grid w-full grid-cols-4 mb-6">
@@ -461,6 +475,7 @@ const Settings = () => {
             <CashoutSettings />
           </TabsContent>
         </Tabs>
+      </div>
       </div>
     </DashboardLayout>
   );
