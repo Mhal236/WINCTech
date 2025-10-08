@@ -33,6 +33,7 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [currentPage, setCurrentPage] = useState(1);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [purchaseCounts, setPurchaseCounts] = useState<Map<string, number>>(new Map());
   const jobsPerPage = 5; // Limited to 5 jobs at a time
   const { user, refreshUser } = useAuth();
 
@@ -60,6 +61,35 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
 
     return () => clearInterval(interval);
   }, [jobType]);
+
+  const fetchPurchaseCounts = async (jobIds: string[]) => {
+    if (jobIds.length === 0) return;
+    
+    try {
+      // Fetch purchase counts for all jobs
+      const { data, error } = await supabase
+        .from('job_assignments')
+        .select('job_id')
+        .in('job_id', jobIds);
+
+      if (error) {
+        console.error('Error fetching purchase counts:', error);
+        return;
+      }
+
+      if (data) {
+        // Count purchases per job
+        const counts = new Map<string, number>();
+        data.forEach(assignment => {
+          const currentCount = counts.get(assignment.job_id) || 0;
+          counts.set(assignment.job_id, currentCount + 1);
+        });
+        setPurchaseCounts(counts);
+      }
+    } catch (error) {
+      console.error('Error in fetchPurchaseCounts:', error);
+    }
+  };
 
   const fetchJobs = async () => {
     try {
@@ -110,6 +140,12 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
         console.log(`Filtered ${jobType} jobs:`, filteredJobs);
         setJobs(filteredJobs);
         setFilteredJobs(filteredJobs);
+        
+        // Fetch purchase counts for board jobs (leads)
+        if (jobType === 'board' && filteredJobs.length > 0) {
+          const jobIds = filteredJobs.map(job => job.id);
+          await fetchPurchaseCounts(jobIds);
+        }
       }
     } catch (error) {
       console.error('Error in fetchJobs:', error);
@@ -127,6 +163,14 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
   // Filter and sort jobs
   useEffect(() => {
     let filtered = [...jobs];
+
+    // For board jobs (leads), filter out leads with 3 purchases
+    if (jobType === 'board') {
+      filtered = filtered.filter(job => {
+        const purchaseCount = purchaseCounts.get(job.id) || 0;
+        return purchaseCount < 3;
+      });
+    }
 
     // Apply search filter
     if (searchTerm.trim()) {
@@ -203,7 +247,7 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
 
     setFilteredJobs(filtered);
     setCurrentPage(1); // Reset to first page when filters change
-  }, [jobs, searchTerm, sortBy, priceFilter]);
+  }, [jobs, searchTerm, sortBy, priceFilter, purchaseCounts, jobType]);
 
   const handleAcceptJob = async (job: JobData) => {
     if (!user || !user.id) {
@@ -213,6 +257,19 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
         variant: "destructive",
       });
       return;
+    }
+
+    // Check if 3 technicians have already purchased this lead
+    if (jobType === 'board') {
+      const purchaseCount = purchaseCounts.get(job.id) || 0;
+      if (purchaseCount >= 3) {
+        toast({
+          title: "Lead Unavailable",
+          description: "This lead is no longer available (maximum 3 purchases reached).",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     // Check if user is a technician - try both user_id and direct lookup by email
@@ -563,6 +620,7 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
                   isAccepted={acceptedJobs.has(job.id)}
                   isAccepting={acceptingJobId === job.id}
                   showCredits={jobType === 'board'}
+                  purchaseCount={purchaseCounts.get(job.id) || 0}
                 />
               </div>
             ));

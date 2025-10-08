@@ -1447,15 +1447,24 @@ app.post('/api/jobs/accept', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing required fields: jobId, technicianId, technicianName' });
       }
 
-    // Prevent double assignment
-    const { data: existingAssign, error: existingErr } = await supabase
+    // Check how many technicians have already purchased this lead
+    const { data: existingAssignments, error: existingErr } = await supabase
       .from('job_assignments')
-      .select('id')
-      .eq('job_id', jobId)
-      .maybeSingle();
+      .select('id, technician_id')
+      .eq('job_id', jobId);
 
     if (existingErr) return res.status(500).json({ success: false, error: existingErr.message });
-    if (existingAssign) return res.status(409).json({ success: false, error: 'Job already assigned' });
+    
+    // Check if this technician has already purchased this lead
+    const hasAlreadyPurchased = existingAssignments?.some(a => a.technician_id === technicianId);
+    if (hasAlreadyPurchased) {
+      return res.status(409).json({ success: false, error: 'You have already purchased this lead' });
+    }
+    
+    // Check if 3 technicians have already purchased this lead
+    if (existingAssignments && existingAssignments.length >= 3) {
+      return res.status(409).json({ success: false, error: 'This lead is no longer available (maximum 3 purchases reached)' });
+    }
 
     // Insert assignment
     const { data: assignment, error: insertErr } = await supabase
@@ -1567,15 +1576,19 @@ app.post('/api/jobs/accept', async (req, res) => {
       console.log(`✅ Deducted ${creditCost} credits from technician ${technicianId}. New balance: ${newCredits}`);
     }
 
-    // Update MasterCustomer - only update technician info, keep original status
-    const { error: updateErr } = await supabase
-      .from('MasterCustomer')
-      .update({ technician_id: technicianId, technician_name: technicianName })
-      .eq('id', jobId);
+    // Update MasterCustomer - only update technician info for the first purchase
+    // For subsequent purchases (leads can be sold to up to 3 technicians), don't update MasterCustomer
+    const isFirstPurchase = !existingAssignments || existingAssignments.length === 0;
+    if (isFirstPurchase) {
+      const { error: updateErr } = await supabase
+        .from('MasterCustomer')
+        .update({ technician_id: technicianId, technician_name: technicianName })
+        .eq('id', jobId);
 
-    if (updateErr) {
-      await supabase.from('job_assignments').delete().eq('id', assignment.id);
-      return res.status(500).json({ success: false, error: updateErr.message });
+      if (updateErr) {
+        await supabase.from('job_assignments').delete().eq('id', assignment.id);
+        return res.status(500).json({ success: false, error: updateErr.message });
+      }
     }
 
     return res.json({ 

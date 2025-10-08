@@ -55,6 +55,7 @@ interface JobCardProps {
   isAccepted?: boolean;
   isAccepting?: boolean;
   showCredits?: boolean;
+  purchaseCount?: number;
 }
 
 export const JobCard: React.FC<JobCardProps> = ({ 
@@ -62,7 +63,8 @@ export const JobCard: React.FC<JobCardProps> = ({
   onAccept, 
   isAccepted = false, 
   isAccepting = false,
-  showCredits = false
+  showCredits = false,
+  purchaseCount = 0
 }) => {
   // Helper function to safely parse JSON fields from Supabase
   const parseJsonField = (field: any): any[] => {
@@ -346,14 +348,30 @@ export const JobCard: React.FC<JobCardProps> = ({
               <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg">
                 <Car className="w-5 h-5 sm:w-4 sm:h-4 text-white" />
               </div>
-              <div className="min-w-0 flex-1 pr-4 sm:pr-8">
+              <div className="min-w-0 flex-1">
                 <h3 className="text-lg sm:text-base font-bold text-gray-900 truncate group-hover:text-indigo-700 transition-colors">
                   {getVehicleDisplay()}
                 </h3>
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center justify-between gap-2 mt-1">
                   <Badge variant="secondary" className="text-xs font-semibold bg-gray-100 text-gray-700 px-2 py-1 rounded-full flex-shrink-0">
                     {job.vehicle_reg || 'No Reg'}
                   </Badge>
+                  {/* Purchase Count Indicator - Below title on mobile, hidden on desktop */}
+                  {showCredits && (
+                    <div className="flex items-center gap-1 sm:hidden flex-shrink-0">
+                      {[0, 1, 2].map((index) => (
+                        <div
+                          key={index}
+                          className={`w-2.5 h-2.5 rounded-full border transition-all duration-300 ${
+                            index < purchaseCount
+                              ? 'bg-[#2165ab] border-[#2165ab]'
+                              : 'bg-white border-gray-300'
+                          }`}
+                          title={`${purchaseCount} of 3 technicians have purchased this lead`}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {job.timeline && (
                   <div className="mt-1">
@@ -526,6 +544,23 @@ export const JobCard: React.FC<JobCardProps> = ({
             </Button>
           </div>
         </div>
+
+        {/* Purchase Count Indicator - Bottom right on desktop only */}
+        {showCredits && (
+          <div className="absolute bottom-3 right-3 hidden sm:flex items-center gap-1">
+            {[0, 1, 2].map((index) => (
+              <div
+                key={index}
+                className={`w-2.5 h-2.5 rounded-full border transition-all duration-300 ${
+                  index < purchaseCount
+                    ? 'bg-[#2165ab] border-[#2165ab]'
+                    : 'bg-white border-gray-300'
+                }`}
+                title={`${purchaseCount} of 3 technicians have purchased this lead`}
+              />
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
