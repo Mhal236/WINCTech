@@ -1170,33 +1170,55 @@ app.post('/api/stripe/confirm-subscription', async (req, res) => {
     const priceId = subscription.items.data[0].price.id;
     let assignedRole = 'pro-1'; // Default
     let planName = 'Starter';
-    let creditsToAdd = 100;
+    let creditsToAdd = 250; // Updated to match new plan
+    let commissionRate = 20.00; // Default 20%
 
     // Map price IDs to roles (you'll need to create these products in Stripe dashboard)
-    if (priceId.includes('starter') || priceId.includes('118')) {
+    if (priceId.includes('starter') || priceId.includes('118') || priceId.includes('1130')) {
       assignedRole = 'pro-1';
       planName = 'Starter';
-      creditsToAdd = 100;
-    } else if (priceId.includes('professional') || priceId.includes('198')) {
+      creditsToAdd = 250;
+      commissionRate = 20.00;
+    } else if (priceId.includes('professional') || priceId.includes('239') || priceId.includes('2290')) {
       assignedRole = 'pro-2';
       planName = 'Professional';
-      creditsToAdd = 350;
-    } else if (priceId.includes('enterprise') || priceId.includes('150')) {
+      creditsToAdd = 600;
+      commissionRate = 15.00;
+    } else if (priceId.includes('enterprise')) {
       assignedRole = 'pro-2';
       planName = 'Enterprise';
-      creditsToAdd = 1500;
+      creditsToAdd = 0; // Custom
+      commissionRate = 5.00;
     }
 
-    console.log(`Assigning role ${assignedRole} for plan ${planName}`);
+    console.log(`Assigning role ${assignedRole}, ${creditsToAdd} credits, ${commissionRate}% commission for plan ${planName}`);
 
-    // Update user role in app_users table
+    // Update user in app_users table
     const { error: roleUpdateError } = await supabase
       .from('app_users')
       .update({ 
         user_role: assignedRole,
-        credits: creditsToAdd 
+        credits: creditsToAdd,
+        commission_rate: commissionRate
       })
       .eq('id', userId);
+
+    if (roleUpdateError) {
+      console.error('Error updating app_users:', roleUpdateError);
+    }
+
+    // Also update technicians table if user is a technician
+    const { error: techUpdateError } = await supabase
+      .from('technicians')
+      .update({ 
+        credits: creditsToAdd,
+        commission_rate: commissionRate
+      })
+      .eq('id', userId);
+
+    if (techUpdateError) {
+      console.log('Note: Could not update technicians table (user may not be in table):', techUpdateError.message);
+    }
 
     if (roleUpdateError) {
       console.error('Error updating user role:', roleUpdateError);
@@ -1356,31 +1378,54 @@ app.post('/api/stripe/find-and-confirm-subscription', async (req, res) => {
       const priceId = subscription.items.data[0].price.id;
       let assignedRole = 'pro-1';
       let planName = 'Starter';
-      let creditsToAdd = 100;
+      let creditsToAdd = 250; // Updated to match new plan
+      let commissionRate = 20.00; // Default 20%
 
       // Map price IDs to roles
       if (priceId === process.env.STRIPE_STARTER_MONTHLY_PRICE || 
-          priceId === process.env.STRIPE_STARTER_ANNUAL_PRICE) {
+          priceId === process.env.STRIPE_STARTER_ANNUAL_PRICE ||
+          priceId.includes('starter') || priceId.includes('118') || priceId.includes('1130')) {
         assignedRole = 'pro-1';
         planName = 'Starter';
-        creditsToAdd = 100;
+        creditsToAdd = 250;
+        commissionRate = 20.00;
       } else if (priceId === process.env.STRIPE_PROFESSIONAL_MONTHLY_PRICE || 
-                 priceId === process.env.STRIPE_PROFESSIONAL_ANNUAL_PRICE) {
+                 priceId === process.env.STRIPE_PROFESSIONAL_ANNUAL_PRICE ||
+                 priceId.includes('professional') || priceId.includes('239') || priceId.includes('2290')) {
         assignedRole = 'pro-2';
         planName = 'Professional';
-        creditsToAdd = 350;
+        creditsToAdd = 600;
+        commissionRate = 15.00;
       }
 
-      console.log(`Assigning role ${assignedRole} for plan ${planName}`);
+      console.log(`Assigning role ${assignedRole}, ${creditsToAdd} credits, ${commissionRate}% commission for plan ${planName}`);
 
-      // Update user role and credits
+      // Update user role, credits, and commission rate in app_users
       const { error: roleUpdateError } = await supabase
         .from('app_users')
         .update({ 
           user_role: assignedRole,
-          credits: creditsToAdd 
+          credits: creditsToAdd,
+          commission_rate: commissionRate
         })
         .eq('id', userId);
+
+      if (roleUpdateError) {
+        console.error('Error updating app_users:', roleUpdateError);
+      }
+
+      // Also update technicians table if user is a technician
+      const { error: techUpdateError } = await supabase
+        .from('technicians')
+        .update({ 
+          credits: creditsToAdd,
+          commission_rate: commissionRate
+        })
+        .eq('id', userId);
+
+      if (techUpdateError) {
+        console.log('Note: Could not update technicians table (user may not be in table):', techUpdateError.message);
+      }
 
       if (roleUpdateError) {
         console.error('Error updating user role:', roleUpdateError);
@@ -1633,7 +1678,14 @@ app.post('/api/technician/jobs', async (req, res) => {
           vehicle_reg,
           brand,
           model,
-          year
+          year,
+          window_damage,
+          selected_windows,
+          window_spec,
+          adas_calibration,
+          delivery_type,
+          timeline,
+          duration
         )
       `)
       .eq('technician_id', technicianId)
@@ -1740,6 +1792,132 @@ app.post('/api/jobs/unassign', async (req, res) => {
   }
 });
 
+// Create job from Price Estimator
+app.post('/api/jobs/create', async (req, res) => {
+  try {
+    console.log('🔵 Job creation request received:', req.body);
+    
+    const admin = getSupabaseAdmin();
+    if (admin.error) return res.status(500).json({ success: false, error: admin.error });
+    const supabase = admin.client;
+    
+    const {
+      userId,
+      vrn,
+      make,
+      model,
+      year,
+      glassType,
+      colorTint,
+      hasSensor,
+      hasCamera,
+      hasADAS,
+      customerPostcode,
+      technicianPostcode,
+      glassCost,
+      laborCost,
+      travelCost,
+      distance,
+      totalEstimate,
+      glassDescription
+    } = req.body || {};
+
+    if (!userId || !customerPostcode || !technicianPostcode) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    // Map glass type to service type
+    const serviceTypeMap = {
+      'windscreen': 'Windscreen Replacement',
+      'rear': 'Rear Window Replacement',
+      'side': 'Side Window Replacement',
+      'quarter': 'Quarter Glass Replacement',
+      'vent': 'Vent Window Replacement'
+    };
+
+    const serviceType = serviceTypeMap[glassType] || 'Glass Replacement';
+
+    // Insert into MasterCustomer table
+    const { data: newJob, error: insertError } = await supabase
+      .from('MasterCustomer')
+      .insert({
+        full_name: '[Customer Details Pending]',
+        email: null,
+        mobile: null,
+        location: customerPostcode,
+        postcode: customerPostcode,
+        vehicle_reg: vrn || null,
+        year: year ? parseInt(year) : null,
+        brand: make || null,
+        model: model || null,
+        service_type: serviceType,
+        glass_type: colorTint || null,
+        quote_price: totalEstimate,
+        status: 'paid', // Status for exclusive jobs
+        created_at: new Date().toISOString(),
+        // Store additional metadata
+        notes: JSON.stringify({
+          source: 'price_estimator',
+          glass_description: glassDescription,
+          has_sensor: hasSensor,
+          has_camera: hasCamera,
+          has_adas: hasADAS,
+          technician_postcode: technicianPostcode,
+          customer_postcode: customerPostcode,
+          breakdown: {
+            glass_cost: glassCost,
+            labor_cost: laborCost,
+            travel_cost: travelCost,
+            distance_miles: distance
+          }
+        })
+      })
+      .select()
+      .single();
+
+    if (insertError || !newJob) {
+      console.error('Failed to create job:', insertError);
+      return res.status(500).json({ success: false, error: 'Failed to create job' });
+    }
+
+    console.log(`✅ Job created successfully with ID: ${newJob.id}`);
+
+    // Create job assignment (auto-assign to the technician who created the estimate)
+    const { data: assignment, error: assignmentError } = await supabase
+      .from('job_assignments')
+      .insert({
+        job_id: newJob.id,
+        technician_id: userId,
+        status: 'assigned',
+        assigned_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (assignmentError || !assignment) {
+      console.error('Failed to create job assignment:', assignmentError);
+      // Job was created but assignment failed - still return success with warning
+      return res.json({
+        success: true,
+        jobId: newJob.id,
+        warning: 'Job created but assignment failed. Please assign manually.'
+      });
+    }
+
+    console.log(`✅ Job assigned to technician ${userId}`);
+
+    return res.json({
+      success: true,
+      jobId: newJob.id,
+      assignmentId: assignment.id
+    });
+
+  } catch (error) {
+    console.error('Error in /api/jobs/create:', error);
+    return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
 // Basic health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
@@ -1747,6 +1925,394 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     message: 'API server is running'
   });
+});
+
+// ==================== STRIPE CONNECT ENDPOINTS ====================
+
+// Create Stripe Connect Account Link (OAuth flow)
+app.post('/api/stripe/connect/create-account-link', async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!stripe) {
+      return res.status(500).json({ success: false, error: 'Stripe is not configured' });
+    }
+
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'User ID is required' });
+    }
+
+    const { client } = getSupabaseAdmin();
+    
+    // Check if user already has a Stripe Connect account
+    const { data: existingAccount } = await client
+      .from('stripe_connect_accounts')
+      .select('*')
+      .eq('technician_id', userId)
+      .single();
+
+    let accountId;
+
+    if (existingAccount?.stripe_account_id) {
+      accountId = existingAccount.stripe_account_id;
+      console.log(`♻️ Using existing Stripe account: ${accountId}`);
+    } else {
+      // Create new Stripe Connect account
+      const account = await stripe.accounts.create({
+        type: 'express',
+        country: 'GB',
+        capabilities: {
+          card_payments: { requested: true },
+          transfers: { requested: true },
+        },
+      });
+
+      accountId = account.id;
+      console.log(`✅ Created new Stripe Connect account: ${accountId}`);
+
+      // Save to database
+      await client
+        .from('stripe_connect_accounts')
+        .insert({
+          technician_id: userId,
+          stripe_account_id: accountId,
+          charges_enabled: false,
+          payouts_enabled: false,
+          details_submitted: false,
+        });
+    }
+
+    // Create account link for onboarding
+    const accountLink = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: `${process.env.VITE_APP_URL || 'http://localhost:8080'}/settings?stripe_refresh=true`,
+      return_url: `${process.env.VITE_APP_URL || 'http://localhost:8080'}/settings?stripe_connected=true`,
+      type: 'account_onboarding',
+    });
+
+    res.json({ success: true, url: accountLink.url, accountId });
+  } catch (error) {
+    console.error('Error creating Stripe Connect account link:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get Stripe Connect Account Status
+app.post('/api/stripe/connect/account-status', async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!stripe) {
+      return res.status(500).json({ success: false, error: 'Stripe is not configured' });
+    }
+
+    const { client } = getSupabaseAdmin();
+    
+    const { data: account, error } = await client
+      .from('stripe_connect_accounts')
+      .select('*')
+      .eq('technician_id', userId)
+      .single();
+
+    if (error || !account) {
+      return res.json({ success: true, connected: false, account: null });
+    }
+
+    // Fetch latest account details from Stripe
+    const stripeAccount = await stripe.accounts.retrieve(account.stripe_account_id);
+
+    // Update database with latest info
+    await client
+      .from('stripe_connect_accounts')
+      .update({
+        charges_enabled: stripeAccount.charges_enabled,
+        payouts_enabled: stripeAccount.payouts_enabled,
+        details_submitted: stripeAccount.details_submitted,
+        email: stripeAccount.email,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', account.id);
+
+    res.json({ 
+      success: true, 
+      connected: true,
+      account: {
+        account_id: account.stripe_account_id,
+        charges_enabled: stripeAccount.charges_enabled,
+        payouts_enabled: stripeAccount.payouts_enabled,
+        details_submitted: stripeAccount.details_submitted,
+        email: stripeAccount.email,
+        connected_at: account.connected_at,
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching Stripe account status:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Disconnect Stripe Account
+app.post('/api/stripe/connect/disconnect', async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!stripe) {
+      return res.status(500).json({ success: false, error: 'Stripe is not configured' });
+    }
+
+    const { client } = getSupabaseAdmin();
+    
+    // Delete from database
+    const { error } = await client
+      .from('stripe_connect_accounts')
+      .delete()
+      .eq('technician_id', userId);
+
+    if (error) throw error;
+
+    res.json({ success: true, message: 'Stripe account disconnected' });
+  } catch (error) {
+    console.error('Error disconnecting Stripe account:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Request Cashout
+app.post('/api/cashout/request', async (req, res) => {
+  try {
+    const { userId, jobIds, amount } = req.body;
+
+    if (!stripe) {
+      return res.status(500).json({ success: false, error: 'Stripe is not configured' });
+    }
+
+    // Validate minimum amount
+    if (amount < 20) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Minimum cashout amount is £20.00' 
+      });
+    }
+
+    const { client } = getSupabaseAdmin();
+    
+    // Get Stripe Connect account
+    const { data: stripeAccount, error: accountError } = await client
+      .from('stripe_connect_accounts')
+      .select('*')
+      .eq('technician_id', userId)
+      .single();
+
+    if (accountError || !stripeAccount) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'No Stripe account connected. Please connect your account first.' 
+      });
+    }
+
+    if (!stripeAccount.payouts_enabled) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Payouts not enabled. Please complete your Stripe account setup.' 
+      });
+    }
+
+    // Create transfer to connected account
+    const transfer = await stripe.transfers.create({
+      amount: Math.round(amount * 100), // Convert to pence
+      currency: 'gbp',
+      destination: stripeAccount.stripe_account_id,
+      description: `Cashout for ${jobIds.length} completed jobs`,
+      metadata: {
+        technician_id: userId,
+        jobs_count: jobIds.length,
+        job_ids: jobIds.join(','),
+      },
+    });
+
+    // Create cashout request record
+    const { data: cashoutRequest, error: requestError } = await client
+      .from('cashout_requests')
+      .insert({
+        technician_id: userId,
+        stripe_account_id: stripeAccount.id,
+        amount: amount,
+        jobs_count: jobIds.length,
+        job_ids: jobIds,
+        status: 'processing',
+        stripe_transfer_id: transfer.id,
+        metadata: { transfer },
+      })
+      .select()
+      .single();
+
+    if (requestError) throw requestError;
+
+    res.json({ 
+      success: true, 
+      data: cashoutRequest,
+      message: `Payout of £${amount.toFixed(2)} is being processed to your Stripe account` 
+    });
+  } catch (error) {
+    console.error('Error requesting cashout:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get Cashout History
+app.post('/api/cashout/history', async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    const { client } = getSupabaseAdmin();
+    
+    const { data, error } = await client
+      .from('cashout_requests')
+      .select('*')
+      .eq('technician_id', userId)
+      .order('requested_at', { ascending: false })
+      .limit(20);
+
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [] });
+  } catch (error) {
+    console.error('Error fetching cashout history:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==================== COUPON VALIDATION ====================
+
+// Validate Stripe Coupon/Promotion Code
+app.post('/api/stripe/validate-coupon', async (req, res) => {
+  try {
+    const { couponCode, amount } = req.body;
+
+    if (!stripe) {
+      return res.status(500).json({ success: false, error: 'Stripe is not configured' });
+    }
+
+    if (!couponCode) {
+      return res.status(400).json({ success: false, error: 'Coupon code is required' });
+    }
+
+    // First, try to retrieve as a coupon
+    let coupon = null;
+    try {
+      coupon = await stripe.coupons.retrieve(couponCode);
+    } catch (error) {
+      // If not found as coupon, try as promotion code
+      try {
+        const promotionCodes = await stripe.promotionCodes.list({
+          code: couponCode,
+          limit: 1,
+        });
+        
+        if (promotionCodes.data.length > 0) {
+          const promoCode = promotionCodes.data[0];
+          
+          // Check if promotion code is active
+          if (!promoCode.active) {
+            return res.json({ 
+              success: true, 
+              valid: false, 
+              error: 'This promotion code is no longer active' 
+            });
+          }
+          
+          // Get the coupon details
+          coupon = promoCode.coupon;
+        }
+      } catch (promoError) {
+        return res.json({ 
+          success: true, 
+          valid: false, 
+          error: 'Invalid coupon code' 
+        });
+      }
+    }
+
+    if (!coupon) {
+      return res.json({ 
+        success: true, 
+        valid: false, 
+        error: 'Coupon not found' 
+      });
+    }
+
+    // Check if coupon is valid (not expired, etc.)
+    if (!coupon.valid) {
+      return res.json({ 
+        success: true, 
+        valid: false, 
+        error: 'This coupon has expired or is no longer valid' 
+      });
+    }
+
+    // Return coupon details
+    res.json({ 
+      success: true, 
+      valid: true,
+      coupon: {
+        id: coupon.id,
+        percent_off: coupon.percent_off,
+        amount_off: coupon.amount_off,
+        currency: coupon.currency,
+        duration: coupon.duration,
+        duration_in_months: coupon.duration_in_months,
+        name: coupon.name,
+      }
+    });
+  } catch (error) {
+    console.error('Error validating coupon:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==================== GLASS PAYMENT INTENT ====================
+
+// Create Payment Intent for Glass Orders
+app.post('/api/stripe/create-glass-payment-intent', async (req, res) => {
+  try {
+    const { amount, userId, items, deliveryOption, deliveryFee, subtotal, vat } = req.body;
+
+    if (!stripe) {
+      return res.status(500).json({ success: false, error: 'Stripe is not configured' });
+    }
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ success: false, error: 'Invalid amount' });
+    }
+
+    // Create payment intent
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100), // Convert to pence
+      currency: 'gbp',
+      automatic_payment_methods: {
+        enabled: true,
+      },
+      metadata: {
+        userId: userId || 'guest',
+        type: 'glass_order',
+        items_count: items?.length || 0,
+        delivery_option: deliveryOption || 'delivery',
+        delivery_fee: deliveryFee || 0,
+        subtotal: subtotal || 0,
+        vat: vat || 0,
+      },
+      description: `Glass Order - ${items?.length || 0} items`,
+    });
+
+    res.json({ 
+      success: true, 
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id
+    });
+  } catch (error) {
+    console.error('Error creating glass payment intent:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // Start the server

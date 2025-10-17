@@ -37,7 +37,7 @@ export default function Website() {
   const { user } = useAuth();
   const [webhookUrl, setWebhookUrl] = useState("https://api.windscreencompare.com/embed/technician");
   const [primaryColor, setPrimaryColor] = useState("#23b7c0");
-  const [secondaryColor, setSecondaryColor] = useState("#135084");
+  const [secondaryColor, setSecondaryColor] = useState("#145484");
   const [accentColor, setAccentColor] = useState("#FFC107");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -332,7 +332,7 @@ export default function Website() {
                       Theme Colors
                     </CardTitle>
                     <CardDescription>
-                      Customize the colors to match your brand
+                      Customise the colours to match your brand
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -370,7 +370,7 @@ export default function Website() {
                             value={secondaryColor}
                             onChange={(e) => setSecondaryColor(e.target.value)}
                             className="font-mono text-sm"
-                            placeholder="#135084"
+                            placeholder="#145484"
                           />
                         </div>
                       </div>
@@ -401,7 +401,7 @@ export default function Website() {
                         size="sm"
                         onClick={() => {
                           setPrimaryColor("#23b7c0");
-                          setSecondaryColor("#135084");
+                          setSecondaryColor("#145484");
                           setAccentColor("#FFC107");
                         }}
                       >

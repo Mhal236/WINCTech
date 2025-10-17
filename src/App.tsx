@@ -5,10 +5,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { CartProvider } from "@/contexts/CartContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Suspense, lazy, useState, useEffect } from "react";
 import { DebugInfo } from "@/components/DebugInfo";
 import { AnimatePresence } from "framer-motion";
+import { ElevenLabsWidget } from "@/components/ElevenLabsWidget";
 
 // Eager load critical pages
 import Login from "./pages/Login";
@@ -22,6 +24,7 @@ import Calendar from "./pages/Calendar";
 const Contact = lazy(() => import("./pages/Contact"));
 const Quotes = lazy(() => import("./pages/Quotes"));
 const PriceLookup = lazy(() => import("./pages/PriceLookup"));
+const PriceEstimator = lazy(() => import("./pages/PriceEstimator"));
 const Glass = lazy(() => import("./pages/Glass"));
 const VrnSearch = lazy(() => import("./pages/VrnSearch"));
 const Team = lazy(() => import("./pages/Team"));
@@ -34,6 +37,7 @@ const TonyAI = lazy(() => import("./pages/TonyAI"));
 const ShopSupplies = lazy(() => import("./pages/ShopSupplies"));
 const Website = lazy(() => import("./pages/Website"));
 const TopUp = lazy(() => import("./pages/TopUp"));
+const Checkout = lazy(() => import("./pages/Checkout"));
 
 // Loading fallback
 const LoadingFallback = () => (
@@ -132,7 +136,16 @@ const AnimatedRoutes = () => {
         } />
         
         {/* Premium features - require higher subscription level (for now admin) */}
-        <Route path="/price-lookup" element={
+        <Route path="/price-estimator" element={
+          <ProtectedRoute requiredRole="admin">
+            <PriceEstimator />
+          </ProtectedRoute>
+        } />
+        
+        {/* Redirect old URL to new one */}
+        <Route path="/price-lookup" element={<Navigate to="/glass-order" replace />} />
+        
+        <Route path="/glass-order" element={
           <ProtectedRoute requiredRole="admin">
             <PriceLookup />
           </ProtectedRoute>
@@ -160,6 +173,11 @@ const AnimatedRoutes = () => {
         <Route path="/topup" element={
           <ProtectedRoute>
             <TopUp />
+          </ProtectedRoute>
+        } />
+        <Route path="/checkout" element={
+          <ProtectedRoute requiredRole="admin">
+            <Checkout />
           </ProtectedRoute>
         } />
         <Route path="/history" element={
@@ -199,6 +217,43 @@ const AnimatedRoutes = () => {
 
 const App = () => {
   const [error, setError] = useState<Error | null>(null);
+  const [aiWidgetEnabled, setAiWidgetEnabled] = useState(() => {
+    // Check localStorage for widget preference (default to true)
+    const saved = localStorage.getItem('aiWidgetEnabled');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  // Listen for changes to widget preference
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      try {
+        if (e.key === 'aiWidgetEnabled') {
+          setAiWidgetEnabled(e.newValue === 'true');
+        }
+      } catch (error) {
+        console.error('Error handling storage change:', error);
+      }
+    };
+
+    // Also listen for custom event for same-tab updates
+    const handleWidgetToggle = ((e: CustomEvent) => {
+      try {
+        if (e.detail && typeof e.detail.enabled === 'boolean') {
+          setAiWidgetEnabled(e.detail.enabled);
+        }
+      } catch (error) {
+        console.error('Error handling widget toggle:', error);
+      }
+    }) as EventListener;
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('aiWidgetToggle', handleWidgetToggle);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('aiWidgetToggle', handleWidgetToggle);
+    };
+  }, []);
 
   // Global error handler
   useEffect(() => {
@@ -225,22 +280,27 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TooltipProvider>
-          <SidebarProvider>
-            <div className="min-h-screen flex w-full">
-              <Toaster />
-              <Sonner />
-              <Router>
-                <Suspense fallback={<LoadingFallback />}>
-                  <AnimatedRoutes />
-                </Suspense>
+        <CartProvider>
+          <TooltipProvider>
+            <SidebarProvider>
+              <div className="min-h-screen flex w-full">
+                <Toaster />
+                <Sonner />
+                <Router>
+                  <Suspense fallback={<LoadingFallback />}>
+                    <AnimatedRoutes />
+                  </Suspense>
+                  
+                  {/* Debug info overlay - only shown in development - moved inside Router */}
+                  <DebugInfo />
+                </Router>
                 
-                {/* Debug info overlay - only shown in development - moved inside Router */}
-                <DebugInfo />
-              </Router>
-            </div>
-          </SidebarProvider>
-        </TooltipProvider>
+                {/* ElevenLabs AI Widget - bottom right, toggleable in settings */}
+                <ElevenLabsWidget enabled={aiWidgetEnabled} />
+              </div>
+            </SidebarProvider>
+          </TooltipProvider>
+        </CartProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

@@ -37,11 +37,12 @@ interface CashoutRequest {
   jobs_count: number;
 }
 
-interface BankAccount {
-  account_holder_name: string;
-  account_number: string;
-  sort_code: string;
-  bank_name?: string;
+interface StripeConnectAccount {
+  account_id: string;
+  connected_at: string;
+  charges_enabled: boolean;
+  payouts_enabled: boolean;
+  email?: string;
 }
 
 export function CashoutSettings() {
@@ -51,21 +52,14 @@ export function CashoutSettings() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set());
-  const [bankAccount, setBankAccount] = useState<BankAccount | null>(null);
-  const [showBankDialog, setShowBankDialog] = useState(false);
-  const [savingBank, setSavingBank] = useState(false);
-  
-  // Bank account form state
-  const [accountHolderName, setAccountHolderName] = useState('');
-  const [accountNumber, setAccountNumber] = useState('');
-  const [sortCode, setSortCode] = useState('');
-  const [bankName, setBankName] = useState('');
+  const [stripeAccount, setStripeAccount] = useState<StripeConnectAccount | null>(null);
+  const [connectingStripe, setConnectingStripe] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
       fetchCompletedJobs();
       fetchCashoutHistory();
-      fetchBankAccount();
+      fetchStripeAccount();
     }
   }, [user?.id]);
 
@@ -123,113 +117,143 @@ export function CashoutSettings() {
   };
 
   const fetchCashoutHistory = async () => {
-    // Mock cashout history for beta version
-    setCashoutHistory([
-      {
-        id: '1',
-        amount: 450.00,
-        status: 'completed',
-        requested_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        completed_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        jobs_count: 3,
-      },
-      {
-        id: '2',
-        amount: 280.00,
-        status: 'processing',
-        requested_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        jobs_count: 2,
-      }
-    ]);
-  };
-
-  const fetchBankAccount = async () => {
     if (!user?.id) return;
 
-    // TODO: Fetch from database/API
-    // Mock data for beta - check localStorage
-    const savedBank = localStorage.getItem(`bank_account_${user.id}`);
-    if (savedBank) {
-      setBankAccount(JSON.parse(savedBank));
+    try {
+      const response = await fetch('/api/cashout/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      });
+
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        setCashoutHistory(result.data);
+      } else {
+        setCashoutHistory([]);
+      }
+    } catch (error) {
+      console.error('Error fetching cashout history:', error);
+      setCashoutHistory([]);
     }
   };
 
-  const handleSaveBankAccount = async () => {
-    if (!accountHolderName || !accountNumber || !sortCode) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all required bank account details",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate sort code format (XX-XX-XX)
-    const sortCodeRegex = /^\d{2}-\d{2}-\d{2}$/;
-    if (!sortCodeRegex.test(sortCode)) {
-      toast({
-        title: "Invalid Sort Code",
-        description: "Please enter sort code in format XX-XX-XX",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate account number (8 digits)
-    if (accountNumber.length !== 8 || !/^\d+$/.test(accountNumber)) {
-      toast({
-        title: "Invalid Account Number",
-        description: "Account number must be 8 digits",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setSavingBank(true);
+  const fetchStripeAccount = async () => {
+    if (!user?.id) return;
 
     try {
-      // TODO: Save to database via API endpoint (encrypted)
-      // For beta, save to localStorage
-      const bankData: BankAccount = {
-        account_holder_name: accountHolderName,
-        account_number: accountNumber,
-        sort_code: sortCode,
-        bank_name: bankName || undefined,
-      };
-
-      localStorage.setItem(`bank_account_${user?.id}`, JSON.stringify(bankData));
-      setBankAccount(bankData);
-
-      toast({
-        title: "Bank Account Saved",
-        description: "Your bank account details have been securely saved",
+      const response = await fetch('/api/stripe/connect/account-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
       });
 
-      setShowBankDialog(false);
+      const result = await response.json();
       
-      // Clear form
-      setAccountHolderName('');
-      setAccountNumber('');
-      setSortCode('');
-      setBankName('');
+      if (result.success && result.connected && result.account) {
+        setStripeAccount(result.account);
+      } else {
+        setStripeAccount(null);
+      }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to save bank account details",
-        variant: "destructive",
-      });
-    } finally {
-      setSavingBank(false);
+      console.error('Error fetching Stripe account:', error);
+      setStripeAccount(null);
     }
   };
 
-  const handleRemoveBankAccount = () => {
-    if (confirm('Are you sure you want to remove your bank account details?')) {
-      localStorage.removeItem(`bank_account_${user?.id}`);
-      setBankAccount(null);
+  const handleConnectStripe = async () => {
+    if (!user?.id) return;
+    
+    setConnectingStripe(true);
+
+    try {
+      const response = await fetch('/api/stripe/connect/create-account-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      });
+
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create account link');
+      }
+
       toast({
-        title: "Bank Account Removed",
-        description: "Your bank account details have been removed",
+        title: "Opening Stripe Connect",
+        description: "Redirecting to Stripe onboarding...",
+      });
+
+      // Redirect to Stripe onboarding
+      window.location.href = result.url;
+
+    } catch (error) {
+      console.error('Error connecting Stripe:', error);
+      toast({
+        title: "Connection Failed",
+        description: error.message || "Failed to connect Stripe account. Please try again.",
+        variant: "destructive",
+      });
+      setConnectingStripe(false);
+    }
+  };
+
+  const handleDisconnectStripe = async () => {
+    if (!confirm('Are you sure you want to disconnect your Stripe account? You will not be able to receive payouts until you reconnect.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/stripe/connect/disconnect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user?.id })
+      });
+
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to disconnect');
+      }
+
+      setStripeAccount(null);
+      toast({
+        title: "Stripe Disconnected",
+        description: "Your Stripe account has been disconnected successfully",
+      });
+    } catch (error) {
+      console.error('Error disconnecting Stripe:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to disconnect Stripe account",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleManageStripeAccount = async () => {
+    if (!user?.id || !stripeAccount) return;
+
+    try {
+      // Create login link for Stripe Express Dashboard
+      const response = await fetch('/api/stripe/connect/create-account-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      });
+
+      const result = await response.json();
+      
+      if (result.success && result.url) {
+        window.open(result.url, '_blank');
+      }
+    } catch (error) {
+      console.error('Error opening Stripe dashboard:', error);
+      toast({
+        title: "Error",
+        description: "Failed to open Stripe dashboard",
+        variant: "destructive",
       });
     }
   };
@@ -264,13 +288,21 @@ export function CashoutSettings() {
   };
 
   const handleCashoutRequest = async () => {
-    if (!bankAccount) {
+    if (!stripeAccount) {
       toast({
-        title: "Bank Account Required",
-        description: "Please add your bank account details before requesting a cashout",
+        title: "Stripe Account Required",
+        description: "Please connect your Stripe account before requesting a cashout",
         variant: "destructive",
       });
-      setShowBankDialog(true);
+      return;
+    }
+
+    if (!stripeAccount.payouts_enabled) {
+      toast({
+        title: "Payouts Not Enabled",
+        description: "Your Stripe account doesn't have payouts enabled yet. Please complete your account setup.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -285,42 +317,57 @@ export function CashoutSettings() {
 
     setProcessing(true);
 
-    // Mock cashout request for beta version
-    setTimeout(() => {
-      toast({
-        title: "Cashout Request Submitted (Beta)",
-        description: `Request for £${getTotalPendingAmount().toFixed(2)} will be sent to your bank account ending in ${bankAccount.account_number.slice(-4)}`,
+    try {
+      const response = await fetch('/api/cashout/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          jobIds: Array.from(selectedJobs),
+          amount: getTotalPendingAmount(),
+        })
       });
 
-      // Remove selected jobs from the list (mock behavior)
-      setCompletedJobs(prev => prev.filter(job => !selectedJobs.has(job.id)));
-      setSelectedJobs(new Set());
-      setProcessing(false);
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to process cashout');
+      }
 
-      // Add to history
-      setCashoutHistory(prev => [{
-        id: (prev.length + 1).toString(),
-        amount: getTotalPendingAmount(),
-        status: 'pending',
-        requested_at: new Date().toISOString(),
-        jobs_count: selectedJobs.size,
-      }, ...prev]);
-    }, 1500);
+      toast({
+        title: "Cashout Request Submitted",
+        description: result.message || `Payout of £${getTotalPendingAmount().toFixed(2)} is being processed`,
+      });
+
+      // Refresh data
+      await fetchCompletedJobs();
+      await fetchCashoutHistory();
+      setSelectedJobs(new Set());
+    } catch (error) {
+      console.error('Error requesting cashout:', error);
+      toast({
+        title: "Cashout Failed",
+        description: error.message || "Failed to process cashout request. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
       case 'paid':
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'bg-green-50 text-green-700 border-green-200';
       case 'processing':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
+        return 'bg-blue-50 text-blue-700 border-blue-200';
       case 'pending':
-        return 'bg-amber-100 text-amber-800 border-amber-200';
+        return 'bg-amber-50 text-amber-700 border-amber-200';
       case 'failed':
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'bg-red-50 text-red-700 border-red-200';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-gray-50 text-gray-700 border-gray-200';
     }
   };
 
@@ -348,316 +395,188 @@ export function CashoutSettings() {
         <div className="flex-1">
           <CardTitle className="text-base sm:text-lg font-semibold">Cashout Settings</CardTitle>
           <CardDescription className="text-xs sm:text-sm mt-1">
-            Manage your earnings and request payouts (Beta Feature)
+            Manage your earnings and request payouts via Stripe Connect
           </CardDescription>
         </div>
-        <Badge variant="outline" className="bg-[#FFC107] text-[#1D1D1F] border-[#FFC107]">
-          Beta
-        </Badge>
       </CardHeader>
       <CardContent className="mobile-card space-y-6">
-        {/* Beta Notice */}
-        <Alert className="border-amber-200 bg-amber-50">
-          <AlertCircle className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-amber-600 text-xs sm:text-sm">
-            <strong>Beta Feature:</strong> This cashout feature is currently in beta. Stripe Payouts API integration coming soon. 
-            For now, this shows mock data and functionality.
+        {!stripeAccount && (
+          <Alert className="border-blue-200 bg-blue-50">
+            <Shield className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-700 text-xs sm:text-sm">
+              <strong>Connect with Stripe:</strong> Stripe Connect provides secure, fast payouts directly to your bank account. 
+              Complete the simple onboarding process to start receiving payments.
           </AlertDescription>
         </Alert>
+        )}
 
-        {/* Bank Account Management */}
+        {/* Stripe Connect Management */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-base flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-[#145484]" />
-              Bank Account Details
+              <svg className="h-5 w-5 text-[#635BFF]" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-2.803 0-5.642-1.291-7.194-2.25l-.937 5.57c1.436.8 4.46 1.865 8.381 1.865 2.804 0 5.034-.654 6.57-1.935 1.613-1.344 2.428-3.311 2.428-5.848-.001-3.54-2.058-5.598-6.596-7.797z"/>
+              </svg>
+              Stripe Connect
             </h3>
           </div>
 
-          {bankAccount ? (
-            <div className="border rounded-lg p-4 bg-gradient-to-br from-[#145484]/5 to-[#23b7c0]/5">
-              <div className="flex items-start justify-between">
-                <div className="space-y-2 flex-1">
-                  <div className="flex items-center gap-2">
+          {stripeAccount ? (
+            <div className="border border-gray-200 rounded-xl p-5 bg-white hover:shadow-sm transition-all">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-3 flex-1">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-10 h-10 bg-green-50 rounded-full">
                     <CheckCircle2 className="h-5 w-5 text-green-600" />
-                    <span className="font-semibold text-[#145484]">Bank Account Connected</span>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">Stripe Account Connected</h4>
+                      <p className="text-xs text-gray-500">Ready to receive payouts</p>
+                    </div>
                   </div>
-                  <div className="ml-7 space-y-1">
-                    <p className="text-sm">
-                      <span className="text-gray-600">Account Holder:</span>{' '}
-                      <span className="font-medium">{bankAccount.account_holder_name}</span>
-                    </p>
-                    <p className="text-sm">
-                      <span className="text-gray-600">Account Number:</span>{' '}
-                      <span className="font-medium">****{bankAccount.account_number.slice(-4)}</span>
-                    </p>
-                    <p className="text-sm">
-                      <span className="text-gray-600">Sort Code:</span>{' '}
-                      <span className="font-medium">{bankAccount.sort_code}</span>
-                    </p>
-                    {bankAccount.bank_name && (
-                      <p className="text-sm">
-                        <span className="text-gray-600">Bank:</span>{' '}
-                        <span className="font-medium">{bankAccount.bank_name}</span>
-                      </p>
+                  
+                  <div className="ml-13 space-y-2 bg-gray-50 rounded-lg p-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Account ID</span>
+                      <span className="font-mono text-xs text-gray-900 bg-white px-2 py-1 rounded border">
+                        {stripeAccount.account_id}
+                      </span>
+                    </div>
+                    {stripeAccount.email && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Email</span>
+                        <span className="font-medium text-gray-900">{stripeAccount.email}</span>
+                      </div>
                     )}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Connected</span>
+                      <span className="font-medium text-gray-900">
+                        {new Date(stripeAccount.connected_at).toLocaleDateString('en-GB')}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 ml-13">
+                    <Badge variant="outline" className={cn(
+                      "text-xs",
+                      stripeAccount.payouts_enabled 
+                        ? "bg-green-50 text-green-700 border-green-200" 
+                        : "bg-gray-50 text-gray-600 border-gray-200"
+                    )}>
+                      {stripeAccount.payouts_enabled ? '✓ Payouts Active' : 'Payouts Pending'}
+                    </Badge>
+                    <Badge variant="outline" className={cn(
+                      "text-xs",
+                      stripeAccount.details_submitted
+                        ? "bg-blue-50 text-blue-700 border-blue-200"
+                        : "bg-gray-50 text-gray-600 border-gray-200"
+                    )}>
+                      {stripeAccount.details_submitted ? '✓ Verified' : 'Pending Verification'}
+                    </Badge>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Dialog open={showBankDialog} onOpenChange={setShowBankDialog}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        Update
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-md">
-                      <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                          <Building2 className="h-5 w-5 text-[#145484]" />
-                          Update Bank Account
-                        </DialogTitle>
-                        <DialogDescription>
-                          Update your bank account details for receiving payouts
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="holder-name">Account Holder Name *</Label>
-                          <Input
-                            id="holder-name"
-                            placeholder="John Doe"
-                            value={accountHolderName}
-                            onChange={(e) => setAccountHolderName(e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="account-number">Account Number *</Label>
-                          <Input
-                            id="account-number"
-                            placeholder="12345678"
-                            maxLength={8}
-                            value={accountNumber}
-                            onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="sort-code">Sort Code *</Label>
-                          <Input
-                            id="sort-code"
-                            placeholder="12-34-56"
-                            maxLength={8}
-                            value={sortCode}
-                            onChange={(e) => {
-                              let value = e.target.value.replace(/\D/g, '');
-                              if (value.length > 2 && value.length <= 4) {
-                                value = value.slice(0, 2) + '-' + value.slice(2);
-                              } else if (value.length > 4) {
-                                value = value.slice(0, 2) + '-' + value.slice(2, 4) + '-' + value.slice(4, 6);
-                              }
-                              setSortCode(value);
-                            }}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="bank-name">Bank Name (Optional)</Label>
-                          <Input
-                            id="bank-name"
-                            placeholder="e.g., Barclays, HSBC"
-                            value={bankName}
-                            onChange={(e) => setBankName(e.target.value)}
-                          />
-                        </div>
-                        <Alert className="border-blue-200 bg-blue-50">
-                          <Shield className="h-4 w-4 text-blue-600" />
-                          <AlertDescription className="text-blue-700 text-xs">
-                            Your bank details are encrypted and stored securely. We use Stripe Payouts API for secure transfers.
-                          </AlertDescription>
-                        </Alert>
-                      </div>
-                      <DialogFooter>
+                
+                <div className="flex flex-col gap-2">
                         <Button
                           variant="outline"
-                          onClick={() => setShowBankDialog(false)}
-                          disabled={savingBank}
-                        >
-                          Cancel
+                    size="sm"
+                    onClick={handleManageStripeAccount}
+                    className="text-[#145484] border-[#145484]/20 hover:bg-[#145484]/5"
+                  >
+                    Manage Account
                         </Button>
-                        <Button
-                          onClick={handleSaveBankAccount}
-                          disabled={savingBank}
-                          className="bg-[#145484] hover:bg-[#145484]/90"
-                        >
-                          {savingBank ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Saving...
-                            </>
-                          ) : (
-                            'Save Account'
-                          )}
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={handleRemoveBankAccount}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    onClick={handleDisconnectStripe}
+                    className="text-gray-600 hover:text-red-600 hover:bg-red-50"
                   >
-                    Remove
+                    Disconnect
                   </Button>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="border-2 border-dashed rounded-lg p-6 text-center">
-              <Building2 className="h-12 w-12 mx-auto text-gray-400 mb-3" />
-              <p className="font-medium text-gray-900 mb-1">No Bank Account Added</p>
-              <p className="text-sm text-gray-500 mb-4">
-                Add your bank account to receive payouts via Stripe
+            <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center bg-gray-50/50 hover:bg-gray-50 transition-colors">
+              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-white rounded-full border-2 border-gray-200">
+                <svg className="h-8 w-8 text-[#635BFF]" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-2.803 0-5.642-1.291-7.194-2.25l-.937 5.57c1.436.8 4.46 1.865 8.381 1.865 2.804 0 5.034-.654 6.57-1.935 1.613-1.344 2.428-3.311 2.428-5.848-.001-3.54-2.058-5.598-6.596-7.797z"/>
+                </svg>
+              </div>
+              <h4 className="font-semibold text-gray-900 mb-2">Connect Your Stripe Account</h4>
+              <p className="text-sm text-gray-600 mb-5 max-w-sm mx-auto">
+                Set up secure payouts in minutes. Stripe handles all the banking details safely.
               </p>
-              <Dialog open={showBankDialog} onOpenChange={setShowBankDialog}>
-                <DialogTrigger asChild>
-                  <Button className="bg-[#145484] hover:bg-[#145484]/90">
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Add Bank Account
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                      <Building2 className="h-5 w-5 text-[#145484]" />
-                      Add Bank Account
-                    </DialogTitle>
-                    <DialogDescription>
-                      Add your bank account details to receive payouts
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="holder-name">Account Holder Name *</Label>
-                      <Input
-                        id="holder-name"
-                        placeholder="John Doe"
-                        value={accountHolderName}
-                        onChange={(e) => setAccountHolderName(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="account-number">Account Number *</Label>
-                      <Input
-                        id="account-number"
-                        placeholder="12345678"
-                        maxLength={8}
-                        value={accountNumber}
-                        onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="sort-code">Sort Code *</Label>
-                      <Input
-                        id="sort-code"
-                        placeholder="12-34-56"
-                        maxLength={8}
-                        value={sortCode}
-                        onChange={(e) => {
-                          let value = e.target.value.replace(/\D/g, '');
-                          if (value.length > 2 && value.length <= 4) {
-                            value = value.slice(0, 2) + '-' + value.slice(2);
-                          } else if (value.length > 4) {
-                            value = value.slice(0, 2) + '-' + value.slice(2, 4) + '-' + value.slice(4, 6);
-                          }
-                          setSortCode(value);
-                        }}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="bank-name">Bank Name (Optional)</Label>
-                      <Input
-                        id="bank-name"
-                        placeholder="e.g., Barclays, HSBC"
-                        value={bankName}
-                        onChange={(e) => setBankName(e.target.value)}
-                      />
-                    </div>
-                    <Alert className="border-blue-200 bg-blue-50">
-                      <Shield className="h-4 w-4 text-blue-600" />
-                      <AlertDescription className="text-blue-700 text-xs">
-                        Your bank details are encrypted and stored securely. We use Stripe Payouts API for secure transfers.
-                      </AlertDescription>
-                    </Alert>
-                  </div>
-                  <DialogFooter>
                     <Button
-                      variant="outline"
-                      onClick={() => setShowBankDialog(false)}
-                      disabled={savingBank}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleSaveBankAccount}
-                      disabled={savingBank}
-                      className="bg-[#145484] hover:bg-[#145484]/90"
-                    >
-                      {savingBank ? (
+                onClick={handleConnectStripe}
+                disabled={connectingStripe}
+                className="bg-[#635BFF] hover:bg-[#5851DF] shadow-sm btn-glisten"
+              >
+                {connectingStripe ? (
                         <>
                           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Saving...
+                    Connecting...
                         </>
                       ) : (
-                        'Save Account'
+                  <>
+                    <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-2.803 0-5.642-1.291-7.194-2.25l-.937 5.57c1.436.8 4.46 1.865 8.381 1.865 2.804 0 5.034-.654 6.57-1.935 1.613-1.344 2.428-3.311 2.428-5.848-.001-3.54-2.058-5.598-6.596-7.797z"/>
+                    </svg>
+                    Connect with Stripe
+                  </>
                       )}
                     </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
             </div>
           )}
         </div>
 
         {/* Earnings Summary */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-gradient-to-br from-[#145484] to-[#23b7c0] rounded-lg p-4 text-white">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className="h-4 w-4" />
-              <span className="text-xs font-medium opacity-90">Available to Cashout</span>
+          <div className="border rounded-xl p-5 bg-white hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <TrendingUp className="h-4 w-4 text-[#145484]" />
+              </div>
+              <span className="text-sm font-medium text-gray-600">Available to Cashout</span>
             </div>
-            <p className="text-2xl font-bold">
+            <p className="text-3xl font-bold text-gray-900 mb-1">
               £{completedJobs.reduce((sum, job) => sum + (job.payout_amount || 0), 0).toFixed(2)}
             </p>
-            <p className="text-xs opacity-75 mt-1">{completedJobs.length} completed jobs</p>
+            <p className="text-xs text-gray-500">{completedJobs.length} completed jobs</p>
           </div>
 
-          <div className="bg-gradient-to-br from-[#FFC107] to-[#FFD54F] rounded-lg p-4 text-[#1D1D1F]">
-            <div className="flex items-center gap-2 mb-1">
-              <Clock className="h-4 w-4" />
-              <span className="text-xs font-medium">Processing</span>
+          <div className="border rounded-xl p-5 bg-white hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-2 bg-amber-50 rounded-lg">
+                <Clock className="h-4 w-4 text-amber-600" />
+              </div>
+              <span className="text-sm font-medium text-gray-600">Processing</span>
             </div>
-            <p className="text-2xl font-bold">
+            <p className="text-3xl font-bold text-gray-900 mb-1">
               £{cashoutHistory
                 .filter(h => h.status === 'processing')
                 .reduce((sum, h) => sum + h.amount, 0)
                 .toFixed(2)}
             </p>
-            <p className="text-xs opacity-75 mt-1">
+            <p className="text-xs text-gray-500">
               {cashoutHistory.filter(h => h.status === 'processing').length} requests
             </p>
           </div>
 
-          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-white">
-            <div className="flex items-center gap-2 mb-1">
-              <CheckCircle2 className="h-4 w-4" />
-              <span className="text-xs font-medium">Total Paid Out</span>
+          <div className="border rounded-xl p-5 bg-white hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-2 bg-green-50 rounded-lg">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+              </div>
+              <span className="text-sm font-medium text-gray-600">Total Paid Out</span>
             </div>
-            <p className="text-2xl font-bold">
+            <p className="text-3xl font-bold text-gray-900 mb-1">
               £{cashoutHistory
                 .filter(h => h.status === 'completed')
                 .reduce((sum, h) => sum + h.amount, 0)
                 .toFixed(2)}
             </p>
-            <p className="text-xs opacity-75 mt-1">Lifetime earnings</p>
+            <p className="text-xs text-gray-500">Lifetime earnings</p>
           </div>
         </div>
 
@@ -706,7 +625,7 @@ export function CashoutSettings() {
                       </TableCell>
                       <TableCell>
                         <div className="text-xs text-gray-600">
-                          {new Date(job.completed_at).toLocaleDateString()}
+                          {new Date(job.completed_at).toLocaleDateString('en-GB')}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
@@ -724,15 +643,23 @@ export function CashoutSettings() {
             </div>
 
             {selectedJobs.size > 0 && (
-              <div className="flex items-center justify-between p-4 bg-[#145484] text-white rounded-lg">
+              <div className="border border-[#145484]/20 bg-gradient-to-r from-[#145484]/5 to-[#145484]/10 rounded-xl p-5">
+                <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium">Selected: {selectedJobs.size} job{selectedJobs.size !== 1 ? 's' : ''}</p>
-                  <p className="text-2xl font-bold">£{getTotalPendingAmount().toFixed(2)}</p>
+                    <p className="text-sm text-gray-600 mb-1">
+                      {selectedJobs.size} job{selectedJobs.size !== 1 ? 's' : ''} selected
+                    </p>
+                    <p className="text-3xl font-bold text-gray-900">
+                      £{getTotalPendingAmount().toFixed(2)}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Payout will be sent to your Stripe account
+                    </p>
                 </div>
                 <Button
                   onClick={handleCashoutRequest}
                   disabled={processing}
-                  className="bg-[#FFC107] text-[#1D1D1F] hover:bg-[#FFD54F]"
+                    className="bg-[#145484] hover:bg-[#145484]/90 shadow-sm h-11 btn-glisten"
                 >
                   {processing ? (
                     <>
@@ -746,41 +673,48 @@ export function CashoutSettings() {
                     </>
                   )}
                 </Button>
+                </div>
               </div>
             )}
           </div>
         ) : (
-          <div className="text-center py-8 border rounded-lg bg-gray-50">
-            <CheckCircle2 className="h-12 w-12 mx-auto text-gray-400 mb-2" />
-            <p className="text-gray-600 font-medium">No Completed Jobs Available</p>
-            <p className="text-sm text-gray-500 mt-1">Complete jobs to see them here for cashout</p>
+          <div className="text-center py-12 border border-dashed border-gray-200 rounded-xl bg-gray-50/50">
+            <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-white rounded-full border-2 border-gray-200">
+              <CheckCircle2 className="h-8 w-8 text-gray-400" />
+            </div>
+            <p className="text-gray-900 font-medium mb-1">No Completed Jobs</p>
+            <p className="text-sm text-gray-500">Jobs you complete will appear here for cashout</p>
           </div>
         )}
 
         {/* Cashout History */}
         {cashoutHistory.length > 0 && (
-          <div className="space-y-3">
-            <h3 className="font-semibold text-base">Cashout History</h3>
+          <div className="space-y-4">
+            <h3 className="font-semibold text-base text-gray-900">Payout History</h3>
             <div className="space-y-2">
               {cashoutHistory.map((request) => (
                 <div
                   key={request.id}
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex items-center justify-between p-4 border border-gray-200 rounded-xl bg-white hover:shadow-sm transition-all"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-[#145484]/10 rounded-lg">
-                      <Calendar className="h-4 w-4 text-[#145484]" />
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center justify-center w-10 h-10 bg-gray-50 rounded-lg">
+                      <Calendar className="h-5 w-5 text-gray-600" />
                     </div>
                     <div>
-                      <p className="font-medium text-sm">£{request.amount.toFixed(2)}</p>
+                      <p className="font-semibold text-gray-900">£{request.amount.toFixed(2)}</p>
                       <p className="text-xs text-gray-500">
                         {request.jobs_count} job{request.jobs_count !== 1 ? 's' : ''} • {' '}
-                        {new Date(request.requested_at).toLocaleDateString()}
+                        {new Date(request.requested_at).toLocaleDateString('en-GB', { 
+                          day: 'numeric', 
+                          month: 'short', 
+                          year: 'numeric' 
+                        })}
                       </p>
                     </div>
                   </div>
-                  <Badge className={getStatusColor(request.status)}>
-                    {request.status}
+                  <Badge variant="outline" className={getStatusColor(request.status)}>
+                    {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                   </Badge>
                 </div>
               ))}

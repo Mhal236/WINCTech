@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, CreditCard, CheckCircle, AlertCircle } from "lucide-react";
+import { Loader2, CreditCard, CheckCircle, AlertCircle, Tag, Check, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import StripeService from "@/services/stripeService";
 import { useAuth } from "@/contexts/AuthContext";
@@ -32,6 +33,11 @@ function PaymentForm({
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
+  const [couponApplied, setCouponApplied] = useState(false);
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
+  const [finalAmount, setFinalAmount] = useState(amount);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -103,6 +109,75 @@ function PaymentForm({
     );
   }
 
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      toast({
+        title: "Coupon Code Required",
+        description: "Please enter a coupon code",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setApplyingCoupon(true);
+
+    try {
+      const response = await fetch('/api/stripe/validate-coupon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          couponCode: couponCode.trim(),
+          amount: amount,
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success && result.valid) {
+        setCouponApplied(true);
+        
+        // Calculate discount
+        let discount = 0;
+        if (result.coupon.percent_off) {
+          discount = (amount * result.coupon.percent_off) / 100;
+        } else if (result.coupon.amount_off) {
+          discount = result.coupon.amount_off / 100; // Convert from pence
+        }
+        
+        setCouponDiscount(discount);
+        setFinalAmount(amount - discount);
+        
+        toast({
+          title: "Coupon Applied!",
+          description: result.coupon.percent_off 
+            ? `${result.coupon.percent_off}% discount applied`
+            : `£${discount.toFixed(2)} discount applied`,
+        });
+      } else {
+        throw new Error(result.error || 'Invalid coupon code');
+      }
+    } catch (error: any) {
+      toast({
+        title: "Invalid Coupon",
+        description: error.message || "This coupon code is not valid",
+        variant: "destructive",
+      });
+    } finally {
+      setApplyingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponCode('');
+    setCouponApplied(false);
+    setCouponDiscount(0);
+    setFinalAmount(amount);
+    toast({
+      title: "Coupon Removed",
+      description: "The discount has been removed",
+    });
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Payment Summary */}
@@ -119,11 +194,68 @@ function PaymentForm({
             <span className="text-[#1D1D1F]/80">Credits:</span>
             <span className="font-medium text-[#1D1D1F]">{credits} credits</span>
           </div>
+          {couponApplied && couponDiscount > 0 && (
+            <div className="flex justify-between text-green-600">
+              <span className="font-medium">Discount:</span>
+              <span className="font-medium">-£{couponDiscount.toFixed(2)}</span>
+            </div>
+          )}
           <div className="flex justify-between border-t border-[#FFC107] pt-1 mt-2">
             <span className="font-semibold text-[#1D1D1F]">Total:</span>
-            <span className="font-semibold text-[#1D1D1F]">£{amount.toFixed(2)}</span>
+            <span className="font-semibold text-[#1D1D1F]">£{finalAmount.toFixed(2)}</span>
           </div>
         </div>
+      </div>
+
+      {/* Coupon Code Section */}
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+          <Tag className="h-4 w-4" />
+          Have a coupon code?
+        </label>
+        {!couponApplied ? (
+          <div className="flex gap-2">
+            <Input
+              type="text"
+              placeholder="Enter coupon code"
+              value={couponCode}
+              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+              className="flex-1"
+              disabled={applyingCoupon}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleApplyCoupon}
+              disabled={applyingCoupon || !couponCode.trim()}
+              className="border-[#145484] text-[#145484] hover:bg-[#145484] hover:text-white"
+            >
+              {applyingCoupon ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                'Apply'
+              )}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3">
+            <div className="flex items-center gap-2">
+              <Check className="h-4 w-4 text-green-600" />
+              <span className="text-sm font-medium text-green-700">
+                Code "{couponCode}" applied
+              </span>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleRemoveCoupon}
+              className="h-7 text-gray-600 hover:text-red-600"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Payment Element */}
@@ -173,7 +305,7 @@ function PaymentForm({
         <Button
           type="submit"
           disabled={!stripe || isProcessing}
-          className="flex-1 bg-[#135084] hover:bg-[#135084]/90 text-white"
+          className="flex-1 bg-[#145484] hover:bg-[#145484]/90 text-white btn-glisten"
         >
           {isProcessing ? (
             <>
@@ -244,14 +376,14 @@ export default function PaymentModal({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5 text-[#135084]" />
+            <CreditCard className="h-5 w-5 text-[#145484]" />
             Complete Payment
           </DialogTitle>
         </DialogHeader>
 
         {isLoading && (
           <div className="text-center py-8">
-            <Loader2 className="w-8 h-8 animate-spin mx-auto text-[#135084]" />
+            <Loader2 className="w-8 h-8 animate-spin mx-auto text-[#145484]" />
             <p className="text-gray-600 mt-2">Initializing payment...</p>
           </div>
         )}
@@ -273,7 +405,7 @@ export default function PaymentModal({
               appearance: {
                 theme: 'stripe',
                 variables: {
-                  colorPrimary: '#135084',
+                  colorPrimary: '#145484',
                   colorBackground: '#ffffff',
                   colorText: '#1D1D1F',
                   colorDanger: '#dc2626',

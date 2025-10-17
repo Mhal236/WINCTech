@@ -36,6 +36,13 @@ interface AcceptedJob {
   assigned_at: string;
   completed_at?: string;
   job_type?: 'job_lead' | 'exclusive' | 'unknown';
+  window_damage?: any;
+  selected_windows?: any;
+  window_spec?: any;
+  adas_calibration?: string;
+  delivery_type?: string;
+  timeline?: string;
+  duration?: string;
 }
 
 const History = () => {
@@ -57,6 +64,19 @@ const History = () => {
   });
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  // Helper function to check if a name looks like a glass code and sanitize it
+  const getDisplayName = (name: string | undefined): string => {
+    if (!name) return 'Customer Name Not Available';
+    
+    // Check if the name looks like a glass code (e.g., jqvmap1_dd, jqvmap1_ws, etc.)
+    const glassCodePattern = /^[a-z]+[0-9]+_[a-z]+$/i;
+    if (glassCodePattern.test(name.trim())) {
+      return 'Customer Name Not Available';
+    }
+    
+    return name;
+  };
 
   // Handle view in calendar
   const handleViewInCalendar = (job: AcceptedJob) => {
@@ -199,7 +219,14 @@ const History = () => {
               assigned_at: assignment.assigned_at,
               completed_at: assignment.completed_at,
               vehicle_info: `${assignment.MasterCustomer.year || ''} ${assignment.MasterCustomer.brand || ''} ${assignment.MasterCustomer.model || ''}`.trim(),
-              job_type: jobType
+              job_type: jobType,
+              window_damage: assignment.MasterCustomer.window_damage,
+              selected_windows: assignment.MasterCustomer.selected_windows,
+              window_spec: assignment.MasterCustomer.window_spec,
+              adas_calibration: assignment.MasterCustomer.adas_calibration,
+              delivery_type: assignment.MasterCustomer.delivery_type,
+              timeline: assignment.MasterCustomer.timeline,
+              duration: assignment.MasterCustomer.duration
             };
           });
           
@@ -343,7 +370,7 @@ const History = () => {
                   Manage and track all jobs
                 </p>
               </div>
-              <Button className="bg-[#135084] hover:bg-[#135084]/90 w-fit">
+              <Button className="bg-[#145484] hover:bg-[#145484]/90 w-fit">
                 <Plus className="h-5 w-5 mr-2" />
                 New Job
               </Button>
@@ -379,7 +406,7 @@ const History = () => {
         </div>
 
         {/* Filters and Search */}
-        <Card className="border-[#3d99be]/20">
+        <Card className="border-[#145484]/20">
           <CardContent className="p-4">
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1 flex gap-4">
@@ -452,7 +479,7 @@ const History = () => {
                 filteredJobs.map(job => (
                   <Card 
                     key={job.id} 
-                    className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-[#3d99be] cursor-pointer"
+                    className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-[#145484] cursor-pointer"
                     onClick={() => handleJobClick(job)}
                   >
                     <CardContent className="p-6">
@@ -460,13 +487,13 @@ const History = () => {
                         <div className="flex-1 space-y-4">
                           <div className="flex justify-between items-start">
                             <div>
-                              <h3 className="font-semibold text-lg text-[#3d99be] flex items-center gap-2">
+                              <h3 className="font-semibold text-lg text-[#145484] flex items-center gap-2">
                                 {job.job_type === 'exclusive' ? (
                                   <Zap className="w-5 h-5 text-[#FFC107]" />
                                 ) : (
-                                  <Target className="w-5 h-5 text-[#135084]" />
+                                  <Target className="w-5 h-5 text-[#145484]" />
                                 )}
-                                {job.customer_name}
+                                {getDisplayName(job.customer_name)}
                               </h3>
                               <div className="flex items-center gap-2 mt-1">
                                 <Badge className={`text-xs ${getStatusColor(job.status)}`}>
@@ -478,7 +505,7 @@ const History = () => {
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="text-xl font-bold text-[#3d99be]">
+                              <p className="text-xl font-bold text-[#145484]">
                                 £{job.quote_price?.toFixed(2) || '0.00'}
                               </p>
                             </div>
@@ -515,7 +542,7 @@ const History = () => {
                           {/* Actions */}
                           <div className="flex justify-between items-center pt-4 border-t">
                             <div className="text-xs text-gray-500">
-                              Accepted: {new Date(job.assigned_at).toLocaleDateString()}
+                              Accepted: {new Date(job.assigned_at).toLocaleDateString('en-GB')}
                             </div>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -588,15 +615,15 @@ const History = () => {
                 filteredJobs.map(job => (
                   <Card 
                     key={job.id} 
-                    className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-[#135084] cursor-pointer"
+                    className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-[#145484] cursor-pointer"
                     onClick={() => handleJobClick(job)}
                   >
                     <CardContent className="p-6">
                       <div className="flex justify-between items-start">
                         <div>
-                          <h3 className="font-semibold text-lg text-[#135084] flex items-center gap-2">
+                          <h3 className="font-semibold text-lg text-[#145484] flex items-center gap-2">
                             <Target className="w-5 h-5" />
-                            {job.customer_name}
+                            {getDisplayName(job.customer_name)}
                           </h3>
                           <p className="text-sm text-gray-600">£{job.quote_price?.toFixed(2)} • Job Lead</p>
                         </div>
@@ -635,7 +662,7 @@ const History = () => {
                         <div>
                           <h3 className="font-semibold text-lg text-[#FFC107] flex items-center gap-2">
                             <Zap className="w-5 h-5" />
-                            {job.customer_name}
+                            {getDisplayName(job.customer_name)}
                           </h3>
                           <p className="text-sm text-gray-600">£{(() => {
                             // Helper function to count total windows affected in the job
@@ -721,9 +748,9 @@ const History = () => {
                   {selectedJob.job_type === 'exclusive' ? (
                     <Zap className="h-5 w-5 text-[#FFC107]" />
                   ) : (
-                    <Target className="h-5 w-5 text-[#135084]" />
+                    <Target className="h-5 w-5 text-[#145484]" />
                   )}
-                  {selectedJob.customer_name}
+                  {getDisplayName(selectedJob.customer_name)}
                   <Badge className={`text-xs ml-2 ${getStatusColor(selectedJob.status)}`}>
                     {selectedJob.status}
                   </Badge>
@@ -1071,12 +1098,12 @@ const History = () => {
                     )}
                     <div>
                       <label className="text-xs font-medium text-gray-500">Accepted On</label>
-                      <p className="text-sm">{new Date(selectedJob.assigned_at).toLocaleDateString()}</p>
+                      <p className="text-sm">{new Date(selectedJob.assigned_at).toLocaleDateString('en-GB')}</p>
                     </div>
                     {selectedJob.completed_at && (
                       <div>
                         <label className="text-xs font-medium text-gray-500">Completed On</label>
-                        <p className="text-sm">{new Date(selectedJob.completed_at).toLocaleDateString()}</p>
+                        <p className="text-sm">{new Date(selectedJob.completed_at).toLocaleDateString('en-GB')}</p>
                       </div>
                     )}
                   </CardContent>

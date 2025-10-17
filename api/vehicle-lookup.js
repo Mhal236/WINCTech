@@ -120,26 +120,37 @@ export default async function handler(req, res) {
         return "";
       };
       
-      // Return vehicle details in the expected format
+      // Return vehicle details in the expected format with all available fields
       const vehicleDetails = {
         registration: vrn.toUpperCase(),
         make: registration.Make || "",
         model: registration.Model || "",
         year: registration.YearOfManufacture || "",
-        bodyStyle: smmtDetails?.BodyStyle || "",
+        variant: registration.ModelVariant || "",
+        fuelType: registration.FuelType || "",
+        engineCapacity: registration.EngineCapacity || dimensions.EngineCapacity || null,
+        co2Emissions: registration.Co2Emissions || null,
+        euroStatus: registration.EuroStatus || "",
+        bodyType: registration.BodyStyle?.Description || registration.BodyStyle || smmtDetails?.BodyStyle || "",
+        bodyStyle: smmtDetails?.BodyStyle || registration.BodyStyle || "",
         bodyShape: dimensions.BodyShape || "",
         colour: registration.Colour || "",
         transmission: registration.Transmission || smmtDetails?.Transmission || "",
-        doors: dimensions.NumberOfDoors || registration.SeatingCapacity || "",
-        seats: dimensions.NumberOfSeats || registration.SeatingCapacity || "",
+        doors: dimensions.NumberOfDoors || registration.NumberOfDoors || null,
+        seats: dimensions.NumberOfSeats || registration.SeatingCapacity || null,
         wheelbaseType: getWheelbaseType(dimensions.WheelBase),
-        fuelTankCapacity: dimensions.FuelTankCapacity || "",
-        numberOfAxles: dimensions.NumberOfAxles || "",
-        payloadVolume: dimensions.PayloadVolume || "",
+        fuelTankCapacity: dimensions.FuelTankCapacity || null,
+        numberOfAxles: dimensions.NumberOfAxles || null,
+        payloadVolume: dimensions.PayloadVolume || null,
         cabType: smmtDetails?.CabType || "",
-        platformName: "",
-        platformIsShared: null,
+        platformName: smmtDetails?.PlatformName || "",
+        platformIsShared: smmtDetails?.PlatformShared || null,
+        taxStatus: registration.TaxStatus || "",
+        motStatus: registration.MotStatus || "",
+        motdDate: registration.MotExpiryDate || "",
+        taxDueDate: registration.TaxDueDate || "",
         vin: registration.Vin || registration.VIN || "",
+        mvrisCode: registration.MvrisCode || "",
         vehicle_image_url: vehicleImageUrl
       };
       

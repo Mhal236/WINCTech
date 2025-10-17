@@ -34,7 +34,7 @@ const creditPackages = [
     originalPrice: null,
     description: "Perfect for getting started",
     icon: Zap,
-    color: "bg-[#135084]",
+    color: "bg-[#145484]",
     popular: false,
     features: [
       "100 credits",
@@ -165,7 +165,7 @@ export default function TopUp() {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <h1 className="text-3xl font-bold text-[#1D1D1F] flex items-center gap-3">
-                    <CreditCard className="h-8 w-8 text-[#135084]" />
+                    <CreditCard className="h-8 w-8 text-[#145484]" />
                     Top Up Credits
                   </h1>
                   <p className="mt-2 text-[#1D1D1F]/80">
@@ -176,7 +176,7 @@ export default function TopUp() {
                   <div className="text-right bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2">
                     <p className="text-sm text-[#1D1D1F]/70">Current Balance</p>
                     <div className="flex items-center gap-2">
-                      <Coins className="h-5 w-5 text-[#135084]" />
+                      <Coins className="h-5 w-5 text-[#145484]" />
                       <span className="text-2xl font-bold text-[#1D1D1F]">{currentCredits}</span>
                       <span className="text-sm text-[#1D1D1F]/70">credits</span>
                     </div>
@@ -260,7 +260,7 @@ export default function TopUp() {
                         <Button
                           onClick={() => handlePurchase(pkg.id)}
                           className={`w-full ${
-                            isSelected ? 'bg-[#135084] hover:bg-[#135084]/90 text-white' : ''
+                            isSelected ? 'bg-[#145484] hover:bg-[#145484]/90 text-white' : ''
                           } ${pkg.popular ? 'bg-[#FFC107] hover:bg-[#FFC107]/90 text-[#1D1D1F] font-semibold' : ''}`}
                           variant={isSelected ? "default" : "outline"}
                         >

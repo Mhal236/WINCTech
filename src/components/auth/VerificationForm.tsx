@@ -1063,8 +1063,8 @@ export function VerificationForm() {
           <Card className="border-0 shadow-lg">
             <CardContent className="text-center py-12">
               <div className="flex flex-col items-center space-y-4">
-                <div className="w-12 h-12 bg-[#135084]/10 rounded-full flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-6 w-6 border-2 border-[#135084] border-t-transparent"></div>
+                <div className="w-12 h-12 bg-[#145484]/10 rounded-full flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-6 w-6 border-2 border-[#145484] border-t-transparent"></div>
                 </div>
                 <p className="text-gray-600 font-medium">Loading application status...</p>
               </div>
@@ -1180,7 +1180,7 @@ export function VerificationForm() {
 
             <div className="text-center">
               <p className="text-gray-600">
-                Please wait <strong>24-48 hours</strong> for a decision on your application.
+                Please wait <strong>approximately 2 weeks</strong> for a decision on your application.
               </p>
             </div>
           </CardContent>

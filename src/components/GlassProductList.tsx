@@ -58,8 +58,8 @@ const GlassProductList: React.FC<GlassProductListProps> = ({
             key={product.ArgicCode} 
             className={`border rounded-lg p-4 ${
               selectedProduct?.ArgicCode === product.ArgicCode 
-                ? 'border-[#135084] bg-blue-50' 
-                : 'border-gray-200 hover:border-[#135084] transition-colors'
+                ? 'border-[#145484] bg-blue-50' 
+                : 'border-gray-200 hover:border-[#145484] transition-colors'
             }`}
           >
             <div className="flex flex-col md:flex-row md:justify-between">
@@ -77,7 +77,7 @@ const GlassProductList: React.FC<GlassProductListProps> = ({
                 <div className="text-xl font-semibold">£{product.Price.toFixed(2)}</div>
                 <Button
                   variant="primary"
-                  className="mt-2 bg-[#135084] hover:bg-[#0e3b61]"
+                  className="mt-2 bg-[#145484] hover:bg-[#0e3b61]"
                   onClick={() => handleSelectProduct(product)}
                 >
                   {selectedProduct?.ArgicCode === product.ArgicCode 

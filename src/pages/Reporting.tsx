@@ -47,8 +47,8 @@ const Reporting = () => {
     <DashboardLayout>
       <div className="space-y-8">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl md:text-3xl font-semibold text-[#3d99be]">Reports & Analytics</h1>
-          <div className="text-sm text-gray-500">Last updated: {new Date().toLocaleDateString()}</div>
+          <h1 className="text-2xl md:text-3xl font-semibold text-[#145484]">Reports & Analytics</h1>
+          <div className="text-sm text-gray-500">Last updated: {new Date().toLocaleDateString('en-GB')}</div>
         </div>
 
         {/* KPI Cards */}
@@ -98,8 +98,8 @@ const Reporting = () => {
                 <AreaChart data={mockData}>
                   <defs>
                     <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3d99be" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#3d99be" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#145484" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#145484" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -115,7 +115,7 @@ const Reporting = () => {
                   <Area 
                     type="monotone" 
                     dataKey="revenue" 
-                    stroke="#3d99be" 
+                    stroke="#145484" 
                     fill="url(#revenueGradient)"
                   />
                 </AreaChart>
@@ -143,7 +143,7 @@ const Reporting = () => {
                   />
                   <Bar 
                     dataKey="jobs" 
-                    fill="#3d99be"
+                    fill="#145484"
                     radius={[4, 4, 0, 0]}
                   />
                 </BarChart>
@@ -175,9 +175,9 @@ const Reporting = () => {
                   <Line 
                     type="monotone" 
                     dataKey="satisfaction" 
-                    stroke="#3d99be"
+                    stroke="#145484"
                     strokeWidth={2}
-                    dot={{ fill: '#3d99be', strokeWidth: 2 }}
+                    dot={{ fill: '#145484', strokeWidth: 2 }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -199,7 +199,7 @@ const Reporting = () => {
                 ].map((service, index) => (
                   <div key={index} className="flex items-center justify-between">
                     <span className="text-sm font-medium">{service.name}</span>
-                    <span className="text-sm text-[#3d99be] font-semibold">{service.value}</span>
+                    <span className="text-sm text-[#145484] font-semibold">{service.value}</span>
                   </div>
                 ))}
               </div>

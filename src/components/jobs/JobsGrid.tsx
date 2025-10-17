@@ -641,7 +641,7 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
                 size="sm"
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className="flex items-center gap-2 border-[#2165ab] text-[#2165ab] hover:bg-[#2165ab] hover:text-white disabled:border-gray-300 disabled:text-gray-400 disabled:hover:bg-transparent disabled:hover:text-gray-400 h-10 px-4 sm:h-8 sm:px-3"
+                className="flex items-center gap-2 border-[#145484] text-[#145484] hover:bg-[#145484] hover:text-white disabled:border-gray-300 disabled:text-gray-400 disabled:hover:bg-transparent disabled:hover:text-gray-400 h-10 px-4 sm:h-8 sm:px-3"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -665,7 +665,7 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
                         variant={i === currentPage ? "default" : "outline"}
                         size="sm"
                         onClick={() => setCurrentPage(i)}
-                        className={`w-10 h-10 sm:w-10 sm:h-8 ${i === currentPage ? 'bg-[#2165ab] hover:bg-[#1a5294]' : 'border-[#2165ab] text-[#2165ab] hover:bg-[#2165ab] hover:text-white'}`}
+                        className={`w-10 h-10 sm:w-10 sm:h-8 ${i === currentPage ? 'bg-[#145484] hover:bg-[#1a5294]' : 'border-[#145484] text-[#145484] hover:bg-[#145484] hover:text-white'}`}
                       >
                         {i}
                       </Button>
@@ -680,7 +680,7 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
                 size="sm"
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredJobs.length / jobsPerPage)))}
                 disabled={currentPage >= Math.ceil(filteredJobs.length / jobsPerPage)}
-                className="flex items-center gap-2 border-[#2165ab] text-[#2165ab] hover:bg-[#2165ab] hover:text-white disabled:border-gray-300 disabled:text-gray-400 disabled:hover:bg-transparent disabled:hover:text-gray-400 h-10 px-4 sm:h-8 sm:px-3"
+                className="flex items-center gap-2 border-[#145484] text-[#145484] hover:bg-[#145484] hover:text-white disabled:border-gray-300 disabled:text-gray-400 disabled:hover:bg-transparent disabled:hover:text-gray-400 h-10 px-4 sm:h-8 sm:px-3"
               >
                 <span className="hidden sm:inline">Next</span>
                 <span className="sm:hidden">Next</span>

@@ -123,17 +123,42 @@ export const JobCard: React.FC<JobCardProps> = ({
     if (type.includes('_rw') || type.toLowerCase().includes('rear')) {
       return 'Rear Window';
     }
-    if (type.includes('_df') || type.toLowerCase().includes('driver') && type.toLowerCase().includes('front')) {
+    
+    // Front windows
+    if (type.includes('_df') || type.includes('_vf') || (type.toLowerCase().includes('driver') && type.toLowerCase().includes('front'))) {
       return "Driver's Front Window";
     }
-    if (type.includes('_pf') || type.toLowerCase().includes('passenger') && type.toLowerCase().includes('front')) {
+    if (type.includes('_pf') || (type.toLowerCase().includes('passenger') && type.toLowerCase().includes('front'))) {
       return "Passenger's Front Window";
     }
-    if (type.includes('_dr') || type.toLowerCase().includes('driver') && type.toLowerCase().includes('rear')) {
+    
+    // Rear windows
+    if (type.includes('_dr') || type.includes('_vr') || (type.toLowerCase().includes('driver') && type.toLowerCase().includes('rear'))) {
       return "Driver's Rear Window";
     }
-    if (type.includes('_pr') || type.toLowerCase().includes('passenger') && type.toLowerCase().includes('rear')) {
+    if (type.includes('_pr') || (type.toLowerCase().includes('passenger') && type.toLowerCase().includes('rear'))) {
       return "Passenger's Rear Window";
+    }
+    
+    // Door windows
+    if (type.includes('_dd') || type.includes('_dg')) {
+      return "Driver's Door Window";
+    }
+    if (type.includes('_pd') || type.includes('_vg')) {
+      return "Passenger's Door Window";
+    }
+    
+    // Quarter glass/windows
+    if (type.includes('_qr')) {
+      return "Quarter Glass (Rear)";
+    }
+    if (type.includes('_qg')) {
+      return "Quarter Glass";
+    }
+    
+    // Vent/Partition windows
+    if (type.includes('_vp')) {
+      return "Vent/Partition Glass";
     }
     
     // Handle standard type names
@@ -175,6 +200,19 @@ export const JobCard: React.FC<JobCardProps> = ({
   const getVehicleDisplay = () => {
     const parts = [job.year, job.brand, job.model].filter(Boolean);
     return parts.length > 0 ? parts.join(' ') : 'Vehicle information not available';
+  };
+
+  // Helper function to check if a name looks like a glass code and sanitize it
+  const getDisplayName = (name: string | undefined): string => {
+    if (!name) return 'Customer Name Not Available';
+    
+    // Check if the name looks like a glass code (e.g., jqvmap1_dd, jqvmap1_ws, etc.)
+    const glassCodePattern = /^[a-z]+[0-9]+_[a-z]+$/i;
+    if (glassCodePattern.test(name.trim())) {
+      return 'Customer Name Not Available';
+    }
+    
+    return name;
   };
 
   // Helper function to count total windows affected in the job
@@ -364,7 +402,7 @@ export const JobCard: React.FC<JobCardProps> = ({
                           key={index}
                           className={`w-2.5 h-2.5 rounded-full border transition-all duration-300 ${
                             index < purchaseCount
-                              ? 'bg-[#2165ab] border-[#2165ab]'
+                              ? 'bg-[#145484] border-[#145484]'
                               : 'bg-white border-gray-300'
                           }`}
                           title={`${purchaseCount} of 3 technicians have purchased this lead`}
@@ -388,7 +426,7 @@ export const JobCard: React.FC<JobCardProps> = ({
               {/* Customer */}
               <div className="flex items-center gap-2">
                 <User className="w-3 h-3 text-gray-500 flex-shrink-0" />
-                <span className="font-medium text-gray-900 truncate">{job.full_name}</span>
+                <span className="font-medium text-gray-900 truncate">{getDisplayName(job.full_name)}</span>
                 {job.mobile && !isAccepted && (
                   <Phone className="w-3 h-3 text-gray-400" />
                 )}
@@ -499,7 +537,7 @@ export const JobCard: React.FC<JobCardProps> = ({
           <div className="flex flex-col gap-3 sm:min-w-[200px] sm:max-w-[200px] flex-shrink-0">
             {/* Price - Always above button when showCredits is true */}
             {showCredits ? (
-              <div className="bg-white border-2 border-[#2165ab] text-[#2165ab] px-4 py-3 sm:px-3 sm:py-2 rounded-xl shadow-md flex-shrink-0">
+              <div className="bg-white border-2 border-[#145484] text-[#145484] px-4 py-3 sm:px-3 sm:py-2 rounded-xl shadow-md flex-shrink-0">
                 <p className="text-xl sm:text-lg font-black text-center leading-tight">
                   {formatCredits(job.quote_price)}
                 </p>
@@ -523,7 +561,7 @@ export const JobCard: React.FC<JobCardProps> = ({
                   ? 'bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700' 
                   : showCredits
                   ? 'cta-primary'
-                  : 'bg-[#2165ab] hover:bg-[#1a5294]'
+                  : 'bg-[#145484] hover:bg-[#0f3d5f]'
               }`}
             >
               {isAccepting ? (
@@ -553,7 +591,7 @@ export const JobCard: React.FC<JobCardProps> = ({
                 key={index}
                 className={`w-2.5 h-2.5 rounded-full border transition-all duration-300 ${
                   index < purchaseCount
-                    ? 'bg-[#2165ab] border-[#2165ab]'
+                    ? 'bg-[#145484] border-[#145484]'
                     : 'bg-white border-gray-300'
                 }`}
                 title={`${purchaseCount} of 3 technicians have purchased this lead`}

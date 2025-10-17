@@ -467,7 +467,14 @@ export function setupApiMiddleware(server) {
             vehicle_reg,
             brand,
             model,
-            year
+            year,
+            window_damage,
+            selected_windows,
+            window_spec,
+            adas_calibration,
+            delivery_type,
+            timeline,
+            duration
           )
         `)
         .eq('technician_id', technicianId)

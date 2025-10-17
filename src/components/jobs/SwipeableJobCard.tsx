@@ -81,17 +81,42 @@ export const SwipeableJobCard: React.FC<SwipeableJobCardProps> = ({
     if (type.includes('_rw') || type.toLowerCase().includes('rear')) {
       return 'Rear Window';
     }
-    if (type.includes('_df') || type.toLowerCase().includes('driver') && type.toLowerCase().includes('front')) {
+    
+    // Front windows
+    if (type.includes('_df') || type.includes('_vf') || (type.toLowerCase().includes('driver') && type.toLowerCase().includes('front'))) {
       return "Driver's Front Window";
     }
-    if (type.includes('_pf') || type.toLowerCase().includes('passenger') && type.toLowerCase().includes('front')) {
+    if (type.includes('_pf') || (type.toLowerCase().includes('passenger') && type.toLowerCase().includes('front'))) {
       return "Passenger's Front Window";
     }
-    if (type.includes('_dr') || type.toLowerCase().includes('driver') && type.toLowerCase().includes('rear')) {
+    
+    // Rear windows
+    if (type.includes('_dr') || type.includes('_vr') || (type.toLowerCase().includes('driver') && type.toLowerCase().includes('rear'))) {
       return "Driver's Rear Window";
     }
-    if (type.includes('_pr') || type.toLowerCase().includes('passenger') && type.toLowerCase().includes('rear')) {
+    if (type.includes('_pr') || (type.toLowerCase().includes('passenger') && type.toLowerCase().includes('rear'))) {
       return "Passenger's Rear Window";
+    }
+    
+    // Door windows
+    if (type.includes('_dd') || type.includes('_dg')) {
+      return "Driver's Door Window";
+    }
+    if (type.includes('_pd') || type.includes('_vg')) {
+      return "Passenger's Door Window";
+    }
+    
+    // Quarter glass/windows
+    if (type.includes('_qr')) {
+      return "Quarter Glass (Rear)";
+    }
+    if (type.includes('_qg')) {
+      return "Quarter Glass";
+    }
+    
+    // Vent/Partition windows
+    if (type.includes('_vp')) {
+      return "Vent/Partition Glass";
     }
     
     // Handle standard type names

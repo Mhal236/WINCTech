@@ -284,7 +284,7 @@ export default function ShopSupplies() {
                     
                     <Button 
                       asChild
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 btn-glisten"
                     >
                       <a href="https://carglasstools.com" target="_blank" rel="noopener noreferrer">
                         <ExternalLink className="h-4 w-4" />

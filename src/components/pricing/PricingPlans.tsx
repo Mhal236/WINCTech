@@ -11,56 +11,65 @@ import SubscriptionService, { type SubscriptionStatus } from "@/services/subscri
 const plans = [
   {
     name: "Starter",
+    tagline: "Get Booked",
     monthlyPrice: 118.00,
-    annualPrice: 1298.00,
+    annualPrice: 1130.00,
     monthlySavings: 0,
-    annualSavings: 118.00,
-    description: "Perfect for getting started with auto glass repairs",
+    annualSavings: 286.00, // Save 20% annually
+    description: "Perfect for solo technicians who want a steady stream of verified jobs without chasing customers",
+    commission: "20%",
+    bestFor: "New or part-time techs building consistency",
+    roi: "1 job covers your month",
     features: [
-      "20% company commission",
-      "100 credits included",
-      "4 credits per standard search (25 searches)",
-      "VRN searching",
-      "Job leads",
-      "Calendar integration"
+      "250 credits/month (around 80 jobs)",
+      "Verified VRN & ARGIC searches",
+      "Instant job notifications in your area",
+      "Calendar & booking dashboard",
+      "Pay-per-job model - no risk, no spam",
+      "20% commission per job"
     ]
   },
   {
     name: "Professional",
-    monthlyPrice: 198.00,
-    annualPrice: 2178.00,
+    tagline: "Grow Your Pipeline",
+    monthlyPrice: 239.00,
+    annualPrice: 2290.00,
     monthlySavings: 0,
-    annualSavings: 198.00,
-    description: "Best value for professional technicians",
+    annualSavings: 578.00, // Save 20% annually
+    description: "Built for full-time technicians or small teams who want to scale profitably and automate sales",
     popular: true,
+    commission: "15%",
+    bestFor: "2-5 van teams ready to grow fast",
+    roi: "Typical return £6,000+ per month",
     features: [
-      "15% company commission",
-      "350 credits included",
-      "4 credits per standard search (87 searches)",
-      "VRN searching",
-      "Job leads",
-      "Calendar integration",
-      "Priority email & phone support"
+      "600 credits/month (~200 jobs)",
+      "Priority leads + radius control",
+      "ROI dashboard - track profit vs spend",
+      "Auto credit top-up & lead bidding",
+      "Follow-up CRM & quote templates",
+      "15% commission per job"
     ]
   },
   {
     name: "Enterprise",
+    tagline: "Custom Solutions",
     monthlyPrice: 0,
     annualPrice: 0,
     monthlySavings: 0,
     annualSavings: 0,
-    description: "Tailored to your needs",
+    description: "Tailored solutions for large operations and fleets",
     isCustom: true,
+    commission: "5%",
+    bestFor: "Large teams and fleet operators",
     features: [
-      "5% company commission",
+      "5% commission per job",
       "Custom credit packages",
       "Volume discounts available",
-      "VRN searching",
-      "Job leads",
-      "Calendar integration",
       "Dedicated account manager",
       "24/7 priority support",
-      "Custom integrations"
+      "Custom integrations",
+      "Multi-location support",
+      "White-label options"
     ]
   }
 ];
@@ -126,7 +135,7 @@ export const PricingPlans = () => {
 
     const price = isAnnual ? plan.annualPrice : plan.monthlyPrice;
     const role = plan.name === 'Starter' ? 'pro-1' : 'pro-2';
-    const credits = plan.name === 'Starter' ? 100 : 350;
+    const credits = plan.name === 'Starter' ? 250 : 600;
     
     // Send environment variable name to server - server will resolve actual price ID
     let priceIdEnvVar = '';
@@ -176,7 +185,7 @@ export const PricingPlans = () => {
                 Annual
               </Label>
               <span className="bg-[#FFC107] text-[#1D1D1F] text-xs font-semibold px-2 py-1 rounded-full">
-                Save up to 10%
+                Save 20%
               </span>
             </div>
           </div>
@@ -219,15 +228,31 @@ export const PricingPlans = () => {
                       ? 'bg-gradient-to-b from-[#145484]/30 via-[#145484]/20 to-white/90' 
                       : 'bg-gradient-to-b from-gray-100/40 via-gray-50/30 to-white/90'
                   } rounded-t-lg backdrop-blur-sm`}>
-                    <CardTitle className="text-lg sm:text-xl md:text-2xl font-bold text-[#1D1D1F]">{plan.name}</CardTitle>
-                    <CardDescription className="mobile-text text-[#1D1D1F]">{plan.description}</CardDescription>
+                    <div className="space-y-2">
+                      <CardTitle className="text-lg sm:text-xl md:text-2xl font-bold text-[#1D1D1F]">
+                        {plan.name}
+                        {(plan as any).tagline && (
+                          <span className="block text-sm font-medium text-gray-600 mt-1">
+                            {(plan as any).tagline}
+                          </span>
+                        )}
+                      </CardTitle>
+                      <CardDescription className="mobile-text text-[#1D1D1F]">{plan.description}</CardDescription>
+                      {(plan as any).bestFor && (
+                        <div className="mt-2 pt-2 border-t border-gray-200/50">
+                          <p className="text-xs text-gray-600">
+                            <span className="font-medium">Best for:</span> {(plan as any).bestFor}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </CardHeader>
                   <CardContent className="mobile-card bg-white/90 backdrop-blur-sm flex-grow">
                     <div className="mb-3 sm:mb-4">
                       {isAnnual && currentSavings > 0 && (
-                        <div className="flex items-center justify-center gap-2 mb-2">
+                        <div className="flex items-center justify-center gap-2 mb-3">
                           <span className="text-sm bg-green-100 text-green-800 px-3 py-1 rounded-full font-medium">
-                            Save £{currentSavings.toFixed(2)} annually
+                            Save £{currentSavings.toFixed(2)} annually (20%)
                           </span>
                         </div>
                       )}
@@ -246,7 +271,21 @@ export const PricingPlans = () => {
                         {isAnnual && !plan.isCustom && (
                           <div className="mt-2">
                             <p className="text-sm text-gray-500">
-                              £{currentPrice.toFixed(2)} annually
+                              £{currentPrice.toFixed(2)} billed annually
+                            </p>
+                          </div>
+                        )}
+                        {(plan as any).roi && (
+                          <div className="mt-3 px-3 py-2 bg-blue-50 rounded-lg">
+                            <p className="text-xs font-medium text-blue-900">
+                              {(plan as any).roi}
+                            </p>
+                          </div>
+                        )}
+                        {(plan as any).commission && (
+                          <div className="mt-2">
+                            <p className="text-sm text-gray-600">
+                              <span className="font-semibold text-[#145484]">{(plan as any).commission}</span> commission
                             </p>
                           </div>
                         )}
@@ -254,8 +293,8 @@ export const PricingPlans = () => {
                     </div>
                     <ul className="space-y-2 sm:space-y-3">
                       {plan.features.map((feature) => (
-                        <li key={feature} className="flex items-center gap-2 mobile-text">
-                          <Check className="h-4 w-4 sm:h-5 sm:w-5 text-[#145484] flex-shrink-0" />
+                        <li key={feature} className="flex items-start gap-2 mobile-text">
+                          <Check className="h-4 w-4 sm:h-5 sm:w-5 text-[#145484] flex-shrink-0 mt-0.5" />
                           <span className="text-[#1D1D1F]">{feature}</span>
                         </li>
                       ))}
@@ -263,8 +302,8 @@ export const PricingPlans = () => {
                   </CardContent>
                   <CardFooter className="mobile-card bg-white/90 rounded-b-lg backdrop-blur-sm mt-auto">
                     <Button 
-                      className={`w-full touch-target mobile-text ${
-                        plan.popular ? 'cta-primary font-medium' : ''
+                      className={`w-full touch-target mobile-text btn-glisten ${
+                        plan.popular ? 'bg-[#FFC107] hover:bg-[#FFD54F] text-[#1D1D1F] font-medium' : ''
                       } ${
                         isCurrentPlan 
                           ? 'bg-green-600 hover:bg-green-700 text-white' 
@@ -272,19 +311,21 @@ export const PricingPlans = () => {
                             ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
                             : ''
                       }`}
-                      variant={plan.name === "Enterprise" ? "outline" : "default"}
+                      variant={plan.popular ? undefined : (plan.name === "Enterprise" ? "outline" : "default")}
                       onClick={() => handleSubscriptionSelect(plan, canSubscribe, isCurrentPlan, isDowngrade)}
                       disabled={isCurrentPlan || isDowngrade}
                     >
                       {plan.name === "Enterprise" 
-                        ? "Contact sales"
+                        ? "Contact Sales"
                         : isCurrentPlan 
                           ? "Current Plan"
                           : isDowngrade 
                             ? "Contact Support"
-                            : isUpgrade 
-                              ? `Upgrade to ${plan.name}`
-                              : "Select plan"}
+                            : plan.name === "Starter"
+                              ? "Start Getting Jobs"
+                              : isUpgrade 
+                                ? "Upgrade to Professional"
+                                : `Select ${plan.name}`}
                     </Button>
                   </CardFooter>
                 </Card>

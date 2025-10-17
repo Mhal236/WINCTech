@@ -21,7 +21,7 @@ export function DebugInfo() {
       (!user.user_role && user.user_role !== 'admin')));
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <div className="fixed top-20 right-4 z-50">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className={`bg-gray-800 text-white p-2 rounded-md shadow-lg ${

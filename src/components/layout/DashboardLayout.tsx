@@ -1,31 +1,52 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { Home, Briefcase, Calendar, Settings, User, Search, ShoppingCart, ClipboardList, MessageCircle, MoreHorizontal, X, Sparkles } from "lucide-react";
+import { Home, Briefcase, Calendar, Settings, Car, ShoppingCart, ClipboardList, MessageCircle, MoreHorizontal, X, Sparkles, Package, Globe } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { useRoleBasedAccess } from "@/components/auth/RoleBasedAccess";
 import { Button } from "@/components/ui/button";
+import { CartIcon } from "@/components/cart/CartIcon";
+import { useCart } from "@/contexts/CartContext";
+
+// Cart Badge Component for Mobile
+function CartBadge() {
+  const { itemCount } = useCart();
+  
+  if (itemCount === 0) return null;
+  
+  return (
+    <span className={cn(
+      "absolute -top-1 -right-1 bg-[#145484] text-white text-[10px] font-bold",
+      "rounded-full h-4 w-4 flex items-center justify-center",
+      "animate-in zoom-in duration-200"
+    )}>
+      {itemCount > 9 ? '9+' : itemCount}
+    </span>
+  );
+}
 
 // Primary navigation items (always visible in bottom bar)
 const primaryNavItems = [
   { icon: Home, label: "Home", href: "/", requiredRole: "user" },
   { icon: Briefcase, label: "Jobs", href: "/job-swipe", requiredRole: "pro-1" },
-  { icon: ClipboardList, label: "History", href: "/history", requiredRole: "pro-1" },
-  { icon: Settings, label: "Settings", href: "/settings", requiredRole: "user" },
+  { icon: Calendar, label: "Calendar", href: "/calendar", requiredRole: "pro-1" },
 ];
 
 // Secondary navigation items (shown in "More" menu)
 const secondaryNavItems = [
-  { icon: Calendar, label: "Calendar", href: "/calendar", requiredRole: "pro-1" },
-  { icon: Sparkles, label: "Tony A.I", href: "/tony-ai", requiredRole: "user" },
-  { icon: Search, label: "ARGIC Search", href: "/glass-search", requiredRole: "pro-2" },
-  { icon: ShoppingCart, label: "Order", href: "/price-lookup", requiredRole: "pro-2" },
+  { icon: Car, label: "VRN Search", href: "/vrn-search", requiredRole: "pro-2" },
+  { icon: ShoppingCart, label: "Glass Order", href: "/glass-order", requiredRole: "pro-2" },
+  { icon: Package, label: "Shop Supplies", href: "/shop-supplies", requiredRole: "pro-2" },
+  { icon: Globe, label: "Website", href: "/website", requiredRole: "pro-2" },
+  { icon: Sparkles, label: "Tony A.I", href: "/tony-ai", requiredRole: "admin" },
+  { icon: ClipboardList, label: "History", href: "/history", requiredRole: "pro-1" },
+  { icon: Settings, label: "Settings", href: "/settings", requiredRole: "user" },
   { icon: MessageCircle, label: "Contact", href: "/contact", requiredRole: "user" },
 ];
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const { hasPermission, user } = useRoleBasedAccess();
+  const { hasPermission, user, isAdmin } = useRoleBasedAccess();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   // Filter items based on user permissions
@@ -44,8 +65,17 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <Sidebar>
-      <div className="p-3 sm:p-4 md:p-6 h-full overflow-y-auto">
-        {children}
+      <div className="relative h-full overflow-y-auto">
+        {/* Cart Icon - Top Right of Page */}
+        {isAdmin && (
+          <div className="fixed top-6 right-6 z-40 hidden sm:block">
+            <CartIcon />
+          </div>
+        )}
+        
+        <div className="p-3 sm:p-4 md:p-6">
+          {children}
+        </div>
       </div>
       
       {/* Mobile Bottom Navigation */}
@@ -74,6 +104,26 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
+          
+          {/* Cart Button (for admin users) */}
+          {isAdmin && (
+            <Link
+              to="/checkout"
+              className={cn(
+                "flex flex-col items-center justify-center p-2 rounded-xl transition-all duration-200 relative",
+                "text-xs font-medium min-w-[48px] min-h-[48px] gap-1",
+                location.pathname === '/checkout'
+                  ? "text-[#145484] bg-[#145484]/15 scale-105" 
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:scale-105"
+              )}
+            >
+              <div className="relative">
+                <ShoppingCart className="h-6 w-6" />
+                <CartBadge />
+              </div>
+              <span className="text-[10px] leading-none">Cart</span>
+            </Link>
+          )}
           
           {/* More Menu Button */}
           {accessibleSecondaryItems.length > 0 && (

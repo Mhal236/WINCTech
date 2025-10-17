@@ -239,7 +239,7 @@ const Glass = () => {
                     value={selectedDepot}
                     onValueChange={setSelectedDepot}
                   >
-                    <SelectTrigger className="w-full border-[#3d99be] focus:ring-[#3d99be]">
+                    <SelectTrigger className="w-full border-[#145484] focus:ring-[#145484]">
                       <SelectValue placeholder="Select depot" />
                     </SelectTrigger>
                     <SelectContent>
@@ -267,13 +267,13 @@ const Glass = () => {
             <div className="flex items-center gap-4 w-full">
               <Input
                 placeholder="Enter VRN or VIN..."
-                className="w-full border-[#3d99be] focus:ring-[#3d99be]"
+                className="w-full border-[#145484] focus:ring-[#145484]"
                 value={vrnVin}
                 onChange={(e) => setVrnVin(e.target.value)}
               />
               <Button 
                 variant="secondary" 
-                className="bg-[#3d99be] hover:bg-[#2d7994] text-white"
+                className="bg-[#145484] hover:bg-[#0f3d5f] text-white"
                 onClick={handleSearch}
                 disabled={loading}
               >
@@ -285,26 +285,26 @@ const Glass = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Input
                 placeholder="Make (e.g., Ford)"
-                className="w-full border-[#3d99be] focus:ring-[#3d99be]"
+                className="w-full border-[#145484] focus:ring-[#145484]"
                 value={make}
                 onChange={(e) => setMake(e.target.value)}
               />
               <Input
                 placeholder="Model (e.g., Focus)"
-                className="w-full border-[#3d99be] focus:ring-[#3d99be]"
+                className="w-full border-[#145484] focus:ring-[#145484]"
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
               />
               <Input
                 placeholder="Year (e.g., 2020)"
-                className="w-full border-[#3d99be] focus:ring-[#3d99be]"
+                className="w-full border-[#145484] focus:ring-[#145484]"
                 type="number"
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
               />
             </div>
             <Button 
-              className="w-full bg-[#3d99be] hover:bg-[#2d7994] text-white"
+              className="w-full bg-[#145484] hover:bg-[#0f3d5f] text-white"
               onClick={searchByVehicle}
               disabled={loading}
             >
@@ -315,12 +315,12 @@ const Glass = () => {
 
         {availableGlass.length > 0 && (
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-[#3d99be]">Available Glass Products</h2>
+            <h2 className="text-xl font-semibold text-[#145484]">Available Glass Products</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
               {availableGlass.map((glass, index) => (
                 <Card key={index} className="hover:shadow-lg transition-shadow duration-200">
                   <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-                    <Car className="h-6 w-6 text-[#3d99be] mr-2" />
+                    <Car className="h-6 w-6 text-[#145484] mr-2" />
                     <CardTitle className="text-lg font-semibold">{glass.Make}</CardTitle>
                   </CardHeader>
                   <CardContent>

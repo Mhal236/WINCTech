@@ -67,13 +67,56 @@ app.get('/api/vehicle/:vrn', async (req, res) => {
     ) {
       const registration = response.data.Response.DataItems.VehicleRegistration;
       
-      // Return vehicle details
+      // Fetch vehicle image in parallel
+      let vehicleImageUrl = null;
+      try {
+        const imageApiBaseUrl = process.env.VITE_IMAGE_VEHICLE_API_URL || 'https://legacy.api.vehicledataglobal.com/api/datapackage/VehicleImageData?v=2&auth_apikey=';
+        const imageApiUrl = `${imageApiBaseUrl}${VEHICLE_API_KEY}&key_vrm=${encodeURIComponent(vrn.trim())}`;
+        console.log(`📸 Fetching vehicle image for VRN: ${vrn}`);
+        
+        const imageResponse = await axios.get(imageApiUrl);
+        
+        if (imageResponse.data?.Response?.DataItems?.VehicleImages?.ImageDetailsList?.length > 0) {
+          vehicleImageUrl = imageResponse.data.Response.DataItems.VehicleImages.ImageDetailsList[0].ImageUrl;
+          console.log(`✅ Found vehicle image: ${vehicleImageUrl}`);
+        }
+      } catch (imageError) {
+        console.error('❌ Error fetching vehicle image:', imageError);
+        // Continue without image if fetch fails
+      }
+      
+      // Extract all available vehicle details
       const vehicleDetails = {
         registration: vrn.toUpperCase(),
         make: registration.Make || "",
         model: registration.Model || "",
         year: registration.YearOfManufacture || "",
-        bodyStyle: registration.BodyStyle || ""
+        variant: registration.ModelVariant || "",
+        fuelType: registration.FuelType || "",
+        engineCapacity: registration.EngineCapacity || null,
+        co2Emissions: registration.Co2Emissions || null,
+        euroStatus: registration.EuroStatus || "",
+        bodyType: registration.BodyStyle?.Description || registration.BodyStyle || "",
+        bodyShape: registration.BodyStyle?.Code || "",
+        bodyStyle: registration.BodyStyle || "",
+        colour: registration.Colour || "",
+        transmission: registration.Transmission || "",
+        doors: registration.NumberOfDoors || null,
+        seats: registration.SeatingCapacity || null,
+        wheelbaseType: registration.Wheelbase || "",
+        fuelTankCapacity: registration.FuelTankCapacity || null,
+        numberOfAxles: registration.NumberOfAxles || null,
+        payloadVolume: registration.PayloadVolume || null,
+        cabType: registration.CabType || "",
+        platformName: registration.PlatformName || "",
+        platformIsShared: registration.PlatformShared || null,
+        taxStatus: registration.TaxStatus || "",
+        motStatus: registration.MotStatus || "",
+        motdDate: registration.MotExpiryDate || "",
+        taxDueDate: registration.TaxDueDate || "",
+        VIN: registration.Vin || "",
+        mvrisCode: registration.MvrisCode || "",
+        vehicle_image_url: vehicleImageUrl
       };
       
       console.log(`Vehicle data retrieved:`, vehicleDetails);
@@ -162,16 +205,41 @@ app.get('/api/vehicle/:vrn', async (req, res) => {
       response.data.Response.DataItems.VehicleRegistration
     ) {
       const registration = response.data.Response.DataItems.VehicleRegistration;
-      res.json({
+      
+      // Extract all available vehicle details
+      const vehicleDetails = {
+        registration: vrn.toUpperCase(),
         make: registration.Make || "",
         model: registration.Model || "",
         year: registration.YearOfManufacture || "",
+        variant: registration.ModelVariant || "",
+        fuelType: registration.FuelType || "",
+        engineCapacity: registration.EngineCapacity || null,
+        co2Emissions: registration.Co2Emissions || null,
+        euroStatus: registration.EuroStatus || "",
+        bodyType: registration.BodyStyle?.Description || registration.BodyStyle || "",
+        bodyShape: registration.BodyStyle?.Code || "",
         bodyStyle: registration.BodyStyle || "",
-        doors: registration.NumberOfDoors || "",
-        fuel: registration.FuelType || "",
+        colour: registration.Colour || "",
         transmission: registration.Transmission || "",
-        vin: registration.Vin || ""
-      });
+        doors: registration.NumberOfDoors || null,
+        seats: registration.SeatingCapacity || null,
+        wheelbaseType: "",
+        fuelTankCapacity: null,
+        numberOfAxles: null,
+        payloadVolume: null,
+        cabType: "",
+        platformName: "",
+        platformIsShared: null,
+        taxStatus: registration.TaxStatus || "",
+        motStatus: registration.MotStatus || "",
+        motdDate: registration.MotExpiryDate || "",
+        taxDueDate: registration.TaxDueDate || "",
+        vin: registration.Vin || "",
+        mvrisCode: registration.MvrisCode || ""
+      };
+      
+      res.json(vehicleDetails);
     } else {
       console.log("API response did not contain expected vehicle data");
       console.log("Raw response data (partial):", JSON.stringify(response.data).substring(0, 500));

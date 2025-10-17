@@ -36,7 +36,6 @@ const logo = "/windscreen-compare-technician.png";
 export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [settingsExpanded, setSettingsExpanded] = useState(false);
-  const [argicSearchExpanded, setArgicSearchExpanded] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -67,19 +66,13 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
     { name: "Calendar", href: "/calendar", icon: Calendar, requiredRole: "pro-1" },
   ];
 
-  // ARGIC Search with submenu
-  const argicSearchNavigation = {
-    name: "ARGIC Search",
-    icon: Search,
-    requiredRole: "pro-2",
-    submenu: [
-      { name: "Glass Search", href: "/glass-search", icon: Search, requiredRole: "pro-2" },
-      { name: "VRN Search", href: "/vrn-search", icon: Car, requiredRole: "pro-2" },
-    ]
-  };
+  // VRN Search navigation (no more dropdown)
+  const vrnSearchNavigation = [
+    { name: "VRN Search", href: "/vrn-search", icon: Car, requiredRole: "pro-2" },
+  ];
 
   const bottomNavigation = [
-    { name: "Glass Order", href: "/price-lookup", icon: ShoppingCart, requiredRole: "pro-2" },
+    { name: "Glass Order", href: "/glass-order", icon: ShoppingCart, requiredRole: "pro-2" },
     { name: "Shop Supplies", href: "/shop-supplies", icon: Package, requiredRole: "pro-2" },
   ];
 
@@ -287,7 +280,7 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
               </div>
             )}
             
-            {/* Hamburger menu - always visible, works for both expand and collapse */}
+            {/* Hamburger menu */}
             <button
               onClick={() => setCollapsed(!collapsed)}
               className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
@@ -317,14 +310,14 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
               {jobsAndCalendarNavigation.map((item) => renderNavItem(item))}
             </div>
 
-            {/* Separator before ARGIC Search section */}
+            {/* Separator before VRN Search section */}
             <div className="mx-3 my-3">
               <Separator className="bg-gray-200" />
             </div>
 
-            {/* ARGIC Search with submenu and Bottom Navigation */}
+            {/* VRN Search and Bottom Navigation */}
             <div className="p-3 space-y-1">
-              {renderSubmenuNavigation(argicSearchNavigation, argicSearchExpanded, setArgicSearchExpanded)}
+              {vrnSearchNavigation.map((item) => renderNavItem(item))}
               {bottomNavigation.map((item) => renderNavItem(item))}
             </div>
 
