@@ -2,6 +2,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { BarChart, LineChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { ArrowUp, ArrowDown, TrendingUp, DollarSign, Users, Clock, PoundSterlingIcon } from 'lucide-react';
+import { PageTransition } from "@/components/PageTransition";
 
 const Reporting = () => {
   const mockData = [
@@ -45,11 +46,39 @@ const Reporting = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl md:text-3xl font-semibold text-[#145484]">Reports & Analytics</h1>
-          <div className="text-sm text-gray-500">Last updated: {new Date().toLocaleDateString('en-GB')}</div>
+      <PageTransition>
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 relative overflow-hidden">
+          {/* Animated background elements */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-0 -left-4 w-96 h-96 bg-[#0FB8C1]/5 rounded-full blur-3xl animate-pulse" />
+            <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl animate-pulse delay-700" />
+          </div>
+
+        {/* Modern Header */}
+        <div className="relative backdrop-blur-xl bg-white/80 border border-gray-200/50 shadow-sm rounded-3xl m-4">
+          <div className="px-6 py-10">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-4">
+                    <div className="w-1 h-10 bg-gradient-to-b from-[#0FB8C1] via-[#0FB8C1]/70 to-transparent rounded-full" />
+                    <h1 className="text-4xl font-light tracking-tight text-gray-900">
+                      Reports & Analytics<span className="text-[#0FB8C1] font-normal">.</span>
+                    </h1>
+                  </div>
+                  <p className="text-gray-600 text-base font-light ml-5 tracking-wide">
+                    Track your performance and business metrics
+                  </p>
+                </div>
+                <div className="text-sm text-gray-500 font-light">
+                  Last updated: {new Date().toLocaleDateString('en-GB')}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+
+        <div className="p-4 sm:p-8 space-y-8 relative z-10 max-w-7xl mx-auto">
 
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -207,6 +236,7 @@ const Reporting = () => {
           </Card>
         </div>
       </div>
+      </PageTransition>
     </DashboardLayout>
   );
 };

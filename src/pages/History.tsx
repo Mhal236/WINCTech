@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Clock, Filter, ArrowUp, Briefcase, Calendar, Users, MoreVertical, MapPin, Phone, Car, User, UserX, AlertTriangle, Zap, Target, Info } from "lucide-react";
+import { Plus, Search, Clock, Filter, ArrowUp, Briefcase, Calendar, Users, MoreVertical, MapPin, Phone, Car, User, UserX, AlertTriangle, Zap, Target, Info, Package, CheckCircle, Link2, UserCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -15,10 +15,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { JobService } from "@/services/jobService";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { LinkOrderToJob } from "@/components/orders/LinkOrderToJob";
+import { PageTransition } from "@/components/PageTransition";
 
 interface AcceptedJob {
   id: string;
+  quote_id?: string;
   customer_name: string;
   customer_phone?: string;
   location?: string;
@@ -51,7 +54,7 @@ const History = () => {
   const [acceptedJobs, setAcceptedJobs] = useState<AcceptedJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [unassigningJobId, setUnassigningJobId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("all");
+  const [activeTab, setActiveTab] = useState("completed");
   const [selectedJob, setSelectedJob] = useState<AcceptedJob | null>(null);
   const [isJobDetailsOpen, setIsJobDetailsOpen] = useState(false);
   const [stats, setStats] = useState({
@@ -60,10 +63,27 @@ const History = () => {
     scheduled: 0,
     total: 0,
     jobLeads: 0,
-    exclusive: 0
+    exclusive: 0,
+    glassOrders: 0
   });
+  const [glassOrders, setGlassOrders] = useState<any[]>([]);
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [selectedOrderJobId, setSelectedOrderJobId] = useState<string | null>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Handle navigation state to auto-select tab
+  useEffect(() => {
+    const state = location.state as { tab?: string } | null;
+    if (state?.tab) {
+      console.log('🔵 Setting active tab from navigation state:', state.tab);
+      setActiveTab(state.tab);
+      // Clear the state to avoid re-triggering
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // Helper function to check if a name looks like a glass code and sanitize it
   const getDisplayName = (name: string | undefined): string => {
@@ -99,21 +119,57 @@ const History = () => {
     });
   };
 
+  // Handle link order to job
+  const handleLinkOrderToJob = (orderId: string, currentJobId?: string | null) => {
+    setSelectedOrderId(orderId);
+    setSelectedOrderJobId(currentJobId || null);
+    setShowLinkDialog(true);
+  };
+
+  // Refresh glass orders after linking
+  const refreshGlassOrders = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('glass_orders')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      setGlassOrders(data || []);
+      setStats(prev => ({
+        ...prev,
+        glassOrders: data?.length || 0
+      }));
+    } catch (error) {
+      console.error('Error refreshing glass orders:', error);
+    }
+  };
+
   // Handle job card click to show details
   const handleJobClick = (job: AcceptedJob) => {
     setSelectedJob(job);
     setIsJobDetailsOpen(true);
   };
 
-  // Filter jobs based on active tab and search/filter criteria
+  // Filter jobs based on active tab and search/filter criteria - ONLY completed and cancelled
   const getFilteredJobs = () => {
-    let filtered = acceptedJobs;
+    let filtered = acceptedJobs.filter(job => 
+      job.status === 'completed' || job.status === 'cancelled'
+    );
 
     // Filter by tab
     if (activeTab === 'job_leads') {
       filtered = filtered.filter(job => job.job_type === 'job_lead');
     } else if (activeTab === 'exclusive') {
       filtered = filtered.filter(job => job.job_type === 'exclusive');
+    } else if (activeTab === 'completed') {
+      filtered = filtered.filter(job => job.status === 'completed');
+    } else if (activeTab === 'cancelled') {
+      filtered = filtered.filter(job => job.status === 'cancelled');
     }
 
     // Filter by search term
@@ -203,6 +259,7 @@ const History = () => {
             
             return {
               id: assignment.MasterCustomer.id,
+              quote_id: assignment.MasterCustomer.quote_id,
               customer_name: assignment.MasterCustomer.full_name,
               customer_phone: assignment.MasterCustomer.mobile,
               location: assignment.MasterCustomer.location,
@@ -232,18 +289,30 @@ const History = () => {
           
           setAcceptedJobs(serverJobs);
           
-          // Calculate stats
-          const active = serverJobs.filter((j: any) => j.status === 'assigned' || j.status === 'in_progress').length;
-          const completed = serverJobs.filter((j: any) => j.status === 'completed').length;
-          const scheduled = serverJobs.filter((j: any) => j.status === 'assigned').length;
-          const jobLeads = serverJobs.filter((j: any) => j.job_type === 'job_lead').length;
-          const exclusive = serverJobs.filter((j: any) => j.job_type === 'exclusive').length;
+          // Calculate stats - ONLY for completed and cancelled
+          const completedCancelledJobs = serverJobs.filter((j: any) => j.status === 'completed' || j.status === 'cancelled');
+          const completed = completedCancelledJobs.filter((j: any) => j.status === 'completed').length;
+          const cancelled = completedCancelledJobs.filter((j: any) => j.status === 'cancelled').length;
+          const jobLeads = completedCancelledJobs.filter((j: any) => j.job_type === 'job_lead').length;
+          const exclusive = completedCancelledJobs.filter((j: any) => j.job_type === 'exclusive').length;
+          
+          // Fetch glass orders
+          const { data: ordersData, error: ordersError } = await supabase
+            .from('glass_orders')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+          
+          if (!ordersError && ordersData) {
+            setGlassOrders(ordersData);
+          }
           
           setStats({
-            active,
+            active: 0, // Not used in History
             completed,
-            scheduled,
-            total: serverJobs.length,
+            scheduled: cancelled, // Reusing for cancelled count
+            glassOrders: ordersData?.length || 0,
+            total: completedCancelledJobs.length,
             jobLeads,
             exclusive
           });
@@ -326,13 +395,6 @@ const History = () => {
 
   const jobStats = [
     {
-      title: "Active Jobs",
-      value: stats.active.toString(),
-      change: `${stats.active} in progress`,
-      trend: "up",
-      icon: Briefcase,
-    },
-    {
       title: "Completed",
       value: stats.completed.toString(),
       change: `${stats.completed} finished`,
@@ -340,45 +402,60 @@ const History = () => {
       icon: Clock,
     },
     {
-      title: "Scheduled",
+      title: "Cancelled",
       value: stats.scheduled.toString(),
-      change: `${stats.scheduled} upcoming`,
-      trend: "up",
-      icon: Calendar,
+      change: `${stats.scheduled} cancelled`,
+      trend: "neutral",
+      icon: AlertTriangle,
     },
     {
-      title: "Total Accepted",
-      value: stats.total.toString(),
-      change: `${stats.total} total`,
+      title: "Job Leads",
+      value: stats.jobLeads.toString(),
+      change: `${stats.jobLeads} leads`,
       trend: "neutral",
-      icon: Users,
+      icon: Target,
+    },
+    {
+      title: "Exclusive",
+      value: stats.exclusive.toString(),
+      change: `${stats.exclusive} premium`,
+      trend: "neutral",
+      icon: Zap,
     },
   ];
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-        {/* Enhanced Header */}
-        <div className="bg-white shadow-sm border-b border-gray-200 rounded-b-2xl">
-          <div className="px-6 py-8">
-            <div className="flex flex-col gap-6">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-4xl font-bold text-gray-900">Jobs Dashboard</h1>
+      <PageTransition>
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 relative overflow-hidden">
+          {/* Animated background elements */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-0 -left-4 w-96 h-96 bg-[#0FB8C1]/5 rounded-full blur-3xl animate-pulse" />
+            <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl animate-pulse delay-700" />
+                  </div>
+
+        {/* Modern Header */}
+        <div className="relative backdrop-blur-xl bg-white/80 border border-gray-200/50 shadow-sm rounded-3xl m-4">
+          <div className="px-6 py-10">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-4">
+                    <div className="w-1 h-10 bg-gradient-to-b from-[#0FB8C1] via-[#0FB8C1]/70 to-transparent rounded-full" />
+                    <h1 className="text-4xl font-light tracking-tight text-gray-900">
+                      History<span className="text-[#0FB8C1] font-normal">.</span>
+                    </h1>
+                  </div>
+                  <p className="text-gray-600 text-base font-light ml-5 tracking-wide">
+                    View completed and cancelled jobs
+                  </p>
                 </div>
-                <p className="text-gray-600 text-lg">
-                  Manage and track all jobs
-                </p>
-              </div>
-              <Button className="bg-[#145484] hover:bg-[#145484]/90 w-fit">
-                <Plus className="h-5 w-5 mr-2" />
-                New Job
-              </Button>
+                </div>
             </div>
           </div>
         </div>
 
-        <div className="p-4 sm:p-6 space-y-8">
+        <div className="p-4 sm:p-8 space-y-8 relative z-10 max-w-7xl mx-auto">
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -422,9 +499,8 @@ const History = () => {
                   </SelectTrigger>
                   <SelectContent className="bg-white border border-gray-200 shadow-lg rounded-md">
                     <SelectItem value="all" className="hover:bg-gray-50">All Status</SelectItem>
-                    <SelectItem value="assigned" className="hover:bg-gray-50">Assigned</SelectItem>
-                    <SelectItem value="in_progress" className="hover:bg-gray-50">In Progress</SelectItem>
                     <SelectItem value="completed" className="hover:bg-gray-50">Completed</SelectItem>
+                    <SelectItem value="cancelled" className="hover:bg-gray-50">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -434,44 +510,34 @@ const History = () => {
 
         {/* Job Type Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="all" className="flex items-center gap-2">
-              <Briefcase className="h-4 w-4" />
-              All Jobs ({stats.total})
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="completed" className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Completed ({stats.completed})
+            </TabsTrigger>
+            <TabsTrigger value="cancelled" className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              Cancelled ({stats.scheduled})
             </TabsTrigger>
             <TabsTrigger value="job_leads" className="flex items-center gap-2">
               <Target className="h-4 w-4" />
-              Job Leads ({stats.jobLeads})
+              Leads ({stats.jobLeads})
             </TabsTrigger>
-            <TabsTrigger value="exclusive" className="flex items-center gap-2">
-              <Zap className="h-4 w-4" />
-              Exclusive ({stats.exclusive})
+            <TabsTrigger value="glass-orders" className="flex items-center gap-2">
+              <Package className="h-4 w-4" />
+              Glass Orders ({stats.glassOrders})
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="all" className="space-y-4 mt-6">
+          <TabsContent value="completed" className="space-y-4 mt-6 data-[state=active]:animate-fadeIn">
             <div className="grid gap-4">
-              {loading ? (
-                <div className="space-y-4">
-                  {[...Array(3)].map((_, i) => (
-                    <Card key={i} className="animate-pulse">
-                      <CardContent className="p-6">
-                        <div className="space-y-3">
-                          <div className="h-6 bg-gray-200 rounded w-3/4"></div>
-                          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                          <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : filteredJobs.length === 0 ? (
+              {filteredJobs.length === 0 ? (
                 <Card className="text-center py-12">
                   <CardContent>
-                    <Briefcase className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No Jobs Found</h3>
+                    <Clock className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No Completed Jobs</h3>
                     <p className="text-gray-600">
-                      You haven't accepted any jobs yet. Visit the Jobs tab to start accepting jobs.
+                      No completed jobs to display yet.
                     </p>
                   </CardContent>
                 </Card>
@@ -479,117 +545,179 @@ const History = () => {
                 filteredJobs.map(job => (
                   <Card 
                     key={job.id} 
-                    className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-[#145484] cursor-pointer"
+                    className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-green-500 cursor-pointer"
                     onClick={() => handleJobClick(job)}
                   >
                     <CardContent className="p-6">
-                      <div className="flex flex-col md:flex-row justify-between gap-4">
-                        <div className="flex-1 space-y-4">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h3 className="font-semibold text-lg text-[#145484] flex items-center gap-2">
-                                {job.job_type === 'exclusive' ? (
-                                  <Zap className="w-5 h-5 text-[#FFC107]" />
-                                ) : (
-                                  <Target className="w-5 h-5 text-[#145484]" />
-                                )}
-                                {getDisplayName(job.customer_name)}
-                              </h3>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Badge className={`text-xs ${getStatusColor(job.status)}`}>
-                                  {job.status}
-                                </Badge>
-                                <span className="text-xs text-gray-500">
-                                  {job.job_type === 'exclusive' ? 'Exclusive Job' : 'Job Lead'}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-xl font-bold text-[#145484]">
-                                £{job.quote_price?.toFixed(2) || '0.00'}
-                              </p>
-                            </div>
-                          </div>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-semibold text-lg text-green-700 flex items-center gap-2">
+                            <Clock className="w-5 h-5" />
+                            {getDisplayName(job.customer_name)}
+                          </h3>
+                          <p className="text-sm text-gray-600">£{job.quote_price?.toFixed(2)} • Completed</p>
+                        </div>
+                        <Badge className="text-xs bg-green-100 text-green-600 border-green-200">
+                          Completed
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </TabsContent>
 
-                          {/* Job Details */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                            {job.appointment_date && (
-                              <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4 text-gray-400" />
-                                <span><strong>Date:</strong> {job.appointment_date}</span>
-                              </div>
-                            )}
-                            {job.location && (
-                              <div className="flex items-center gap-2">
-                                <MapPin className="h-4 w-4 text-gray-400" />
-                                <span><strong>Location:</strong> {job.location}</span>
-                              </div>
-                            )}
-                            {job.vehicle_info && (
-                              <div className="flex items-center gap-2">
-                                <Car className="h-4 w-4 text-gray-400" />
-                                <span><strong>Vehicle:</strong> {job.vehicle_info}</span>
-                              </div>
-                            )}
-                            {job.customer_phone && (
-                              <div className="flex items-center gap-2">
-                                <Phone className="h-4 w-4 text-gray-400" />
-                                <span><strong>Phone:</strong> {job.customer_phone}</span>
-                              </div>
-                            )}
-                          </div>
+          <TabsContent value="cancelled" className="space-y-4 mt-6 data-[state=active]:animate-fadeIn">
+            <div className="grid gap-4">
+              {filteredJobs.length === 0 ? (
+                <Card className="text-center py-12">
+                  <CardContent>
+                    <AlertTriangle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No Cancelled Jobs</h3>
+                    <p className="text-gray-600">
+                      No cancelled jobs to display.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                filteredJobs.map(job => (
+                  <Card 
+                    key={job.id} 
+                    className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-red-500 cursor-pointer"
+                    onClick={() => handleJobClick(job)}
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-semibold text-lg text-red-700 flex items-center gap-2">
+                            <AlertTriangle className="w-5 h-5" />
+                            {getDisplayName(job.customer_name)}
+                          </h3>
+                          <p className="text-sm text-gray-600">£{job.quote_price?.toFixed(2)} • Cancelled</p>
+                        </div>
+                        <Badge className="text-xs bg-red-100 text-red-600 border-red-200">
+                          Cancelled
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </TabsContent>
 
-                          {/* Actions */}
-                          <div className="flex justify-between items-center pt-4 border-t">
-                            <div className="text-xs text-gray-500">
-                              Accepted: {new Date(job.assigned_at).toLocaleDateString('en-GB')}
-                            </div>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="bg-white border border-gray-200 shadow-lg rounded-md min-w-[160px]">
-                                <DropdownMenuItem onClick={() => handleViewInCalendar(job)} className="hover:bg-gray-50 focus:bg-gray-50">
-                                  <Calendar className="h-4 w-4 mr-2" />
-                                  View in Calendar
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator className="bg-gray-200" />
-                                {job.status !== 'completed' && (
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="hover:bg-red-50 focus:bg-red-50 text-red-600">
-                                        <UserX className="h-4 w-4 mr-2" />
-                                        Unassign Job
-                                      </DropdownMenuItem>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>Unassign Job?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          Are you sure you want to unassign this job? It will be returned to the available jobs pool.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction
-                                          onClick={() => handleUnassignJob(job)}
-                                          disabled={unassigningJobId === job.id}
-                                        >
-                                          {unassigningJobId === job.id ? "Unassigning..." : "Unassign"}
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+          <TabsContent value="glass-orders" className="space-y-4 mt-6 data-[state=active]:animate-fadeIn">
+            <div className="grid gap-4">
+              {glassOrders.length === 0 ? (
+                <Card className="text-center py-12">
+                  <CardContent>
+                    <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No Glass Orders</h3>
+                    <p className="text-gray-600 mb-6">
+                      You haven't placed any glass orders yet.
+                    </p>
+                    <Button onClick={() => navigate('/glass-order')} className="bg-[#0FB8C1] hover:bg-[#0d9da5]">
+                      Order Glass Now
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                glassOrders.map((order) => (
+                  <Card key={order.id} className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-[#0FB8C1]">
+                    <CardContent className="p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-lg font-bold text-gray-900">{order.order_number}</h3>
+                            <Badge className={`
+                              ${order.order_status === 'delivered' ? 'bg-green-500' : ''}
+                              ${order.order_status === 'processing' ? 'bg-blue-500' : ''}
+                              ${order.order_status === 'shipped' ? 'bg-yellow-500' : ''}
+                              ${order.order_status === 'cancelled' ? 'bg-red-500' : ''}
+                            `}>
+                              {order.order_status}
+                            </Badge>
+                            {order.job_id && order.customer_name ? (
+                              <Badge className="bg-[#0FB8C1] text-white flex items-center gap-1">
+                                <UserCheck className="w-3 h-3" />
+                                Linked: {order.customer_name}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="border-gray-400 text-gray-600 flex items-center gap-1">
+                                <Link2 className="w-3 h-3" />
+                                Not Linked
+                              </Badge>
+                            )}
                           </div>
+                          {order.vrn && (
+                            <p className="text-sm text-gray-600">
+                              <Car className="w-4 h-4 inline mr-1" />
+                              {order.make} {order.model} {order.year && `(${order.year})`} - {order.vrn}
+                            </p>
+                          )}
+                          <p className="text-sm text-gray-500 mt-1">
+                            Ordered: {new Date(order.created_at).toLocaleDateString('en-GB', { 
+                              day: '2-digit', 
+                              month: 'short', 
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-gray-900">£{Number(order.total_amount).toFixed(2)}</p>
+                          <p className="text-sm text-gray-500">{order.items?.length || 0} item(s)</p>
+                        </div>
+                      </div>
+
+                      {/* Order Items */}
+                      <div className="space-y-2 mb-4 bg-gray-50 rounded-lg p-4">
+                        {order.items?.map((item: any, idx: number) => (
+                          <div key={idx} className="flex justify-between items-center text-sm">
+                            <div className="flex-1">
+                              <p className="font-semibold text-gray-900">{item.description}</p>
+                              <p className="text-xs text-gray-600">Part: {item.partNumber} | Qty: {item.quantity}</p>
+                            </div>
+                            <p className="font-semibold text-gray-900">£{(item.unitPrice * item.quantity).toFixed(2)}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Delivery Info and Actions */}
+                      <div className="pt-4 border-t space-y-3">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          {order.delivery_option === 'delivery' ? (
+                            <>
+                              <Package className="w-4 h-4" />
+                              <span>Delivery: {order.delivery_address || '(Branch of your choice)'}</span>
+                            </>
+                          ) : (
+                            <>
+                              <MapPin className="w-4 h-4" />
+                              <span>Collection: {order.collection_address}</span>
+                            </>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleLinkOrderToJob(order.id, order.job_id)}
+                            className="flex-1 border-[#0FB8C1] text-[#0FB8C1] hover:bg-[#0FB8C1] hover:text-white"
+                          >
+                            <Link2 className="w-4 h-4 mr-2" />
+                            {order.job_id ? 'Change Job' : 'Assign to Job'}
+                          </Button>
+                          <Button 
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/order-confirmation?orderId=${order.id}`)}
+                            className="flex-1 border-gray-300 hover:bg-gray-50"
+                          >
+                            View Details
+                          </Button>
                         </div>
                       </div>
                     </CardContent>
@@ -599,7 +727,7 @@ const History = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="job_leads" className="space-y-4 mt-6">
+          <TabsContent value="job_leads" className="space-y-4 mt-6 data-[state=active]:animate-fadeIn">
             <div className="grid gap-4">
               {filteredJobs.length === 0 ? (
                 <Card className="text-center py-12">
@@ -638,7 +766,7 @@ const History = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="exclusive" className="space-y-4 mt-6">
+          <TabsContent value="exclusive" className="space-y-4 mt-6 data-[state=active]:animate-fadeIn">
             <div className="grid gap-4">
               {filteredJobs.length === 0 ? (
                 <Card className="text-center py-12">
@@ -744,17 +872,24 @@ const History = () => {
           <Dialog open={isJobDetailsOpen} onOpenChange={setIsJobDetailsOpen}>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
+                <div className="flex items-start justify-between">
+                  <DialogTitle className="flex items-center gap-2 flex-wrap">
                   {selectedJob.job_type === 'exclusive' ? (
                     <Zap className="h-5 w-5 text-[#FFC107]" />
                   ) : (
                     <Target className="h-5 w-5 text-[#145484]" />
                   )}
                   {getDisplayName(selectedJob.customer_name)}
-                  <Badge className={`text-xs ml-2 ${getStatusColor(selectedJob.status)}`}>
+                    <Badge className={`text-xs ${getStatusColor(selectedJob.status)}`}>
                     {selectedJob.status}
                   </Badge>
                 </DialogTitle>
+                  {selectedJob.quote_id && (
+                    <Badge variant="outline" className="border-[#0FB8C1] text-[#0FB8C1] font-semibold text-sm px-3 py-1">
+                      Quote: {selectedJob.quote_id}
+                    </Badge>
+                  )}
+                </div>
               </DialogHeader>
 
               <div className="space-y-6">
@@ -1140,6 +1275,18 @@ const History = () => {
         )}
       </div>
       </div>
+
+      {/* Link Order Dialog */}
+      {selectedOrderId && (
+        <LinkOrderToJob
+          open={showLinkDialog}
+          onOpenChange={setShowLinkDialog}
+          orderId={selectedOrderId}
+          currentJobId={selectedOrderJobId}
+          onSuccess={refreshGlassOrders}
+        />
+      )}
+      </PageTransition>
     </DashboardLayout>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { JobCard, JobData } from './JobCard';
+import { JobCard, JobData } from './InstantLeadCard';
 import { ExclusiveJobsView } from './ExclusiveJobsView';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 
 export type JobType = 'exclusive' | 'board' | 'bids';
 
@@ -92,6 +93,7 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
   };
 
   const fetchJobs = async () => {
+    const startTime = Date.now();
     try {
       setLoading(true);
       
@@ -115,6 +117,98 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
           job.quote_price != null && 
           job.quote_price > 0
         );
+        
+        // Also fetch leads from leads table with status='new' for board/bids types
+        if (jobType === 'board' || jobType === 'bids') {
+          const { data: leadsData, error: leadsError } = await supabase
+            .from('leads')
+            .select('*')
+            .eq('status', 'new');
+          
+          if (!leadsError && leadsData) {
+            console.log('🟢 Found leads from leads table:', leadsData.length);
+            
+            // Get current technician ID for duplicate purchase check
+            let currentTechnicianId = null;
+            if (user?.id) {
+              const { data: techData1 } = await supabase
+                .from('technicians')
+                .select('id')
+                .eq('user_id', user.id)
+                .maybeSingle();
+              
+              if (techData1) {
+                currentTechnicianId = techData1.id;
+              } else {
+                const { data: techData2 } = await supabase
+                  .from('technicians')
+                  .select('id')
+                  .eq('contact_email', user.email)
+                  .maybeSingle();
+                
+                if (techData2) {
+                  currentTechnicianId = techData2.id;
+                }
+              }
+            }
+            
+            // Filter out leads with 3+ purchases AND leads already purchased by current technician
+            const leadsWithPurchaseCount = await Promise.all(
+              leadsData.map(async (lead: any) => {
+                const { data: purchases } = await supabase
+                  .from('lead_purchases')
+                  .select('id, technician_id')
+                  .eq('lead_id', lead.id);
+                
+                const purchaseCount = purchases?.length || 0;
+                const alreadyPurchasedByMe = currentTechnicianId 
+                  ? purchases?.some(p => p.technician_id === currentTechnicianId)
+                  : false;
+                
+                return {
+                  ...lead,
+                  purchaseCount,
+                  alreadyPurchasedByMe
+                };
+              })
+            );
+            
+            // Only include leads with less than 3 purchases AND not already purchased by current user
+            const availableLeads = leadsWithPurchaseCount.filter(
+              lead => lead.purchaseCount < 3 && !lead.alreadyPurchasedByMe
+            );
+            console.log('🔵 Available leads (< 3 purchases & not purchased by me):', availableLeads.length);
+            
+            // Convert leads to JobData format
+            const convertedLeads = availableLeads.map((lead: any) => ({
+              id: lead.id,
+              full_name: lead.full_name || lead.name || `${lead.first_name || ''} ${lead.last_name || ''}`.trim(),
+              email: lead.email,
+              mobile: lead.phone,
+              vehicle_reg: lead.vrn,
+              brand: lead.make,
+              model: lead.model,
+              year: lead.year,
+              quote_price: lead.quote_price || lead.estimated_price,
+              credits_cost: lead.credits_cost || 1,
+              status: 'quoted', // Treat as quoted for display purposes
+              appointment_date: lead.appointment_date,
+              time_slot: lead.time_slot,
+              location: lead.address,
+              postcode: lead.postcode,
+              service_type: lead.service_type,
+              glass_type: lead.glass_type,
+              selected_windows: lead.selected_windows,
+              argic_code: lead.argic_code,
+              timeline: `VRN Lead - ${new Date(lead.appointment_date || lead.created_at).toLocaleDateString('en-GB')}`,
+              isFromLeadsTable: true // Flag to identify leads from new table
+            }));
+            
+            console.log('🔵 Converted leads with flag:', convertedLeads);
+            // Put leads at the front so they're shown first
+            filteredJobs = [...convertedLeads, ...filteredJobs];
+          }
+        }
 
         // Apply job type filtering
         switch (jobType) {
@@ -123,29 +217,19 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
             // This filtering is kept for backward compatibility but shouldn't be used
             filteredJobs = filteredJobs.filter(job => job.quote_price >= 200);
             break;
-          case 'board':
-            // Regular job board - quoted but unpaid jobs only
-            // Jobs with 'paid' status are handled by exclusive jobs view
-            break;
           case 'bids':
             // For bid jobs, we might want jobs that are still in bidding phase
             // For now, we'll show jobs with lower prices that might need competitive bidding
             filteredJobs = filteredJobs.filter(job => job.quote_price < 200);
             break;
           default:
-            // Default to board view
+            // Default to showing all jobs
             break;
         }
 
         console.log(`Filtered ${jobType} jobs:`, filteredJobs);
         setJobs(filteredJobs);
         setFilteredJobs(filteredJobs);
-        
-        // Fetch purchase counts for board jobs (leads)
-        if (jobType === 'board' && filteredJobs.length > 0) {
-          const jobIds = filteredJobs.map(job => job.id);
-          await fetchPurchaseCounts(jobIds);
-        }
       }
     } catch (error) {
       console.error('Error in fetchJobs:', error);
@@ -155,8 +239,14 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
-      setLastRefresh(new Date());
+      // Ensure minimum 1 second loading time for smooth UX
+      const elapsedTime = Date.now() - startTime;
+      const remainingTime = Math.max(0, 1000 - elapsedTime);
+      
+      setTimeout(() => {
+        setLoading(false);
+        setLastRefresh(new Date());
+      }, remainingTime);
     }
   };
 
@@ -250,6 +340,8 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
   }, [jobs, searchTerm, sortBy, priceFilter, purchaseCounts, jobType]);
 
   const handleAcceptJob = async (job: JobData) => {
+    console.log('🔵 Accepting job/lead:', { id: job.id, isFromLeadsTable: (job as any).isFromLeadsTable, status: job.status });
+    
     if (!user || !user.id) {
       toast({
         title: "Authentication Required",
@@ -260,7 +352,7 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
     }
 
     // Check if 3 technicians have already purchased this lead
-    if (jobType === 'board') {
+    if (jobType === 'board' && !(job as any).isFromLeadsTable) {
       const purchaseCount = purchaseCounts.get(job.id) || 0;
       if (purchaseCount >= 3) {
         toast({
@@ -325,7 +417,128 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
     try {
       setAcceptingJobId(job.id);
 
-      // Accept the job using the service
+      // Check if this is a lead from the leads table
+      if ((job as any).isFromLeadsTable) {
+        console.log('🟢 Handling lead from leads table, ID:', job.id);
+        console.log('🔵 Technician ID:', technicianData.id);
+        
+        try {
+          // Check if technician already purchased this lead
+          const { data: existingPurchase, error: checkError } = await supabase
+            .from('lead_purchases')
+            .select('id')
+            .eq('lead_id', job.id)
+            .eq('technician_id', technicianData.id)
+            .maybeSingle();
+
+          if (checkError) {
+            console.error('❌ Error checking existing purchase:', checkError);
+            // Don't block purchase if check fails - table might not exist yet
+            console.log('⚠️ Continuing with purchase despite check error');
+          } else if (existingPurchase) {
+            console.log('❌ Lead already purchased by this technician');
+            toast({
+              title: "Already Purchased",
+              description: "You've already purchased this lead. Check your Jobs → Leads tab.",
+              variant: "destructive",
+            });
+            setAcceptingJobId(null);
+            return;
+          }
+
+          // Check if 3 technicians have already purchased this lead
+          const { data: purchases, error: countError } = await supabase
+            .from('lead_purchases')
+            .select('id')
+            .eq('lead_id', job.id);
+
+          if (countError) {
+            console.error('⚠️ Error checking purchase count:', countError);
+            // Continue with purchase if count check fails
+          } else if (purchases && purchases.length >= 3) {
+            console.log('❌ Lead has reached maximum purchasers:', purchases.length);
+            toast({
+              title: "Lead Unavailable",
+              description: "This lead has reached the maximum of 3 purchasers.",
+              variant: "destructive",
+            });
+            setAcceptingJobId(null);
+            await fetchJobs(); // Refresh to remove from list
+            return;
+          } else {
+            console.log('✅ Purchase count check passed:', purchases?.length || 0, '/3');
+          }
+
+          // Record the purchase
+          const creditCost = job.credits_cost || 1;
+          console.log('💳 Recording purchase with', creditCost, 'credits');
+          
+          const { data: purchaseData, error: purchaseError } = await supabase
+            .from('lead_purchases')
+            .insert([{
+              lead_id: job.id,
+              technician_id: technicianData.id,
+              credits_paid: creditCost
+            }])
+            .select()
+            .single();
+
+          if (purchaseError) {
+            console.error('❌ Lead purchase error:', purchaseError);
+            toast({
+              title: "Purchase Failed",
+              description: purchaseError.message || "Failed to purchase the lead. Please try again.",
+              variant: "destructive",
+            });
+            setAcceptingJobId(null);
+            return;
+          }
+
+          console.log('✅ Purchase recorded:', purchaseData?.id);
+
+          // Deduct credits
+          console.log('💰 Deducting', creditCost, 'credits from', technicianData.credits);
+          const { error: creditError } = await supabase
+            .from('technicians')
+            .update({ credits: (technicianData.credits || 0) - creditCost })
+            .eq('id', technicianData.id);
+
+          if (creditError) {
+            console.error('⚠️ Error deducting credits:', creditError);
+            // Don't fail the purchase if credit deduction fails - purchase is recorded
+          } else {
+            console.log('✅ Credits deducted successfully');
+          }
+
+          console.log('✅ Lead purchased successfully');
+          toast({
+            title: "Lead Purchased!",
+            description: `Lead for ${job.full_name} has been added to your Jobs. ${creditCost} credit${creditCost !== 1 ? 's' : ''} deducted.`,
+          });
+
+          // Refresh data
+          await refreshUser();
+          await fetchJobs();
+          setAcceptedJobs(prev => new Set([...prev, job.id]));
+          setAcceptingJobId(null);
+          
+          if (onJobAccepted) {
+            onJobAccepted(job);
+          }
+          return;
+        } catch (error) {
+          console.error('❌ Unexpected error during lead purchase:', error);
+          toast({
+            title: "Purchase Failed",
+            description: "An unexpected error occurred. Please try again.",
+            variant: "destructive",
+          });
+          setAcceptingJobId(null);
+          return;
+        }
+      }
+
+      // Accept the job using the service (for MasterCustomer jobs)
       const { success, error: acceptError, assignmentId } = await JobService.acceptJob(
         job.id,
         technicianData.id,
@@ -480,14 +693,43 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
   if (loading) {
     return (
       <div className="p-6">
-        {renderFiltersAndControls()}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="animate-pulse">
-              <div className="bg-gray-200 rounded-lg h-80 w-full"></div>
+        <Card className="shadow-lg border-2 border-[#0FB8C1]">
+          <CardContent className="p-16">
+            <div className="flex flex-col items-center justify-center space-y-6">
+              {/* Animated Logo/Brand */}
+              <div className="relative">
+                <div className="animate-spin rounded-full h-32 w-32 border-t-4 border-b-4 border-[#0FB8C1]" style={{ animationDuration: '1.5s' }}></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <img 
+                    src="/WINC.png" 
+                    alt="WindscreenCompare" 
+                    className="w-20 h-20 object-contain animate-pulse"
+                  />
+                </div>
+              </div>
+              
+              {/* Loading Text */}
+              <div className="text-center space-y-2">
+                <h3 className="text-2xl font-bold text-gray-900">
+                  WindscreenCompare
+                </h3>
+                <p className="text-lg font-semibold text-[#0FB8C1] animate-pulse">
+                  Loading jobs...
+                </p>
+                <p className="text-sm text-gray-500">
+                  Finding the best opportunities for you
+                </p>
+              </div>
+              
+              {/* Progress Dots */}
+              <div className="flex gap-2">
+                <div className="w-2 h-2 bg-[#0FB8C1] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                <div className="w-2 h-2 bg-[#0FB8C1] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                <div className="w-2 h-2 bg-[#0FB8C1] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+              </div>
             </div>
-          ))}
-        </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -495,7 +737,7 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
   if (jobs.length === 0) {
     return (
       <div className="p-6">
-        {renderFiltersAndControls()}
+        {jobType !== 'exclusive' && renderFiltersAndControls()}
         <div className="flex flex-col items-center justify-center py-16">
           <Car className="w-20 h-20 text-gray-300 mb-6" />
           <h3 className="text-xl font-bold text-gray-900 mb-3">No Available Jobs</h3>
@@ -518,7 +760,7 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
   if (filteredJobs.length === 0 && (searchTerm || priceFilter !== 'all')) {
     return (
       <div className="p-6">
-        {renderFiltersAndControls()}
+        {jobType !== 'exclusive' && renderFiltersAndControls()}
         <div className="flex flex-col items-center justify-center py-16">
           <Filter className="w-20 h-20 text-gray-300 mb-6" />
           <h3 className="text-xl font-bold text-gray-900 mb-3">No Jobs Match Your Filters</h3>
@@ -584,7 +826,7 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="p-6">
-        {renderFiltersAndControls()}
+        {jobType !== 'exclusive' && renderFiltersAndControls()}
         
         {/* Header with stats */}
         <div className="mb-6">

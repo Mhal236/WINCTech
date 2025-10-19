@@ -13,44 +13,55 @@ export default function Signup() {
   }
   return (
     <ModalPageTransition>
-      <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-gray-50">
-        {/* Subtle Background Elements with Brand Colors */}
+      <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-gradient-to-br from-gray-50 to-cyan-50">
+        {/* WindscreenCompare Brand Background */}
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-40 -right-40 w-80 h-80 bg-yellow-400/10 rounded-full blur-3xl"></div>
-          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-yellow-400/5 rounded-full blur-3xl"></div>
+          <div className="absolute -top-40 -right-40 w-96 h-96 bg-[#0FB8C1]/10 rounded-full blur-3xl"></div>
+          <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-[#0FB8C1]/10 rounded-full blur-3xl"></div>
+          <div className="absolute top-1/3 right-1/3 w-64 h-64 bg-cyan-200/20 rounded-full blur-3xl"></div>
         </div>
 
         {/* Main Content Container */}
         <div className="relative z-10 w-full max-w-md mx-auto">
-          {/* Header Section */}
+          {/* Header Section with WindscreenCompare Branding */}
           <div className="mb-8 text-center">
+            {/* WindscreenCompare Logo */}
             <div className="mb-6">
-              {/* Logo/Icon with Brand Colors */}
-              <div className="mx-auto w-16 h-16 bg-[#FFC107] rounded-2xl flex items-center justify-center mb-4 shadow-lg">
-                <svg className="w-8 h-8 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                </svg>
+              <div className="mx-auto w-24 h-24 mb-4 flex items-center justify-center">
+                <img 
+                  src="/WINC.png" 
+                  alt="WindscreenCompare" 
+                  className="w-full h-full object-contain drop-shadow-lg"
+                />
               </div>
+              <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
+                WindscreenCompare
+              </h1>
+              <p className="text-lg font-semibold text-[#0FB8C1]">
+                Technician Portal
+              </p>
             </div>
             
-            <h1 className="text-4xl font-bold text-gray-900 mb-3">
-              Create Account
-            </h1>
-            <p className="text-gray-600 text-lg">
-              Join WindScreen Compare today
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">
+              Create Your Account
+            </h2>
+            <p className="text-gray-600">
+              Join the UK's leading glass comparison platform
             </p>
           </div>
 
-          {/* Signup Form with Glass Effect */}
-          <div className="glass-card rounded-2xl p-8 shadow-2xl hover-scale w-full">
+          {/* Signup Form with Brand Styling */}
+          <div className="bg-white rounded-2xl p-8 shadow-xl border-2 border-[#0FB8C1]/20 hover:shadow-2xl transition-all duration-300 w-full">
             <SignupForm />
           </div>
 
-          {/* Footer */}
-          <div className="mt-8 text-center">
-            <p className="text-sm text-gray-500">
-              Secure registration powered by advanced encryption
+          {/* Footer with Brand Info */}
+          <div className="mt-8 text-center space-y-2">
+            <p className="text-sm text-gray-600">
+              Start managing your glass repair jobs today
+            </p>
+            <p className="text-xs text-gray-500">
+              Secure registration • Encrypted data • Trusted by professionals
             </p>
           </div>
         </div>

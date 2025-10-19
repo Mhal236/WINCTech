@@ -291,6 +291,90 @@ app.get('/api/vehicle/glass/:vrn', async (req, res) => {
     console.log(`PROCESSING VEHICLE GLASS DATA REQUEST FOR VRN: ${vrn}`);
     console.log(`-----------------------------------------------------\n`);
     
+    // DEMO MODE: Check for demonstration VRN
+    if (vrn.trim().toUpperCase() === 'HN11EYW') {
+      console.log('🎯 DEMO MODE: Returning demonstration data for VRN HN11EYW');
+      
+      const demoVehicleDetails = {
+        make: "AUDI",
+        model: "A3",
+        year: "2011",
+        bodyStyle: "HATCHBACK",
+        variant: "2.0 TDI",
+        fuel: "Diesel",
+        transmission: "Manual",
+        doors: "5",
+        vin: "DEMO12345678VIN",
+        vrn: "HN11EYW",
+        argicCode: "2448ACCGNMV1B",
+        shortArgicCode: "2448",
+        glassOptions: [
+          {
+            fullCode: "2448ACCGNMV1B",
+            shortCode: "2448",
+            description: "Windscreen - Rain Sensor - Camera - Acoustic Laminated Glass",
+            price: 285.50,
+            qty: 5,
+            hasSensor: true,
+            hasCamera: true,
+            isAcoustic: true,
+            features: {
+              sensor: true,
+              camera: true,
+              acoustic: true
+            }
+          },
+          {
+            fullCode: "2448RGDH5RD",
+            shortCode: "2448",
+            description: "Right Body Glass - Door Glass",
+            price: 95.00,
+            qty: 3,
+            hasSensor: false,
+            hasCamera: false,
+            features: {
+              sensor: false
+            }
+          },
+          {
+            fullCode: "2448LGDH5RD",
+            shortCode: "2448",
+            description: "Left Body Glass - Door Glass",
+            price: 95.00,
+            qty: 3,
+            hasSensor: false,
+            hasCamera: false,
+            features: {
+              sensor: false
+            }
+          },
+          {
+            fullCode: "2448BGDHAB1F",
+            shortCode: "2448",
+            description: "Rear Screen - Backlight - Heated Glass",
+            price: 165.00,
+            qty: 2,
+            hasSensor: false,
+            hasCamera: false,
+            isHeated: true,
+            features: {
+              sensor: false,
+              heated: true
+            }
+          }
+        ],
+        vehicle_image_url: ""
+      };
+      
+      console.log('Demo vehicle data:', JSON.stringify(demoVehicleDetails, null, 2));
+      
+      return res.json({
+        success: true,
+        data: demoVehicleDetails,
+        isDemo: true
+      });
+    }
+    
     // STEP 1: Fetch vehicle data from vehicle API
     console.log(`STEP 1: FETCHING VEHICLE DATA FROM UK API FOR VRN: ${vrn}`);
     
@@ -1621,20 +1705,10 @@ app.post('/api/jobs/accept', async (req, res) => {
       console.log(`✅ Deducted ${creditCost} credits from technician ${technicianId}. New balance: ${newCredits}`);
     }
 
-    // Update MasterCustomer - only update technician info for the first purchase
-    // For subsequent purchases (leads can be sold to up to 3 technicians), don't update MasterCustomer
-    const isFirstPurchase = !existingAssignments || existingAssignments.length === 0;
-    if (isFirstPurchase) {
-      const { error: updateErr } = await supabase
-        .from('MasterCustomer')
-        .update({ technician_id: technicianId, technician_name: technicianName })
-        .eq('id', jobId);
-
-      if (updateErr) {
-        await supabase.from('job_assignments').delete().eq('id', assignment.id);
-        return res.status(500).json({ success: false, error: updateErr.message });
-      }
-    }
+    // DO NOT update MasterCustomer with technician info
+    // Leads can be purchased by up to 3 technicians, so we don't assign a specific technician to the MasterCustomer record
+    // The assignment is tracked in the job_assignments table instead
+    // This allows multiple technicians to purchase the same lead without conflicts
 
     return res.json({ 
       success: true, 
@@ -1788,6 +1862,74 @@ app.post('/api/jobs/unassign', async (req, res) => {
     return res.json({ success: true, message: 'Job unassigned successfully and returned to exclusive pool' });
   } catch (error) {
     console.error('Error in /api/jobs/unassign:', error);
+    return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
+// Create calendar event for accepted job
+app.post('/api/jobs/create-event', async (req, res) => {
+  try {
+    const admin = getSupabaseAdmin();
+    if (admin.error) return res.status(500).json({ success: false, error: admin.error });
+    const supabase = admin.client;
+
+    const { assignmentId, job, technicianId } = req.body || {};
+    if (!assignmentId || !job || !technicianId) {
+      return res.status(400).json({ success: false, error: 'Missing required fields: assignmentId, job, technicianId' });
+    }
+
+    const eventDate = job.appointment_date || new Date().toISOString().split('T')[0];
+    const startTime = (job.time_slot?.split('-')[0] || '09:00').trim();
+
+    // Calculate end time
+    const getEnd = (start, dur) => {
+      try {
+        const [h, m] = start.split(':').map(Number);
+        let hours = 2;
+        if (dur?.includes('hour')) hours = parseInt(dur.match(/\d+/)?.[0] || '2');
+        else if (dur?.includes('minute')) hours = (parseInt(dur.match(/\d+/)?.[0] || '120')) / 60;
+        const endH = h + Math.floor(hours);
+        const endMtotal = m + (hours % 1) * 60;
+        const finalM = Math.round(endMtotal % 60);
+        const extraH = Math.floor(endMtotal / 60);
+        const finalH = endH + extraH;
+        return `${finalH.toString().padStart(2,'0')}:${finalM.toString().padStart(2,'0')}`;
+      } catch { return '17:00'; }
+    };
+
+    const endTime = getEnd(startTime, job.duration || '2 hours');
+    const vehicleInfo = [job.year, job.brand, job.model].filter(Boolean).join(' ') || 'Vehicle information not available';
+    const location = `${job.location || ''} ${job.postcode || ''}`.trim();
+
+    // Create local calendar event (skip Google Calendar integration for now)
+    const { error } = await supabase
+      .from('calendar_events')
+      .insert({
+        job_assignment_id: assignmentId,
+        technician_id: technicianId,
+        title: `${job.service_type || 'Windscreen Service'} - ${job.full_name}`,
+        description: `Vehicle: ${vehicleInfo}\nService: ${job.service_type || 'Windscreen Service'}\nGlass Type: ${job.glass_type || 'Standard'}\nCustomer: ${job.full_name}\nPhone: ${job.mobile || 'N/A'}`,
+        start_date: eventDate,
+        start_time: startTime,
+        end_date: eventDate,
+        end_time: endTime,
+        location,
+        customer_name: job.full_name,
+        customer_phone: job.mobile,
+        vehicle_info: vehicleInfo,
+        status: 'scheduled',
+        google_calendar_event_id: null
+      });
+
+    if (error) {
+      console.error('Error creating calendar event:', error);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    
+    console.log('✅ Successfully created calendar event for job assignment:', assignmentId);
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Error in /api/jobs/create-event:', error);
     return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSwipeable } from 'react-swipeable';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
-import { JobData } from './JobCard';
+import { JobData } from './InstantLeadCard';
 import { MapPin, Phone, Car, X, Heart, Calendar, Clock, Star, Zap, DollarSign, AlertTriangle, CheckCircle, ArrowRight } from 'lucide-react';
 
 interface SwipeableJobCardProps {

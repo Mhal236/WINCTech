@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { UsersRound, Search, PlusCircle, MapPin, Star, Phone, Calendar } from "lucide-react";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { Input } from "@/components/ui/input";
+import { PageTransition } from "@/components/PageTransition";
 
 const technicians = [
   {
@@ -64,29 +65,40 @@ const technicians = [
 const Technicians = () => {
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-        {/* Enhanced Header */}
-        <div className="bg-white shadow-sm border-b border-gray-200 rounded-b-2xl">
-          <div className="px-6 py-8">
-            <div className="flex flex-col gap-6">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-4xl font-bold text-gray-900">Technicians</h1>
+      <PageTransition>
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 relative overflow-hidden">
+          {/* Animated background elements */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-0 -left-4 w-96 h-96 bg-[#0FB8C1]/5 rounded-full blur-3xl animate-pulse" />
+            <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl animate-pulse delay-700" />
+          </div>
+
+        {/* Modern Header */}
+        <div className="relative backdrop-blur-xl bg-white/80 border border-gray-200/50 shadow-sm rounded-3xl m-4">
+          <div className="px-6 py-10">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-4">
+                    <div className="w-1 h-10 bg-gradient-to-b from-[#0FB8C1] via-[#0FB8C1]/70 to-transparent rounded-full" />
+                    <h1 className="text-4xl font-light tracking-tight text-gray-900">
+                      Technicians<span className="text-[#0FB8C1] font-normal">.</span>
+                    </h1>
+                  </div>
+                  <p className="text-gray-600 text-base font-light ml-5 tracking-wide">
+                    Manage and view all technicians in your network
+                  </p>
                 </div>
-                <p className="text-gray-600 text-lg">
-                  Manage and view all technicians in your network
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <div className="relative w-full md:w-auto">
-                  <MagnifyingGlassIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-                  <Input
-                    type="search"
-                    placeholder="Search technicians..."
-                    className="w-full md:w-[300px] pl-8 bg-white"
-                  />
-                </div>
-                <Button>
+                <div className="flex gap-3">
+                  <div className="relative">
+                    <MagnifyingGlassIcon className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                    <Input
+                      type="search"
+                      placeholder="Search technicians..."
+                      className="w-[300px] pl-9 bg-white border-gray-200 focus:border-[#0FB8C1]"
+                    />
+                  </div>
+                  <Button className="bg-[#0FB8C1] hover:bg-[#0FB8C1]/90">
                   <PlusCircle className="h-4 w-4 mr-2" />
                   Add New
                 </Button>
@@ -193,6 +205,7 @@ const Technicians = () => {
         </Card>
       </div>
       </div>
+      </PageTransition>
     </DashboardLayout>
   );
 };

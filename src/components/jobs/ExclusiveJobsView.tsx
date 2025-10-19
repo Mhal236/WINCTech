@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { SwipeableJobCard } from './SwipeableJobCard';
-import { JobData } from './JobCard';
+import { SwipeableJobCard } from './SwipeableInstantLeadCard';
+import { JobData } from './InstantLeadCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { JobService } from '@/services/jobService';
@@ -16,7 +16,6 @@ interface ExclusiveJobsViewProps {
 export const ExclusiveJobsView: React.FC<ExclusiveJobsViewProps> = ({ onJobAccepted }) => {
   const [jobs, setJobs] = useState<JobData[]>([]);
   const [currentJobIndex, setCurrentJobIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [lastAction, setLastAction] = useState<'accepted' | 'passed' | null>(null);
   const [acceptedJobs, setAcceptedJobs] = useState<Set<string>>(new Set());
@@ -43,17 +42,21 @@ export const ExclusiveJobsView: React.FC<ExclusiveJobsViewProps> = ({ onJobAccep
   const fetchExclusiveJobs = async () => {
     try {
       console.log('🔵 Starting fetchExclusiveJobs...');
-      setLoading(true);
       
       // Test direct database query first
       console.log('🔵 Testing direct database query...');
-      const { data: directData, error: directError } = await supabase
+      const { data: directQueryData, error: directError } = await supabase
         .from('MasterCustomer')
         .select('*')
         .eq('status', 'paid') // Only show paid jobs in exclusive view
         .not('quote_price', 'is', null)
-        .gt('quote_price', 0) // Remove price filter for paid jobs
-        .limit(5);
+        .gt('quote_price', 0)
+        .limit(20);
+      
+      // Filter out price estimator and price lookup leads
+      const directData = directQueryData?.filter((job: any) => 
+        !job.source || (job.source !== 'price_estimator' && job.source !== 'price_lookup')
+      ).slice(0, 5);
       
       console.log('🔵 Direct query result:', { directData, directError, count: directData?.length });
       
@@ -101,8 +104,7 @@ export const ExclusiveJobsView: React.FC<ExclusiveJobsViewProps> = ({ onJobAccep
         variant: "destructive",
       });
     } finally {
-      console.log('🔵 Setting loading to false');
-      setLoading(false);
+      console.log('🔵 fetchExclusiveJobs completed');
       setLastRefresh(new Date());
     }
   };
@@ -237,17 +239,7 @@ export const ExclusiveJobsView: React.FC<ExclusiveJobsViewProps> = ({ onJobAccep
     // The card has finished its animation and left the screen
   };
 
-  console.log('ExclusiveJobsView render - loading:', loading, 'jobs.length:', jobs.length, 'currentJobIndex:', currentJobIndex);
-
-  if (loading) {
-    console.log('Showing loading state');
-    return (
-      <div className="flex flex-col items-center justify-center py-12 min-h-[500px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-        <p className="text-gray-600">Loading exclusive jobs...</p>
-      </div>
-    );
-  }
+  console.log('ExclusiveJobsView render - jobs.length:', jobs.length, 'currentJobIndex:', currentJobIndex);
 
   if (jobs.length === 0) {
     console.log('Showing no jobs state');

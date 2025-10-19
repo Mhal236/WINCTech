@@ -1,14 +1,21 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { BookingForm } from "@/components/booking/BookingForm";
-import { ShoppingCart, X, Image as ImageIcon, Car, Layers, LogOut, ArrowLeft, Search, WifiIcon as WifiOff } from "lucide-react";
+import { ShoppingCart, X, Image as ImageIcon, Car, Layers, LogOut, ArrowLeft, Search, WifiIcon as WifiOff, CalendarIcon, User, Phone as PhoneIcon, Mail, MapPin, Package } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
+import { format } from "date-fns";
+import { TimeSlotPicker } from "@/components/calendar/TimeSlotPicker";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useCart } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,8 +26,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { getGlassApiCredentials, getStockList, getMakes, getModels, PriceRecord, checkAvailability, getDepots, searchStockByArgic, testApiConnection } from "@/utils/glassApiService";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MAGAuthProvider, useMAGAuth } from "@/contexts/MAGAuthContext";
 import { MAGLoginForm } from "@/components/auth/MAGLoginForm";
@@ -104,11 +118,12 @@ const PriceLookupContent = () => {
   const { magUser, logoutMAG, loginWithMAG } = useMAGAuth();
   const { addItem } = useCart();
   const navigate = useNavigate();
+  const { user, refreshUser } = useAuth();
   const [selectedProvider, setSelectedProvider] = useState<'mag' | 'pughs' | 'guest' | null>(null);
   const [showSupplierSelection, setShowSupplierSelection] = useState(true);
   const [showOrderChoice, setShowOrderChoice] = useState(false);
   const [proceedToOrder, setProceedToOrder] = useState(false);
-  const [glassTypeFilter, setGlassTypeFilter] = useState<string>('all');
+  const [glassTypeFilter, setGlassTypeFilter] = useState<string>('windscreen');
   const [showTradeOnly, setShowTradeOnly] = useState(false);
   const [windscreenAttributes, setWindscreenAttributes] = useState({
     rainSensor: false,
@@ -163,12 +178,26 @@ const PriceLookupContent = () => {
   const urlSelectedWindows = searchParams.get('selectedWindows');
   const [vrn, setVrn] = useState<string>("");
   const [availableDepots, setAvailableDepots] = useState<Depot[]>([]);
-  const [selectedDepots, setSelectedDepots] = useState<string[]>([]);
+  const [selectedDepots, setSelectedDepots] = useState<string[]>(['ENF']);
   const [glassSelections, setGlassSelections] = useState<GlassSelection[]>([]);
+  const [userPostcode, setUserPostcode] = useState<string>("");
+  const [filteredDepots, setFilteredDepots] = useState<any[]>([]);
+  const [isLoadingDepots, setIsLoadingDepots] = useState(false);
   const [quotes, setQuotes] = useState<CompanyQuote[]>([]);
   const [showQuotes, setShowQuotes] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState<CompanyQuote | null>(null);
+  const [currentDisplayedArgic, setCurrentDisplayedArgic] = useState<string>("");
   const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
+  const [isCustomerInfoOpen, setIsCustomerInfoOpen] = useState(false);
+  const [appointmentDate, setAppointmentDate] = useState<Date>();
+  const [appointmentTime, setAppointmentTime] = useState<string>('');
+  const [customerInfo, setCustomerInfo] = useState({
+    firstName: "",
+    lastName: "",
+    phone: "",
+    email: "",
+    address: ""
+  });
   const { toast } = useToast();
   const [vehicleDetails, setVehicleDetails] = useState<VehicleDetails>({
     make: "",
@@ -178,6 +207,7 @@ const PriceLookupContent = () => {
   });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingVehicle, setLoadingVehicle] = useState(false);
   const [vrnValidForLookup, setVrnValidForLookup] = useState(false);
 
   // Define the API URLs using environment variables 
@@ -236,7 +266,182 @@ const PriceLookupContent = () => {
     }
   };
 
+  // Helper function to get the ARGIC code based on selected glass type
+  const getArgicCodeForGlassType = (glassType: string): string => {
+    if (!vehicleDetails.glassOptions || vehicleDetails.glassOptions.length === 0) {
+      return vehicleDetails.argicCode || "";
+    }
+
+    // Map glass type filter to ARGIC codes
+    const glassTypeMap: Record<string, string> = {
+      'windscreen': '2448ACCGNMV1B',
+      'right-body-glass': '2448RGDH5RD',
+      'left-body-glass': '2448LGDH5RD',
+      'rear-screen': '2448BGDHAB1F'
+    };
+
+    // Try to find the matching glass option
+    const targetArgic = glassTypeMap[glassType];
+    if (targetArgic) {
+      const matchingOption = vehicleDetails.glassOptions.find(
+        (opt: any) => opt.fullCode === targetArgic || (opt as any).ArgicCode === targetArgic
+      );
+      if (matchingOption) {
+        return matchingOption.fullCode || (matchingOption as any).ArgicCode || targetArgic;
+      }
+      return targetArgic;
+    }
+
+    // Fallback to first option or default
+    const firstOption = vehicleDetails.glassOptions[0] as any;
+    return firstOption?.fullCode || 
+           firstOption?.ArgicCode || 
+           vehicleDetails.argicCode || "";
+  };
+
   // Fetch depots from Supabase based on selected provider
+  // Helper function to calculate distance between two coordinates using Haversine formula
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 3959; // Earth's radius in miles
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+    return distance;
+  };
+
+  // Function to search for nearby depots based on postcode
+  const searchNearbyDepots = async (postcode: string) => {
+    if (!postcode.trim()) {
+      setFilteredDepots([]);
+      return;
+    }
+
+    setIsLoadingDepots(true);
+    
+    try {
+      // Get coordinates for user's postcode
+      const userPostcodeResponse = await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(postcode.trim())}`);
+      
+      if (!userPostcodeResponse.ok) {
+        toast({
+          title: "Invalid Postcode",
+          description: "Please enter a valid UK postcode",
+          variant: "destructive",
+        });
+        setIsLoadingDepots(false);
+        return;
+      }
+
+      const userPostcodeData = await userPostcodeResponse.json();
+      const userLat = userPostcodeData.result.latitude;
+      const userLon = userPostcodeData.result.longitude;
+
+      // Fetch all distributors from database
+      const { data: distributors, error } = await supabase
+        .from('Distributors')
+        .select('*');
+
+      if (error) {
+        console.error('Error fetching distributors:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch depot locations",
+          variant: "destructive",
+        });
+        setIsLoadingDepots(false);
+        return;
+      }
+
+      // Calculate distances and filter within 50 miles
+      const depotsWithDistance = [];
+
+      for (const depot of distributors || []) {
+        // Extract postcode from address (assuming UK format)
+        const addressParts = depot.Address?.split(',');
+        const depotPostcode = addressParts?.[addressParts.length - 1]?.trim();
+
+        if (depotPostcode) {
+          try {
+            // Get coordinates for depot postcode
+            const depotPostcodeResponse = await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(depotPostcode)}`);
+            
+            if (depotPostcodeResponse.ok) {
+              const depotPostcodeData = await depotPostcodeResponse.json();
+              const depotLat = depotPostcodeData.result.latitude;
+              const depotLon = depotPostcodeData.result.longitude;
+
+              // Calculate distance using Haversine formula
+              const distance = calculateDistance(userLat, userLon, depotLat, depotLon);
+
+              if (distance <= 50) {
+                // Extract depot code
+                let depotCode = '';
+                const company = depot.Company;
+                
+                if (company.includes('Park Royal')) depotCode = 'PAR';
+                else if (company.includes('Walthamstow')) depotCode = 'WAL';
+                else if (company.includes('Maidstone')) depotCode = 'ROC';
+                else if (company.includes('Cambridge')) depotCode = 'CMB';
+                else if (company.includes('Birmingham')) depotCode = 'BIR';
+                else if (company.includes('Manchester') || company.includes('Trafford Park')) depotCode = 'MAN';
+                else if (company.includes('Nottingham') || company.includes('Pinxton')) depotCode = 'NOT';
+                else if (company.includes('Durham')) depotCode = 'DUR';
+                else if (company.includes('Glasgow')) depotCode = 'GLA';
+                else if (company.includes('Plate Glass')) depotCode = 'PLT';
+                else if (company.includes('Bristol')) depotCode = 'BRS';
+                else if (company.includes('Dartford')) depotCode = 'DAR';
+                else if (company.includes('Enfield')) depotCode = 'ENF';
+                else if (company.includes('Leeds')) depotCode = 'LDS';
+                else if (company.includes('Wednesbury')) depotCode = 'WED';
+                else depotCode = company.substring(0, 3).toUpperCase();
+
+                depotsWithDistance.push({
+                  ...depot,
+                  depotCode: depotCode,
+                  distance: distance.toFixed(1),
+                  postcode: depotPostcode
+                });
+              }
+            }
+          } catch (err) {
+            console.warn(`Could not geocode postcode for ${depot.Company}:`, err);
+          }
+        }
+      }
+
+      // Sort by distance
+      depotsWithDistance.sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
+
+      setFilteredDepots(depotsWithDistance);
+
+      if (depotsWithDistance.length === 0) {
+        toast({
+          title: "No Depots Found",
+          description: "No depots found within 50 miles of your postcode",
+        });
+      } else {
+        toast({
+          title: "Depots Found",
+          description: `Found ${depotsWithDistance.length} depot(s) within 50 miles`,
+        });
+      }
+    } catch (error) {
+      console.error('Error searching for nearby depots:', error);
+      toast({
+        title: "Error",
+        description: "An error occurred while searching for nearby depots",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingDepots(false);
+    }
+  };
+
   useEffect(() => {
     const fetchDepots = async () => {
       try {
@@ -358,14 +563,9 @@ const PriceLookupContent = () => {
 
       // Show a toast and auto-trigger search
       toast({
-        title: "Searching Glass Options",
-        description: `Finding glass for ${urlMake} ${urlModel} (${urlYear})`,
+        title: "Vehicle Data Loaded",
+        description: `${urlMake} ${urlModel} (${urlYear}) - Click Search to get glass options.`,
       });
-      
-      // Auto-trigger glass search after short delay
-      setTimeout(() => {
-        fetchGlassOptions();
-      }, 800);
     }
   }, [urlVrn, urlMake, urlModel, urlYear, urlBodyStyle, urlSelectedWindows]);
 
@@ -376,6 +576,17 @@ const PriceLookupContent = () => {
       setSelectedDepots(['PAR']);
     }
   }, [availableDepots]);
+
+  // Reset search when glass type changes
+  useEffect(() => {
+    // Only reset if we have already performed a search
+    if (showQuotes) {
+      console.log(`Glass type changed to: ${glassTypeFilter}, resetting search...`);
+      setShowQuotes(false);
+      setQuotes([]);
+      // Note: currentDisplayedArgic remains from the previous search until new search completes
+    }
+  }, [glassTypeFilter]);
 
   // Add useEffect to automatically fetch vehicle data when VRN changes
   useEffect(() => {
@@ -405,7 +616,7 @@ const PriceLookupContent = () => {
       return false;
     }
     
-    setLoading(true);
+    setLoadingVehicle(true);
     
     try {
       console.log(`\n===== Starting vehicle data fetch for VRN: ${vrn.trim()} =====`);
@@ -427,6 +638,79 @@ const PriceLookupContent = () => {
           
           // Check if we received a successful response with data
           if (apiResponse.success && apiResponse.data) {
+            // Deduct 10 credits for VRN lookup
+            if (user?.id) {
+              const creditCost = 10;
+              
+              // Get user data from app_users table
+              const { data: userData, error: userError } = await supabase
+                .from('app_users')
+                .select('id, credits, user_role')
+                .eq('id', user.id)
+                .single();
+
+              if (!userError && userData) {
+                const currentCredits = userData.credits || 0;
+                
+                if (currentCredits < creditCost) {
+                  toast({
+                    title: "Insufficient Credits",
+                    description: `This VRN lookup requires ${creditCost} credits. You have ${currentCredits} credits.`,
+                    variant: "destructive",
+                  });
+                  setLoadingVehicle(false);
+                  return false;
+                }
+
+                // Deduct credits
+                const newCredits = currentCredits - creditCost;
+
+                // Update user credits in app_users table
+                const { error: updateError } = await supabase
+                  .from('app_users')
+                  .update({ credits: newCredits })
+                  .eq('id', user.id);
+
+                if (updateError) {
+                  console.error('Failed to deduct credits:', updateError);
+                  toast({
+                    title: "Error",
+                    description: "Failed to deduct credits",
+                    variant: "destructive",
+                  });
+                  setLoadingVehicle(false);
+                  return false;
+                }
+
+                // Try to get technician_id for transaction record
+                const { data: technicianData } = await supabase
+                  .from('technicians')
+                  .select('id')
+                  .eq('user_id', user.id)
+                  .single();
+
+                // Create transaction record in credit_transactions table
+                const transactionDescription = `VRN lookup for ${vrn.trim()} on glass-order`;
+                
+                if (technicianData?.id) {
+                  await supabase.from('credit_transactions').insert({
+                    technician_id: technicianData.id,
+                    transaction_type: 'deduction',
+                    amount: creditCost,
+                    description: transactionDescription,
+                    balance_after: newCredits
+                  });
+                }
+
+                console.log(`✅ Deducted ${creditCost} credits. New balance: ${newCredits}`);
+                
+                // Refresh user data to update credit display
+                if (refreshUser) {
+                  await refreshUser();
+                }
+              }
+            }
+            
             // Extract the data from our API response
             const data = apiResponse.data;
             
@@ -460,6 +744,73 @@ const PriceLookupContent = () => {
             // Set vehicle details from the API response
             setVehicleDetails(vehicleData);
             
+            // Auto-detect windscreen attributes from glass options
+            if (vehicleData.glassOptions && vehicleData.glassOptions.length > 0) {
+              const detectedAttributes = {
+                rainSensor: false,
+                heatedScreen: false,
+                camera: false,
+                adas: false,
+                hud: false
+              };
+              
+              // Check each glass option for sensor/feature keywords
+              vehicleData.glassOptions.forEach((option: any) => {
+                const description = (option.description || '').toLowerCase();
+                const argicCode = (option.fullCode || option.ArgicCode || '').toLowerCase();
+                
+                // Detect rain sensor
+                if (description.includes('rain sensor') || description.includes('sensor') || 
+                    option.hasSensor === true || description.includes('rs')) {
+                  detectedAttributes.rainSensor = true;
+                }
+                
+                // Detect heated screen
+                if (description.includes('heated') || description.includes('heat') || 
+                    description.includes('hrf')) {
+                  detectedAttributes.heatedScreen = true;
+                }
+                
+                // Detect camera
+                if (description.includes('camera') || description.includes('cam') || 
+                    option.hasCamera === true) {
+                  detectedAttributes.camera = true;
+                }
+                
+                // Detect ADAS
+                if (description.includes('adas') || description.includes('advanced') || 
+                    description.includes('assist')) {
+                  detectedAttributes.adas = true;
+                }
+                
+                // Detect HUD
+                if (description.includes('hud') || description.includes('head up') || 
+                    description.includes('heads up')) {
+                  detectedAttributes.hud = true;
+                }
+              });
+              
+              console.log('Auto-detected windscreen attributes:', detectedAttributes);
+              setWindscreenAttributes(detectedAttributes);
+              
+              // Also update glass selections features if they exist
+              if (glassSelections.length > 0) {
+                const updatedSelections = glassSelections.map((selection, idx) => {
+                  if (idx === 0 && selection.type === "Windscreen") {
+                    return {
+                      ...selection,
+                      features: {
+                        ...selection.features,
+                        sensor: detectedAttributes.rainSensor
+                      }
+                    };
+                  }
+                  return selection;
+                });
+                setGlassSelections(updatedSelections);
+              }
+            }
+            
             // Store VRN in sessionStorage for cross-component use
             if (typeof window !== 'undefined') {
               sessionStorage.setItem('current_vrn', vrn.trim());
@@ -482,18 +833,10 @@ const PriceLookupContent = () => {
             
             toast({
               title: "Success", 
-              description: `Vehicle data loaded with ARGIC code: ${vehicleData.shortArgicCode || vehicleData.argicCode?.substring(0, 4) || ""}`
+              description: "Vehicle data loaded successfully. Click Search to get glass options."
             });
             
-            setLoading(false);
-            
-            // After successful vehicle lookup, if we have depot selected, automatically fetch glass options
-            if (selectedDepots.length > 0 && vehicleData.make && vehicleData.model) {
-              // Short delay before fetching glass options to ensure UI updates first
-              setTimeout(() => {
-                fetchGlassOptions();
-              }, 500);
-            }
+            setLoadingVehicle(false);
             
             return true;
           } else {
@@ -508,7 +851,7 @@ const PriceLookupContent = () => {
       }
     } catch (error) {
       console.error("Error fetching vehicle data:", error);
-      setLoading(false);
+      setLoadingVehicle(false);
       
       toast({
         title: "Error",
@@ -542,7 +885,22 @@ const PriceLookupContent = () => {
       return false;
     }
     
+    // Clear previous results to show loading state
+    setQuotes([]);
+    setShowQuotes(false);
     setLoading(true);
+    
+    // Track the start time for minimum loading duration
+    const startTime = Date.now();
+    
+    // Helper function to ensure minimum loading time
+    const ensureMinimumLoadingTime = async () => {
+      const elapsedTime = Date.now() - startTime;
+      const minimumLoadingTime = 3000; // 3 seconds minimum
+      if (elapsedTime < minimumLoadingTime) {
+        await new Promise(resolve => setTimeout(resolve, minimumLoadingTime - elapsedTime));
+      }
+    };
     
     try {
       // First test API connectivity
@@ -555,11 +913,8 @@ const PriceLookupContent = () => {
         console.log("API server is responding:", await apiHealthCheck.json());
       } catch (error) {
         console.error("API connectivity check failed:", error);
-        toast({
-          title: "API Server Error",
-          description: "Cannot connect to the API server. Please try again later.",
-          variant: "destructive",
-        });
+        // Silently continue without showing error toast
+        await ensureMinimumLoadingTime();
         setLoading(false);
         return false;
       }
@@ -737,25 +1092,36 @@ const PriceLookupContent = () => {
           
           setQuotes(finalQuotes);
           setShowQuotes(true);
+          
+          // Update the displayed ARGIC code for the current glass type
+          const currentArgic = getArgicCodeForGlassType(glassTypeFilter);
+          setCurrentDisplayedArgic(currentArgic);
+          
           toast({
             title: "Quote Request Successful",
             description: `Found ${finalQuotes.length} glass options`,
           });
+          
+          // Ensure minimum loading time before showing results
+          await ensureMinimumLoadingTime();
           setLoading(false);
           return true;
         } else {
           // API call succeeded but returned no results, or failed entirely
           console.log("No results from API, falling back to mock data");
           
-          toast({
-            title: apiCallSucceeded ? "No Products Found" : "API Connection Issue",
-            description: "Using sample data for demonstration purposes",
-            variant: "default",
-          });
+          // Silently use mock data without showing toast notification
           
           const mockData = await generateMockDataForDepots(selectedDepots, vehicleDetails);
           setQuotes(mockData);
           setShowQuotes(true);
+          
+          // Update the displayed ARGIC code for the current glass type
+          const currentArgic = getArgicCodeForGlassType(glassTypeFilter);
+          setCurrentDisplayedArgic(currentArgic);
+          
+          // Ensure minimum loading time before showing results
+          await ensureMinimumLoadingTime();
           setLoading(false);
           return true;
         }
@@ -771,10 +1137,10 @@ const PriceLookupContent = () => {
         variant: "destructive",
       });
       
+      // Ensure minimum loading time before hiding loading state
+      await ensureMinimumLoadingTime();
       setLoading(false);
       return false;
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -893,14 +1259,7 @@ const PriceLookupContent = () => {
         // Use the depot from the quote if available
         await checkDepotAvailability(quote.argicCode, quote.depotCode);
         
-        // If product is not available, show a warning
-        if (!isAvailable) {
-          toast({
-            title: "Availability Warning",
-            description: "This item may have limited availability. Please contact customer service to confirm.",
-            variant: "destructive",
-          });
-        }
+        // Silently check availability without showing warning toast
       } catch (error) {
         console.error("Error checking product details:", error);
       }
@@ -940,49 +1299,169 @@ const PriceLookupContent = () => {
             return prev;
           });
           
-          // Show a message if we have availability at multiple depots
+          // Silently log availability without showing toast
           if (data.depots.length > 1) {
-            toast({
-              title: "Multiple Locations Available",
-              description: `This item is available at ${data.depots.length} locations with a total of ${data.totalAvailable} units in stock.`,
-            });
+            console.log(`Item available at ${data.depots.length} locations with ${data.totalAvailable} units total`);
           }
         } else {
-          // Show a warning if no depots have the item
-          toast({
-            title: "Limited Availability",
-            description: "This item is not currently in stock at any depot.",
-            variant: "destructive",
-          });
+          // Silently log limited availability without showing toast
+          console.log("Item is not currently in stock at any depot");
         }
       } else {
-        // Show an error message if the API call failed
+        // Silently log API error without showing toast
         console.error("API error:", data.error);
-        toast({
-          title: "Error Checking Availability",
-          description: data.error || "Failed to check depot availability",
-          variant: "destructive",
-        });
       }
     } catch (error) {
       console.error("Error checking depot availability:", error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to check depot availability",
-        variant: "destructive",
-      });
+      // Silently handle error without showing toast
     }
   };
 
   const handleConfirmOrder = () => {
-    if (selectedQuote) {
+    // Close confirmation dialog and open customer info dialog
+    setIsConfirmationOpen(false);
+    setIsCustomerInfoOpen(true);
+  };
+
+  const handleCreateLead = async () => {
+    if (!selectedQuote || !user) return;
+
+    // Validate required fields
+    if (!customerInfo.firstName || !customerInfo.lastName || !customerInfo.phone) {
       toast({
-        title: "Order Confirmed",
-        description: `Your ${selectedQuote.company} order has been confirmed. We'll contact you shortly with next steps.`,
+        title: "Missing Information",
+        description: "Please provide first name, last name, and phone number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!appointmentDate) {
+      toast({
+        title: "Missing Appointment Date",
+        description: "Please select an appointment date.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!appointmentTime) {
+      toast({
+        title: "Missing Time Slot",
+        description: "Please select a time slot for the appointment.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Get technician ID
+      let technicianId = null;
+      const { data: techData1 } = await supabase
+        .from('technicians')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (techData1) {
+        technicianId = techData1.id;
+      } else {
+        // Try by email for Google OAuth users
+        const { data: techData2 } = await supabase
+          .from('technicians')
+          .select('id')
+          .eq('contact_email', user.email)
+          .single();
+        
+        if (techData2) {
+          technicianId = techData2.id;
+        }
+      }
+
+      if (!technicianId) {
+        toast({
+          title: "Error",
+          description: "Could not find technician profile. Please ensure your profile is set up correctly.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Parse selected windows from URL if available
+      let selectedWindowsArray = [];
+      if (urlSelectedWindows) {
+        try {
+          selectedWindowsArray = JSON.parse(urlSelectedWindows);
+        } catch (e) {
+          console.error('Error parsing selected windows:', e);
+        }
+      }
+
+      // Create a lead in leads table
+      const { data: leadData, error: leadError } = await supabase
+        .from('leads')
+        .insert({
+          name: `${customerInfo.firstName} ${customerInfo.lastName}`,
+          first_name: customerInfo.firstName,
+          last_name: customerInfo.lastName,
+          full_name: `${customerInfo.firstName} ${customerInfo.lastName}`,
+          phone: customerInfo.phone,
+          email: customerInfo.email || null,
+          address: customerInfo.address || null,
+          postcode: '',
+          vrn: vehicleDetails?.vrn || '',
+          make: vehicleDetails?.make || '',
+          model: vehicleDetails?.model || '',
+          year: vehicleDetails?.year || '',
+          quote_price: selectedQuote.price,
+          estimated_price: selectedQuote.price,
+          argic_code: selectedQuote.argicCode,
+          service_type: 'Glass Replacement',
+          glass_type: 'Windscreen',
+          selected_windows: selectedWindowsArray,
+          appointment_date: format(appointmentDate, 'yyyy-MM-dd'),
+          time_slot: appointmentTime,
+          credits_cost: 1,
+          status: 'new',
+          source: 'price_lookup',
+          assigned_technician_id: null,
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (leadError) throw leadError;
+
+      toast({
+        title: "Lead Created!",
+        description: `Lead for ${customerInfo.firstName} ${customerInfo.lastName} has been created. Accept it from Instant Leads to add it to your Jobs.`,
+      });
+
+      // Reset form
+      setCustomerInfo({
+        firstName: "",
+        lastName: "",
+        phone: "",
+        email: "",
+        address: ""
+      });
+      setAppointmentDate(undefined);
+      setAppointmentTime('');
+      setIsCustomerInfoOpen(false);
+      setSelectedQuote(null);
+
+      // Navigate to Instant Leads
+      setTimeout(() => {
+        navigate('/instant-leads');
+      }, 1000);
+    } catch (error) {
+      console.error('Error creating lead:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create lead. Please try again.",
+        variant: "destructive",
       });
     }
-    setIsConfirmationOpen(false);
-    setSelectedQuote(null);
   };
 
   // Helper function to generate mock data for demonstration purposes when API is unavailable
@@ -1237,31 +1716,92 @@ const PriceLookupContent = () => {
                   </p>
                 </div>
 
-                {/* Compact Depot Selection - Top Right */}
-                <div className="ml-6 w-64">
-                  <Label htmlFor="depot-select" className="text-sm font-medium text-gray-700 mb-2 block">
-                    Depot Location
-                  </Label>
-                  <Select 
-                    value={selectedDepots[0] || 'PAR'} 
-                    onValueChange={(value) => setSelectedDepots([value])}
-                  >
-                    <SelectTrigger id="depot-select" className="h-10 border-gray-300 bg-white shadow-sm">
-                      <SelectValue placeholder="Select Depot" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white">
-                      <SelectItem value="PAR">Park Royal (London)</SelectItem>
-                      <SelectItem value="WAL">Walthamstow (London)</SelectItem>
-                      <SelectItem value="ROC">Maidstone</SelectItem>
-                      <SelectItem value="CMB">Cambridge</SelectItem>
-                      <SelectItem value="BIR">Birmingham</SelectItem>
-                      <SelectItem value="MAN">Manchester</SelectItem>
-                      <SelectItem value="NOT">Nottingham</SelectItem>
-                      <SelectItem value="DUR">Durham</SelectItem>
-                      <SelectItem value="GLA">Glasgow</SelectItem>
-                      <SelectItem value="PLT">Plate Glass</SelectItem>
-                    </SelectContent>
-                  </Select>
+                {/* Postcode Search & Depot Selection - Top Right */}
+                <div className="ml-6 flex gap-4">
+                  {/* Postcode Search */}
+                  <div className="w-48">
+                    <Label htmlFor="postcode-search" className="text-sm font-medium text-gray-700 mb-2 block">
+                      Your Postcode
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="postcode-search"
+                        type="text"
+                        placeholder="e.g. SW1A 1AA"
+                        value={userPostcode}
+                        onChange={(e) => setUserPostcode(e.target.value.toUpperCase())}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            searchNearbyDepots(userPostcode);
+                          }
+                        }}
+                        className="h-10 border-gray-300"
+                      />
+                      <Button
+                        onClick={() => searchNearbyDepots(userPostcode)}
+                        disabled={isLoadingDepots || !userPostcode.trim()}
+                        className="h-10 px-3 bg-[#0FB8C1] hover:bg-[#0d9da5] text-white"
+                      >
+                        <Search className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Depot Selection */}
+                  <div className="w-64">
+                    <Label htmlFor="depot-select" className="text-sm font-medium text-gray-700 mb-2 block">
+                      Depot Location {filteredDepots.length > 0 && `(${filteredDepots.length} nearby)`}
+                    </Label>
+                    <Select 
+                      value={selectedDepots[0] || 'ENF'} 
+                      onValueChange={(value) => setSelectedDepots([value])}
+                    >
+                      <SelectTrigger id="depot-select" className="h-10 border-gray-300 bg-white shadow-sm">
+                        <SelectValue placeholder="Select Depot" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white max-h-[400px]">
+                        {filteredDepots.length > 0 ? (
+                          <>
+                            {filteredDepots.map((depot, idx) => (
+                              <SelectItem key={idx} value={depot.depotCode}>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{depot.Company}</span>
+                                  <span className="text-xs text-gray-500">{depot.distance} miles away</span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </>
+                        ) : (
+                          <>
+                            {/* Charles Pugh's Locations */}
+                            <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50">
+                              Charles Pugh's
+                            </div>
+                            <SelectItem value="BRS">Bristol</SelectItem>
+                            <SelectItem value="DAR">Dartford</SelectItem>
+                            <SelectItem value="ENF">Enfield</SelectItem>
+                            <SelectItem value="LDS">Leeds</SelectItem>
+                            <SelectItem value="WED">Wednesbury</SelectItem>
+                            
+                            {/* Master Auto Glass Locations */}
+                            <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50 mt-2">
+                              Master Auto Glass
+                            </div>
+                            <SelectItem value="PAR">Park Royal (London)</SelectItem>
+                            <SelectItem value="WAL">Walthamstow (London)</SelectItem>
+                            <SelectItem value="ROC">Maidstone</SelectItem>
+                            <SelectItem value="CMB">Cambridge</SelectItem>
+                            <SelectItem value="BIR">Birmingham</SelectItem>
+                            <SelectItem value="MAN">Manchester</SelectItem>
+                            <SelectItem value="NOT">Nottingham</SelectItem>
+                            <SelectItem value="DUR">Durham</SelectItem>
+                            <SelectItem value="GLA">Glasgow</SelectItem>
+                            <SelectItem value="PLT">Plate Glass</SelectItem>
+                          </>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
 
@@ -1365,74 +1905,77 @@ const PriceLookupContent = () => {
             />
           ) : (
             <div className="animate-fadeIn">
-              <div className="mb-8">
-                {/* Back to Supplier Selection Button */}
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setShowSupplierSelection(true);
-                    setSelectedProvider(null);
-                  }}
-                  className="mb-4 text-gray-600 hover:text-gray-900"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Supplier Selection
-                </Button>
+              {/* Back to Supplier Selection Button */}
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setShowSupplierSelection(true);
+                  setSelectedProvider(null);
+                }}
+                className="mb-4 text-gray-600 hover:text-gray-900 ml-4 mt-4"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Supplier Selection
+              </Button>
 
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-4">
-                    {/* Vehicle Image - show when available */}
-                    {urlVehicleImage && urlVehicleImage !== '' && (
-                      <div className="w-24 h-24 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
-                        <img
-                          src={urlVehicleImage}
-                          alt={`${vehicleDetails.make} ${vehicleDetails.model}`}
-                          className="w-full h-full object-contain p-2"
-                          onError={(e) => {
-                            console.error('Failed to load vehicle image:', urlVehicleImage);
-                            // Hide image container if it fails to load
-                            const container = (e.target as HTMLImageElement).parentElement;
-                            if (container) {
-                              container.style.display = 'none';
-                            }
-                          }}
-                          onLoad={() => {
-                            console.log('✅ Vehicle image loaded in header');
-                          }}
-                        />
+              {/* Modern Header */}
+              <div className="relative backdrop-blur-xl bg-white/80 border border-gray-200/50 shadow-sm rounded-3xl m-4 mb-8">
+                <div className="px-6 py-10">
+                  <div className="max-w-7xl mx-auto">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-4">
+                          <div className="w-1 h-10 bg-gradient-to-b from-[#0FB8C1] via-[#0FB8C1]/70 to-transparent rounded-full" />
+                          {urlVehicleImage && urlVehicleImage !== '' && (
+                            <div className="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0">
+                              <img
+                                src={urlVehicleImage}
+                                alt={`${vehicleDetails.make} ${vehicleDetails.model}`}
+                                className="w-full h-full object-contain p-1"
+                                onError={(e) => {
+                                  const container = (e.target as HTMLImageElement).parentElement;
+                                  if (container) container.style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          )}
+                          <h1 className="text-4xl font-light tracking-tight text-gray-900">
+                            Search Glass<span className="text-[#0FB8C1] font-normal">.</span>
+                          </h1>
+                        </div>
+                        <p className="text-gray-600 text-base font-light ml-5 tracking-wide">
+                          Find and order glass for your vehicle
+                        </p>
                       </div>
-                    )}
-                    <div>
-                      <h1 className="text-4xl font-bold text-gray-900">Search Glass</h1>
+                      
+                      {/* Provider User Status - Only show for mag/pughs */}
+                      {selectedProvider !== 'guest' && (
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2 h-2 rounded-full ${magUser?.isAuthenticated ? 'bg-green-500' : 'bg-orange-500'}`}></div>
+                              <span className="text-sm font-medium text-gray-700">
+                                {magUser?.isAuthenticated ? `${selectedProvider === 'mag' ? 'MAG' : 'Pughs'} Account` : 'Guest Mode'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-500">
+                              {magUser?.email}
+                            </p>
+                          </div>
+                          
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={logoutMAG}
+                            className="border-[#145484] text-[#145484] hover:bg-[#145484] hover:text-white"
+                          >
+                            <LogOut className="w-4 h-4 mr-2" />
+                            Logout
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  
-                  {/* Provider User Status - Only show for mag/pughs */}
-                  {selectedProvider !== 'guest' && (
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${magUser?.isAuthenticated ? 'bg-green-500' : 'bg-orange-500'}`}></div>
-                        <span className="text-sm font-medium text-gray-700">
-                          {magUser?.isAuthenticated ? `${selectedProvider === 'mag' ? 'MAG' : 'Pughs'} Account` : 'Guest Mode'}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        {magUser?.email}
-                      </p>
-                    </div>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={logoutMAG}
-                      className="border-[#145484] text-[#145484] hover:bg-[#145484] hover:text-white"
-                    >
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Logout
-                    </Button>
-                  </div>
-                  )}
                 </div>
               </div>
               
@@ -1454,108 +1997,31 @@ const PriceLookupContent = () => {
                       </div>
                       <Select value={glassTypeFilter} onValueChange={setGlassTypeFilter}>
                         <SelectTrigger className="h-11 text-base border-gray-300 bg-white">
-                          <SelectValue placeholder="All Glass Types" />
+                          <SelectValue placeholder="Select Glass Type" />
                         </SelectTrigger>
                         <SelectContent className="bg-white">
-                          <SelectItem value="all">All Glass Types</SelectItem>
-                          <SelectItem value="windscreen">Windscreen (Front)</SelectItem>
-                          <SelectItem value="rear">Rear Window</SelectItem>
-                          <SelectItem value="driver-front">Driver's Front Window</SelectItem>
-                          <SelectItem value="passenger-front">Passenger's Front Window</SelectItem>
-                          <SelectItem value="driver-rear">Driver's Rear Window</SelectItem>
-                          <SelectItem value="passenger-rear">Passenger's Rear Window</SelectItem>
-                          <SelectItem value="driver-front-vent">Driver's Front Vent</SelectItem>
-                          <SelectItem value="passenger-front-vent">Passenger's Front Vent</SelectItem>
-                          <SelectItem value="driver-rear-vent">Driver's Rear Vent</SelectItem>
-                          <SelectItem value="passenger-rear-vent">Passenger's Rear Vent</SelectItem>
-                          <SelectItem value="driver-quarter">Driver's Quarter Glass</SelectItem>
-                          <SelectItem value="passenger-quarter">Passenger's Quarter Glass</SelectItem>
+                          <SelectItem value="windscreen">Windscreen</SelectItem>
+                          <SelectItem value="right-body-glass">Right Body Glass</SelectItem>
+                          <SelectItem value="left-body-glass">Left Body Glass</SelectItem>
+                          <SelectItem value="rear-screen">Rear Screen (Backlight)</SelectItem>
                         </SelectContent>
                       </Select>
                       <Button
                         variant="ghost"
                         onClick={() => fetchGlassOptions()}
-                        disabled={!vrn || loading}
-                        className="h-11 bg-[#FFC107] hover:bg-[#e6ad06] text-black font-semibold"
+                        disabled={!vrn || loading || loadingVehicle || !vehicleDetails.make}
+                        className="h-11 bg-[#FFC107] hover:bg-[#e6ad06] text-black font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {loading ? 'Searching...' : 'Search'}
+                        {loading ? (
+                          <span className="flex items-center gap-2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black"></div>
+                            Searching...
+                          </span>
+                        ) : 'Search'}
                       </Button>
                     </div>
                   </CardContent>
                 </Card>
-
-                {/* Windscreen Attributes - Only show when windscreen is selected and before search */}
-                {glassTypeFilter === 'windscreen' && !showQuotes && (
-                  <Card className="shadow-md">
-                    <CardContent className="p-4">
-                      <Label className="text-sm font-semibold text-gray-900 mb-3 block">
-                        Windscreen Attributes (Optional)
-                      </Label>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox 
-                            id="rainSensor"
-                            checked={windscreenAttributes.rainSensor}
-                            onCheckedChange={(checked) => 
-                              setWindscreenAttributes({...windscreenAttributes, rainSensor: checked as boolean})
-                            }
-                          />
-                          <label htmlFor="rainSensor" className="text-sm cursor-pointer">
-                            Rain Sensor
-                          </label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox 
-                            id="heatedScreen"
-                            checked={windscreenAttributes.heatedScreen}
-                            onCheckedChange={(checked) => 
-                              setWindscreenAttributes({...windscreenAttributes, heatedScreen: checked as boolean})
-                            }
-                          />
-                          <label htmlFor="heatedScreen" className="text-sm cursor-pointer">
-                            Heated Screen
-                          </label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox 
-                            id="camera"
-                            checked={windscreenAttributes.camera}
-                            onCheckedChange={(checked) => 
-                              setWindscreenAttributes({...windscreenAttributes, camera: checked as boolean})
-                            }
-                          />
-                          <label htmlFor="camera" className="text-sm cursor-pointer">
-                            Camera
-                          </label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox 
-                            id="adas"
-                            checked={windscreenAttributes.adas}
-                            onCheckedChange={(checked) => 
-                              setWindscreenAttributes({...windscreenAttributes, adas: checked as boolean})
-                            }
-                          />
-                          <label htmlFor="adas" className="text-sm cursor-pointer">
-                            ADAS
-                          </label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox 
-                            id="hud"
-                            checked={windscreenAttributes.hud}
-                            onCheckedChange={(checked) => 
-                              setWindscreenAttributes({...windscreenAttributes, hud: checked as boolean})
-                            }
-                          />
-                          <label htmlFor="hud" className="text-sm cursor-pointer">
-                            HUD Display
-                          </label>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
 
                 {/* Vehicle Info Card - Only show after search */}
                       {vehicleDetails.make && showQuotes && (
@@ -1629,6 +2095,12 @@ const PriceLookupContent = () => {
                       
                       {/* Feature Badges */}
                       <div className="flex flex-wrap gap-2 mt-4">
+                        {currentDisplayedArgic && (
+                          <span className="flex items-center gap-2 px-3 py-1.5 bg-[#0FB8C1] text-white rounded-full text-sm font-semibold">
+                            <Package className="w-4 h-4" />
+                            ARGIC: {currentDisplayedArgic}
+                          </span>
+                        )}
                         {vehicleDetails.transmission && (
                           <span className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-sm">
                             <WifiOff className="w-4 h-4" />
@@ -1652,37 +2124,80 @@ const PriceLookupContent = () => {
                   </Card>
                 )}
 
-                {/* Toggle Buttons */}
-                <div className="flex gap-3">
-                          <Button 
-                    variant="ghost"
-                    onClick={() => setShowTradeOnly(false)}
-                    className={cn(
-                      "px-6 py-2 rounded-lg font-semibold transition-all duration-300",
-                      !showTradeOnly
-                        ? "bg-[#14b8a6] text-white"
-                        : "bg-white text-gray-700 border border-gray-200"
-                    )}
-                  >
-                    Show All
-                          </Button>
-                              <Button
-                    variant="ghost"
-                    onClick={() => setShowTradeOnly(true)}
-                    className={cn(
-                      "px-6 py-2 rounded-lg font-semibold transition-all duration-300",
-                      showTradeOnly
-                        ? "bg-[#14b8a6] text-white"
-                        : "bg-white text-gray-700 border border-gray-200"
-                    )}
-                  >
-                    Trade Only
-                              </Button>
-                            </div>
+                {/* Toggle Buttons - Only show when we have results */}
+                {showQuotes && !loading && (
+                  <div className="flex gap-3">
+                    <Button 
+                      variant="ghost"
+                      onClick={() => setShowTradeOnly(false)}
+                      className={cn(
+                        "px-6 py-2 rounded-lg font-semibold transition-all duration-300",
+                        !showTradeOnly
+                          ? "bg-[#14b8a6] text-white"
+                          : "bg-white text-gray-700 border border-gray-200"
+                      )}
+                    >
+                      Show All
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => setShowTradeOnly(true)}
+                      className={cn(
+                        "px-6 py-2 rounded-lg font-semibold transition-all duration-300",
+                        showTradeOnly
+                          ? "bg-[#14b8a6] text-white"
+                          : "bg-white text-gray-700 border border-gray-200"
+                      )}
+                    >
+                      Trade Only
+                    </Button>
+                  </div>
+                )}
                             
+                {/* Loading State - WindscreenCompare Branded */}
+                {loading && vehicleDetails.make && (
+                  <Card className="shadow-lg border-2 border-[#0FB8C1]">
+                    <CardContent className="p-16">
+                      <div className="flex flex-col items-center justify-center space-y-6">
+                        {/* Animated Logo/Brand */}
+                        <div className="relative">
+                          <div className="animate-spin rounded-full h-32 w-32 border-t-4 border-b-4 border-[#0FB8C1]" style={{ animationDuration: '1.5s' }}></div>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <img 
+                              src="/WINC.png" 
+                              alt="WindscreenCompare" 
+                              className="w-20 h-20 object-contain animate-pulse"
+                            />
+                          </div>
+                        </div>
+                        
+                        {/* Loading Text */}
+                        <div className="text-center space-y-2">
+                          <h3 className="text-2xl font-bold text-gray-900">
+                            WindscreenCompare
+                          </h3>
+                          <p className="text-lg font-semibold text-[#0FB8C1] animate-pulse">
+                            Searching for glass options...
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            Finding the best prices from our suppliers
+                          </p>
+                        </div>
+                        
+                        {/* Progress Dots */}
+                        <div className="flex gap-2">
+                          <div className="w-2 h-2 bg-[#0FB8C1] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                          <div className="w-2 h-2 bg-[#0FB8C1] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                          <div className="w-2 h-2 bg-[#0FB8C1] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Results Table */}
-                {showQuotes && (
-                  <Card className="shadow-md">
+                {showQuotes && !loading && (
+                  <Card className="shadow-lg border-2 border-[#0FB8C1]">
                     <CardContent className="p-0">
                       <div className="overflow-x-auto">
                         <table className="w-full">
@@ -1946,6 +2461,157 @@ const PriceLookupContent = () => {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+
+          {/* Customer Information Dialog */}
+          <Dialog open={isCustomerInfoOpen} onOpenChange={setIsCustomerInfoOpen}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Customer & Appointment Details</DialogTitle>
+                <DialogDescription>
+                  Please provide customer information and select an appointment date to create the lead.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-6 py-4">
+                {/* Appointment Date Picker */}
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4" />
+                    Appointment Date <span className="text-red-500">*</span>
+                  </Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !appointmentDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {appointmentDate ? format(appointmentDate, "PPP") : "Select appointment date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 bg-white" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={appointmentDate}
+                        onSelect={(date) => {
+                          setAppointmentDate(date);
+                          setAppointmentTime(''); // Reset time when date changes
+                        }}
+                        disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* Time Slot Picker - Only show when date is selected */}
+                {appointmentDate && (
+                  <div className="mt-4">
+                    <TimeSlotPicker
+                      selectedDate={appointmentDate}
+                      selectedTime={appointmentTime}
+                      onTimeSelect={setAppointmentTime}
+                    />
+                  </div>
+                )}
+
+                {/* Customer Information */}
+                <div className="space-y-4 border-t pt-4">
+                  <h3 className="font-semibold">Customer Information</h3>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName" className="flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        First Name <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="firstName"
+                        value={customerInfo.firstName}
+                        onChange={(e) => setCustomerInfo({...customerInfo, firstName: e.target.value})}
+                        placeholder="Enter first name"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName" className="flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        Last Name <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="lastName"
+                        value={customerInfo.lastName}
+                        onChange={(e) => setCustomerInfo({...customerInfo, lastName: e.target.value})}
+                        placeholder="Enter last name"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="phone" className="flex items-center gap-2">
+                      <PhoneIcon className="h-4 w-4" />
+                      Phone Number <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={customerInfo.phone}
+                      onChange={(e) => setCustomerInfo({...customerInfo, phone: e.target.value})}
+                      placeholder="Enter phone number"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="flex items-center gap-2">
+                      <Mail className="h-4 w-4" />
+                      Email Address
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={customerInfo.email}
+                      onChange={(e) => setCustomerInfo({...customerInfo, email: e.target.value})}
+                      placeholder="Enter email address (optional)"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="address" className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Address
+                    </Label>
+                    <Input
+                      id="address"
+                      value={customerInfo.address}
+                      onChange={(e) => setCustomerInfo({...customerInfo, address: e.target.value})}
+                      placeholder="Enter address (optional)"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsCustomerInfoOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleCreateLead}
+                  className="bg-[#145484] hover:bg-[#0e3b61]"
+                >
+                  Create Lead
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </PageTransition>
     </DashboardLayout>

@@ -34,6 +34,7 @@ export interface CalendarEvent {
 export class JobService {
   /**
    * Fetch available jobs (quoted status, not assigned, with valid pricing)
+   * Excludes leads created through price estimator or price lookup
    */
   static async getAvailableJobs(): Promise<{ data: JobData[] | null; error: any }> {
     try {
@@ -52,9 +53,16 @@ export class JobService {
         .gt('quote_price', 0) // Ensure positive pricing
         .is('job_assignments.id', null) // Only jobs without assignments
         .order('created_at', { ascending: false })
-        .limit(5); // Limit to 5 jobs at a time
+        .limit(20); // Fetch more to allow for filtering
 
-      return { data, error };
+      if (error) return { data: null, error };
+
+      // Filter out price estimator and price lookup leads in code
+      const filteredData = data?.filter((job: any) => 
+        !job.source || (job.source !== 'price_estimator' && job.source !== 'price_lookup')
+      ).slice(0, 5); // Take first 5 after filtering
+
+      return { data: filteredData || null, error: null };
     } catch (error) {
       return { data: null, error };
     }
@@ -62,6 +70,7 @@ export class JobService {
 
   /**
    * Fetch exclusive jobs (paid status, not assigned, with valid pricing)
+   * Excludes leads created through price estimator or price lookup
    */
   static async getExclusiveJobs(): Promise<{ data: JobData[] | null; error: any }> {
     try {
@@ -80,9 +89,16 @@ export class JobService {
         .gt('quote_price', 0) // Ensure positive pricing
         .is('job_assignments.id', null) // Only jobs without assignments
         .order('created_at', { ascending: false })
-        .limit(5); // Limit to 5 jobs at a time
+        .limit(20); // Fetch more to allow for filtering
 
-      return { data, error };
+      if (error) return { data: null, error };
+
+      // Filter out price estimator and price lookup leads in code
+      const filteredData = data?.filter((job: any) => 
+        !job.source || (job.source !== 'price_estimator' && job.source !== 'price_lookup')
+      ).slice(0, 5); // Take first 5 after filtering
+
+      return { data: filteredData || null, error: null };
     } catch (error) {
       return { data: null, error };
     }

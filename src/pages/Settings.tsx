@@ -16,6 +16,7 @@ import { supabase } from "@/lib/supabase";
 import SubscriptionService, { type SubscriptionStatus } from "@/services/subscriptionService";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
+import { PageTransition } from "@/components/PageTransition";
 
 const Settings = () => {
   const { user, refreshUser } = useAuth();
@@ -337,24 +338,36 @@ const Settings = () => {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-        {/* Enhanced Header */}
-        <div className="bg-white shadow-sm border-b border-gray-200 rounded-b-2xl">
-          <div className="px-6 py-8">
-            <div className="flex flex-col gap-6">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-4xl font-bold text-gray-900">Settings</h1>
+      <PageTransition>
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 relative overflow-hidden">
+          {/* Animated background elements */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-0 -left-4 w-96 h-96 bg-[#0FB8C1]/5 rounded-full blur-3xl animate-pulse" />
+            <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl animate-pulse delay-700" />
+          </div>
+
+        {/* Modern Header */}
+        <div className="relative backdrop-blur-xl bg-white/80 border border-gray-200/50 shadow-sm rounded-3xl m-4">
+          <div className="px-6 py-10">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-4">
+                    <div className="w-1 h-10 bg-gradient-to-b from-[#0FB8C1] via-[#0FB8C1]/70 to-transparent rounded-full" />
+                    <h1 className="text-4xl font-light tracking-tight text-gray-900">
+                      Settings<span className="text-[#0FB8C1] font-normal">.</span>
+                    </h1>
+                  </div>
+                  <p className="text-gray-600 text-base font-light ml-5 tracking-wide">
+                    Manage your account settings and preferences
+                  </p>
                 </div>
-                <p className="text-gray-600 text-lg">
-                  Manage your account settings and preferences
-                </p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="p-4 sm:p-8 space-y-8 relative z-10 max-w-7xl mx-auto">
 
         <Tabs defaultValue="general" className="w-full">
           <TabsList className="grid w-full grid-cols-5 mb-6">
@@ -381,7 +394,7 @@ const Settings = () => {
           </TabsList>
 
           {/* General Tab */}
-          <TabsContent value="general" className="space-y-4 sm:space-y-6">
+          <TabsContent value="general" className="space-y-4 sm:space-y-6 data-[state=active]:animate-fadeIn">
             <Card className="hover:shadow-lg transition-shadow duration-200">
               <CardHeader className="flex flex-row items-center space-y-0 pb-2 mobile-card">
                 <User className="h-5 w-5 sm:h-6 sm:w-6 text-[#145484] mr-2" />
@@ -545,7 +558,7 @@ const Settings = () => {
           </TabsContent>
 
           {/* Security Tab */}
-          <TabsContent value="security" className="space-y-4 sm:space-y-6">
+          <TabsContent value="security" className="space-y-4 sm:space-y-6 data-[state=active]:animate-fadeIn">
             <Card className="hover:shadow-lg transition-shadow duration-200">
               <CardHeader className="flex flex-row items-center space-y-0 pb-2 mobile-card">
                 <Lock className="h-5 w-5 sm:h-6 sm:w-6 text-[#145484] mr-2" />
@@ -573,7 +586,7 @@ const Settings = () => {
           </TabsContent>
 
           {/* Supplier Connections Tab */}
-          <TabsContent value="suppliers" className="space-y-4 sm:space-y-6">
+          <TabsContent value="suppliers" className="space-y-4 sm:space-y-6 data-[state=active]:animate-fadeIn">
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Supplier Connections</h2>
               <p className="text-gray-600">
@@ -709,7 +722,7 @@ const Settings = () => {
           </TabsContent>
 
           {/* Billing Tab */}
-          <TabsContent value="billing" className="space-y-4 sm:space-y-6">
+          <TabsContent value="billing" className="space-y-4 sm:space-y-6 data-[state=active]:animate-fadeIn">
             <Card className="hover:shadow-lg transition-shadow duration-200">
               <CardHeader className="flex flex-row items-center space-y-0 pb-2 mobile-card">
                 <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 text-[#145484] mr-2" />
@@ -836,12 +849,13 @@ const Settings = () => {
           </TabsContent>
 
           {/* Cashout Tab */}
-          <TabsContent value="cashout" className="space-y-4 sm:space-y-6">
+          <TabsContent value="cashout" className="space-y-4 sm:space-y-6 data-[state=active]:animate-fadeIn">
             <CashoutSettings />
           </TabsContent>
         </Tabs>
       </div>
       </div>
+      </PageTransition>
     </DashboardLayout>
   );
 };

@@ -228,22 +228,30 @@ export default function Website() {
   return (
     <Sidebar>
       <PageTransition>
-        <div className="min-h-screen bg-gray-50">
-          {/* Header */}
-          <div className="bg-white border-b border-gray-200">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                    <Globe className="h-8 w-8 text-blue-600" />
-                    Website Integration
-                  </h1>
-                  <p className="mt-2 text-gray-600">
-                    Embed our booking widget and track your website leads
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="flex items-center gap-1">
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 relative overflow-hidden">
+          {/* Animated background elements */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-0 -left-4 w-96 h-96 bg-[#0FB8C1]/5 rounded-full blur-3xl animate-pulse" />
+            <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl animate-pulse delay-700" />
+          </div>
+
+          {/* Modern Header */}
+          <div className="relative backdrop-blur-xl bg-white/80 border border-gray-200/50 shadow-sm rounded-3xl m-4">
+            <div className="px-6 py-10">
+              <div className="max-w-7xl mx-auto">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-4">
+                      <div className="w-1 h-10 bg-gradient-to-b from-[#0FB8C1] via-[#0FB8C1]/70 to-transparent rounded-full" />
+                      <h1 className="text-4xl font-light tracking-tight text-gray-900">
+                        Website Integration<span className="text-[#0FB8C1] font-normal">.</span>
+                      </h1>
+                    </div>
+                    <p className="text-gray-600 text-base font-light ml-5 tracking-wide">
+                      Embed our booking widget and track your website leads
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="flex items-center gap-1 border-[#0FB8C1]/30 text-[#0FB8C1]">
                     <Sparkles className="h-3 w-3" />
                     Pro Feature
                   </Badge>
@@ -269,7 +277,7 @@ export default function Website() {
               </TabsList>
 
               {/* Integration Tab */}
-              <TabsContent value="integration">
+              <TabsContent value="integration" className="data-[state=active]:animate-fadeIn">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Configuration Panel */}
               <div className="space-y-6">
@@ -629,7 +637,7 @@ export default function Website() {
               </TabsContent>
 
               {/* Website Leads Tab */}
-              <TabsContent value="leads" className="space-y-4">
+              <TabsContent value="leads" className="space-y-4 data-[state=active]:animate-fadeIn">
                 {/* Search Bar */}
                 <div className="flex flex-col sm:flex-row gap-2">
                   <div className="flex items-center gap-2 p-3 sm:p-4 bg-white rounded-lg border border-gray-200 flex-1">

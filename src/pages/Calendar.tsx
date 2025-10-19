@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { JobService } from "@/services/jobService";
+import { PageTransition } from "@/components/PageTransition";
 
 interface CalendarEvent {
   id: string;
@@ -175,8 +176,13 @@ const Calendar = () => {
   // Filter events for selected date
   const selectedDateEvents = date 
     ? calendarEvents.filter(event => {
-        const eventDate = new Date(event.start_date);
-        return eventDate.toDateString() === date.toDateString();
+        // Format date as YYYY-MM-DD without timezone conversion
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const selectedDateStr = `${year}-${month}-${day}`;
+        
+        return event.start_date === selectedDateStr;
       })
     : calendarEvents;
 
@@ -197,20 +203,30 @@ const Calendar = () => {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-        {/* Enhanced Header */}
-        <div className="bg-white shadow-sm border-b border-gray-200 rounded-b-2xl">
-          <div className="px-6 py-8">
-            <div className="flex flex-col gap-6">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-4xl font-bold text-gray-900">My Calendar</h1>
+      <PageTransition>
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 relative overflow-hidden">
+          {/* Animated background elements */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-0 -left-4 w-96 h-96 bg-[#0FB8C1]/5 rounded-full blur-3xl animate-pulse" />
+            <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl animate-pulse delay-700" />
+          </div>
+
+        {/* Modern Header */}
+        <div className="relative backdrop-blur-xl bg-white/80 border border-gray-200/50 shadow-sm rounded-3xl m-4">
+          <div className="px-6 py-10">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-4">
+                    <div className="w-1 h-10 bg-gradient-to-b from-[#0FB8C1] via-[#0FB8C1]/70 to-transparent rounded-full" />
+                    <h1 className="text-4xl font-light tracking-tight text-gray-900">
+                      My Calendar<span className="text-[#0FB8C1] font-normal">.</span>
+                    </h1>
+                  </div>
+                  <p className="text-gray-600 text-base font-light ml-5 tracking-wide">
+                    Manage your scheduled jobs and appointments
+                  </p>
                 </div>
-                <p className="text-gray-600 text-lg">
-                  Manage your scheduled jobs and appointments
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
                 <Button 
                   onClick={fetchCalendarEvents} 
                   variant="outline" 
@@ -221,19 +237,14 @@ const Calendar = () => {
                   <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                   {loading ? 'Loading...' : 'Refresh'}
                 </Button>
-                <Badge variant="secondary" className="hidden sm:flex items-center gap-1">
-                  <Activity className="w-3 h-3" />
-                  {calendarEvents.length} Total Jobs
-                </Badge>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="p-4 sm:p-6 space-y-6">
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-4 sm:p-8 space-y-8 relative z-10 max-w-7xl mx-auto">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -409,10 +420,6 @@ const Calendar = () => {
                       .sort((a, b) => a.start_time.localeCompare(b.start_time))
                       .map((event, index) => {
                         const jobData = event.job_assignments?.MasterCustomer;
-                        const formatPrice = (price: number | null | undefined) => {
-                          if (price == null) return 'Quote Required';
-                          return `£${price.toFixed(2)}`;
-                        };
 
                         const getStatusIcon = (status: string) => {
                           switch (status.toLowerCase()) {
@@ -517,7 +524,9 @@ const Calendar = () => {
                                     )}
                                     <Button
                                       onClick={() => {
-                                        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location || '')}`;
+                                        // Use Google Maps directions with the full address
+                                        const destination = event.location || event.customer_name || '';
+                                        const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;
                                         window.open(mapsUrl, '_blank');
                                       }}
                                       variant="outline"
@@ -540,16 +549,6 @@ const Calendar = () => {
                                     )}
                                   </div>
                                 </div>
-
-                                {/* Right: Price */}
-                                <div className="text-right">
-                                  <div className="bg-gradient-to-br from-green-500 to-emerald-600 text-white p-3 rounded-xl shadow-lg">
-                                    <p className="text-lg font-bold">
-                                      {formatPrice(jobData?.quote_price)}
-                                    </p>
-                                    <p className="text-xs opacity-90">Job Value</p>
-                                  </div>
-                                </div>
                               </div>
 
                               {/* Description */}
@@ -570,6 +569,7 @@ const Calendar = () => {
         </div>
       </div>
       </div>
+      </PageTransition>
     </DashboardLayout>
   );
 };

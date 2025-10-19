@@ -72,39 +72,150 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_purchases: {
+        Row: {
+          converted_to_job_id: string | null
+          created_at: string
+          credits_paid: number
+          id: string
+          lead_id: string
+          purchased_at: string
+          technician_id: string
+        }
+        Insert: {
+          converted_to_job_id?: string | null
+          created_at?: string
+          credits_paid?: number
+          id?: string
+          lead_id: string
+          purchased_at?: string
+          technician_id: string
+        }
+        Update: {
+          converted_to_job_id?: string | null
+          created_at?: string
+          credits_paid?: number
+          id?: string
+          lead_id?: string
+          purchased_at?: string
+          technician_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_purchases_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_purchases_technician_id_fkey"
+            columns: ["technician_id"]
+            isOneToOne: false
+            referencedRelation: "technicians"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       leads: {
         Row: {
+          address: string | null
+          appointment_date: string | null
+          appointment_time: string | null
+          argic_code: string | null
+          assigned_technician_id: string | null
           created_at: string | null
+          credits_cost: number | null
           date: string | null
           email: string
+          estimated_price: number | null
+          first_name: string | null
+          full_name: string | null
+          glass_description: string | null
+          glass_type: string | null
           id: string
+          last_name: string | null
+          make: string | null
+          model: string | null
           name: string
           notes: string | null
           phone: string
+          postcode: string | null
+          quote_price: number | null
+          selected_windows: Json | null
+          service_type: string | null
           source: string
           status: string
+          time_slot: string | null
+          updated_at: string | null
+          vrn: string | null
+          year: string | null
         }
         Insert: {
+          address?: string | null
+          appointment_date?: string | null
+          appointment_time?: string | null
+          argic_code?: string | null
+          assigned_technician_id?: string | null
           created_at?: string | null
+          credits_cost?: number | null
           date?: string | null
           email: string
+          estimated_price?: number | null
+          first_name?: string | null
+          full_name?: string | null
+          glass_description?: string | null
+          glass_type?: string | null
           id?: string
+          last_name?: string | null
+          make?: string | null
+          model?: string | null
           name: string
           notes?: string | null
           phone: string
+          postcode?: string | null
+          quote_price?: number | null
+          selected_windows?: Json | null
+          service_type?: string | null
           source: string
           status: string
+          time_slot?: string | null
+          updated_at?: string | null
+          vrn?: string | null
+          year?: string | null
         }
         Update: {
+          address?: string | null
+          appointment_date?: string | null
+          appointment_time?: string | null
+          argic_code?: string | null
+          assigned_technician_id?: string | null
           created_at?: string | null
+          credits_cost?: number | null
           date?: string | null
           email?: string
+          estimated_price?: number | null
+          first_name?: string | null
+          full_name?: string | null
+          glass_description?: string | null
+          glass_type?: string | null
           id?: string
+          last_name?: string | null
+          make?: string | null
+          model?: string | null
           name?: string
           notes?: string | null
           phone?: string
+          postcode?: string | null
+          quote_price?: number | null
+          selected_windows?: Json | null
+          service_type?: string | null
           source?: string
           status?: string
+          time_slot?: string | null
+          updated_at?: string | null
+          vrn?: string | null
+          year?: string | null
         }
         Relationships: []
       }

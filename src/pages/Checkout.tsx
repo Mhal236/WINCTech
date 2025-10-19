@@ -10,6 +10,8 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
+import { supabase } from "@/lib/supabase";
+import { PageTransition } from "@/components/PageTransition";
 
 // Initialize Stripe
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '');
@@ -20,7 +22,7 @@ function CheckoutForm({
   onSuccess 
 }: { 
   total: number;
-  onSuccess: () => void;
+  onSuccess: (paymentIntentId: string) => void;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -36,11 +38,9 @@ function CheckoutForm({
     setIsProcessing(true);
 
     try {
-      const { error } = await stripe.confirmPayment({
+      const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
-        confirmParams: {
-          return_url: `${window.location.origin}/settings?payment_success=true`,
-        },
+        redirect: 'if_required',
       });
 
       if (error) {
@@ -49,8 +49,8 @@ function CheckoutForm({
           description: error.message,
           variant: "destructive",
         });
-      } else {
-        onSuccess();
+      } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+        onSuccess(paymentIntent.id);
       }
     } catch (error: any) {
       toast({
@@ -90,7 +90,8 @@ export default function Checkout() {
   const navigate = useNavigate();
   
   const [deliveryOption, setDeliveryOption] = useState<'delivery' | 'collection'>('delivery');
-  const [deliveryAddress, setDeliveryAddress] = useState('123 Workshop Lane, Anytown');
+  const [deliveryAddress, setDeliveryAddress] = useState('Unit 1, 69 Millmarsh Lane, Enfield EN3 7UY');
+  const [collectionAddress] = useState('Unit 1, 69 Millmarsh Lane, Enfield EN3 7UY');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [clientSecret, setClientSecret] = useState<string>('');
   const [loadingPaymentIntent, setLoadingPaymentIntent] = useState(false);
@@ -150,13 +151,76 @@ export default function Checkout() {
     }
   };
 
-  const handlePaymentSuccess = () => {
-    toast({
-      title: "Payment Successful!",
-      description: `Your order for £${total.toFixed(2)} has been placed successfully`,
-    });
-    clearCart();
-    navigate('/');
+  const handlePaymentSuccess = async (paymentIntentId: string) => {
+    try {
+      // Generate unique order number
+      const orderNumber = `WC-${new Date().getFullYear()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+      
+      // Get technician ID if available
+      let technicianId = null;
+      const { data: techData } = await supabase
+        .from('technicians')
+        .select('id')
+        .eq('user_id', user?.id)
+        .single();
+      
+      if (techData) {
+        technicianId = techData.id;
+      }
+
+      // Extract vehicle info from first item if available
+      const firstItem: any = items[0];
+      
+      // Save order to database
+      const { data: orderData, error: orderError } = await supabase
+        .from('glass_orders')
+        .insert([{
+          order_number: orderNumber,
+          user_id: user?.id,
+          technician_id: technicianId,
+          items: items.map(item => ({
+            partNumber: item.partNumber,
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            supplier: item.supplier
+          })),
+          vrn: firstItem?.vrn || null,
+          make: firstItem?.make || null,
+          model: firstItem?.model || null,
+          year: firstItem?.year || null,
+          subtotal: subtotal,
+          vat: vat,
+          delivery_fee: deliveryFee,
+          total_amount: total,
+          delivery_option: deliveryOption,
+          delivery_address: deliveryOption === 'delivery' ? '(Branch of your choice)' : null,
+          collection_address: deliveryOption === 'collection' ? collectionAddress : null,
+          stripe_payment_intent_id: paymentIntentId,
+          payment_status: 'succeeded',
+          paid_at: new Date().toISOString(),
+          order_status: 'processing',
+          supplier: firstItem?.supplier || 'Master Auto Glass',
+          depot_name: firstItem?.depot || null
+        }])
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Clear cart after successful order creation
+      clearCart();
+
+      // Navigate to order confirmation page
+      navigate(`/order-confirmation?orderId=${orderData.id}`);
+    } catch (error) {
+      console.error('Error saving order:', error);
+      toast({
+        title: "Order Saved Error",
+        description: "Payment succeeded but failed to save order. Please contact support.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (items.length === 0) {
@@ -182,12 +246,27 @@ export default function Checkout() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-3 sm:p-6 pb-24 sm:pb-6">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6 sm:mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Windscreen Compare</h1>
-            <h2 className="text-xl sm:text-3xl font-bold text-gray-900">Checkout</h2>
+      <PageTransition>
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 relative overflow-hidden p-3 sm:p-6 pb-24 sm:pb-6">
+          {/* Animated background elements */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-0 -left-4 w-96 h-96 bg-[#0FB8C1]/5 rounded-full blur-3xl animate-pulse" />
+            <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl animate-pulse delay-700" />
+          </div>
+
+        <div className="max-w-7xl mx-auto relative z-10">
+          {/* Modern Header */}
+          <div className="relative backdrop-blur-xl bg-white/80 border border-gray-200/50 shadow-sm rounded-3xl mb-6">
+            <div className="px-6 py-8">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-1 h-10 bg-gradient-to-b from-[#0FB8C1] via-[#0FB8C1]/70 to-transparent rounded-full" />
+                  <h1 className="text-3xl sm:text-4xl font-light tracking-tight text-gray-900">
+                    Checkout<span className="text-[#0FB8C1] font-normal">.</span>
+                  </h1>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -213,7 +292,7 @@ export default function Checkout() {
                       }`}
                     >
                       <h4 className="font-bold mb-1 text-sm sm:text-base">Delivery</h4>
-                      <p className="text-xs sm:text-sm text-gray-600">{deliveryAddress}</p>
+                      <p className="text-xs sm:text-sm text-gray-600 italic">(Branch of your choice)</p>
                     </button>
 
                     <button
@@ -225,7 +304,7 @@ export default function Checkout() {
                       }`}
                     >
                       <h4 className="font-bold mb-1 text-sm sm:text-base">Collection</h4>
-                      <p className="text-xs sm:text-sm text-gray-600">From GlassCorp Depot</p>
+                      <p className="text-xs sm:text-sm text-gray-600">{collectionAddress}</p>
                     </button>
                   </div>
                 </CardContent>
@@ -503,6 +582,7 @@ export default function Checkout() {
           </div>
         </div>
       </div>
+      </PageTransition>
     </DashboardLayout>
   );
 }

@@ -17,7 +17,8 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
 import Index from "./pages/Index";
-import JobSwipe from "./pages/JobSwipe";
+import InstantLeads from "./pages/InstantLeads";
+import Jobs from "./pages/Jobs";
 import Calendar from "./pages/Calendar";
 
 // Lazy load less critical pages to improve initial load time
@@ -27,6 +28,7 @@ const PriceLookup = lazy(() => import("./pages/PriceLookup"));
 const PriceEstimator = lazy(() => import("./pages/PriceEstimator"));
 const Glass = lazy(() => import("./pages/Glass"));
 const VrnSearch = lazy(() => import("./pages/VrnSearch"));
+const ArgicLookup = lazy(() => import("./pages/ArgicLookup"));
 const Team = lazy(() => import("./pages/Team"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Reporting = lazy(() => import("./pages/Reporting"));
@@ -38,6 +40,8 @@ const ShopSupplies = lazy(() => import("./pages/ShopSupplies"));
 const Website = lazy(() => import("./pages/Website"));
 const TopUp = lazy(() => import("./pages/TopUp"));
 const Checkout = lazy(() => import("./pages/Checkout"));
+const OrderConfirmation = lazy(() => import("./pages/OrderConfirmation"));
+const JobManagement = lazy(() => import("./pages/JobManagement"));
 
 // Loading fallback
 const LoadingFallback = () => (
@@ -91,6 +95,18 @@ function ErrorFallback() {
 
 const queryClient = new QueryClient();
 
+// Component to conditionally render widget based on auth
+const ConditionalWidget = ({ enabled }: { enabled: boolean }) => {
+  const { user, isLoading } = useAuth();
+  
+  // Don't show widget on login/signup pages or when not authenticated
+  if (isLoading || !user) {
+    return null;
+  }
+  
+  return <ElevenLabsWidget enabled={enabled} />;
+};
+
 // Add AnimatedRoutes component to handle location-based animations
 const AnimatedRoutes = () => {
   const location = useLocation();
@@ -123,10 +139,20 @@ const AnimatedRoutes = () => {
           </ProtectedRoute>
         } />
         
-        {/* Pro-1+ routes - Jobs and Calendar for technicians */}
-        <Route path="/job-swipe" element={
+        {/* Pro-1+ routes - Instant Leads, Jobs, and Calendar for technicians */}
+        <Route path="/instant-leads" element={
           <ProtectedRoute requiredRole="pro-1">
-            <JobSwipe />
+            <InstantLeads />
+          </ProtectedRoute>
+        } />
+        <Route path="/jobs" element={
+          <ProtectedRoute requiredRole="pro-1">
+            <Jobs />
+          </ProtectedRoute>
+        } />
+        <Route path="/jobs/:jobId" element={
+          <ProtectedRoute requiredRole="pro-1">
+            <JobManagement />
           </ProtectedRoute>
         } />
         <Route path="/calendar" element={
@@ -134,6 +160,9 @@ const AnimatedRoutes = () => {
             <Calendar />
           </ProtectedRoute>
         } />
+        
+        {/* Legacy route redirect */}
+        <Route path="/job-swipe" element={<Navigate to="/instant-leads" replace />} />
         
         {/* Premium features - require higher subscription level (for now admin) */}
         <Route path="/price-estimator" element={
@@ -160,6 +189,11 @@ const AnimatedRoutes = () => {
             <VrnSearch />
           </ProtectedRoute>
         } />
+        <Route path="/vrn-search/argic-lookup" element={
+          <ProtectedRoute requiredRole="pro-1">
+            <ArgicLookup />
+          </ProtectedRoute>
+        } />
         <Route path="/shop-supplies" element={
           <ProtectedRoute requiredRole="admin">
             <ShopSupplies />
@@ -178,6 +212,11 @@ const AnimatedRoutes = () => {
         <Route path="/checkout" element={
           <ProtectedRoute requiredRole="admin">
             <Checkout />
+          </ProtectedRoute>
+        } />
+        <Route path="/order-confirmation" element={
+          <ProtectedRoute requiredRole="admin">
+            <OrderConfirmation />
           </ProtectedRoute>
         } />
         <Route path="/history" element={
@@ -293,10 +332,10 @@ const App = () => {
                   
                   {/* Debug info overlay - only shown in development - moved inside Router */}
                   <DebugInfo />
+                  
+                  {/* ElevenLabs AI Widget - only shown when logged in */}
+                  <ConditionalWidget enabled={aiWidgetEnabled} />
                 </Router>
-                
-                {/* ElevenLabs AI Widget - bottom right, toggleable in settings */}
-                <ElevenLabsWidget enabled={aiWidgetEnabled} />
               </div>
             </SidebarProvider>
           </TooltipProvider>

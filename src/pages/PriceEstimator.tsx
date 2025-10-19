@@ -6,13 +6,18 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Coins, ChevronRight, Car, MapPin } from "lucide-react";
+import { Coins, ChevronRight, Car, MapPin, CalendarIcon, User, Phone as PhoneIcon, Mail } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { PriceBreakdownModal } from "@/components/pricing/PriceBreakdownModal";
 import { calculateDistanceAndCost, isValidPostcode } from "@/services/distanceService";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { TimeSlotPicker } from "@/components/calendar/TimeSlotPicker";
 
 type GlassType = 'windscreen' | 'rear' | 'side' | 'quarter' | 'vent';
 type ColourTint = 'clear' | 'tinted' | 'privacy' | 'heated';
@@ -65,6 +70,18 @@ const PriceEstimator = () => {
   // Car diagram state
   const [selectedWindows, setSelectedWindows] = useState<Set<string>>(new Set());
   const [hoverTooltip, setHoverTooltip] = useState<{ x: number; y: number; label: string } | null>(null);
+
+  // Customer information dialog state
+  const [isCustomerInfoOpen, setIsCustomerInfoOpen] = useState(false);
+  const [appointmentDate, setAppointmentDate] = useState<Date | undefined>(undefined);
+  const [appointmentTime, setAppointmentTime] = useState<string>('');
+  const [customerInfo, setCustomerInfo] = useState({
+    firstName: '',
+    lastName: '',
+    phone: '',
+    email: '',
+    address: ''
+  });
 
   // Window regions for tooltips
   const regions = [
@@ -287,11 +304,45 @@ const PriceEstimator = () => {
     }
   };
 
-  const handleCreateJob = async () => {
+  const handleCreateJob = () => {
+    // Close price breakdown modal and open customer info dialog
+    setShowModal(false);
+    setIsCustomerInfoOpen(true);
+  };
+
+  const handleCreateLead = async () => {
+    // Validate mandatory fields
+    if (!customerInfo.firstName.trim() || !customerInfo.lastName.trim() || !customerInfo.phone.trim()) {
+      toast({
+        title: "Required Information",
+        description: "Please provide customer's first name, last name, and phone number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!appointmentDate) {
+      toast({
+        title: "Appointment Date Required",
+        description: "Please select an appointment date.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!appointmentTime) {
+      toast({
+        title: "Time Slot Required",
+        description: "Please select a time slot for the appointment.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!user?.id) {
       toast({
         title: "Authentication Required",
-        description: "Please log in to create a job.",
+        description: "Please log in to create a lead.",
         variant: "destructive",
       });
       return;
@@ -300,58 +351,116 @@ const PriceEstimator = () => {
     setCreatingJob(true);
 
     try {
-      // Call API to create job
-      const response = await fetch('/api/jobs/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          vrn,
-          make,
-          model,
-          year,
-          glassType: features.glassType,
-          colourTint: features.colourTint,
-          hasSensor: features.hasSensor,
-          hasCamera: features.hasCamera,
-          hasADAS: features.hasADAS,
-          customerPostcode: customerPostcode.trim().toUpperCase(),
-          technicianPostcode: technicianPostcode.trim().toUpperCase(),
-          glassCost,
-          labourCost,
-          travelCost,
-          distance,
-          totalEstimate,
-          glassDescription,
-        }),
-      });
+      // 1. Get technician ID
+      let technicianId = null;
+      const { data: techData1, error: techError1 } = await supabase
+        .from('technicians')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
 
-      const result = await response.json();
+      if (techData1) {
+        technicianId = techData1.id;
+      } else {
+        // Try by email for Google OAuth users
+        const { data: techData2, error: techError2 } = await supabase
+          .from('technicians')
+          .select('id')
+          .eq('contact_email', user.email)
+          .single();
+        
+        if (techData2) {
+          technicianId = techData2.id;
+        }
+      }
 
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Failed to create job');
+      if (!technicianId) {
+        throw new Error('Technician profile not found. Please ensure your profile is set up correctly.');
+      }
+
+      // Generate unique quote ID
+      const generateQuoteId = () => {
+        const timestamp = Date.now().toString(36).toUpperCase();
+        const randomStr = Math.random().toString(36).substring(2, 7).toUpperCase();
+        return `WC-${timestamp}-${randomStr}`;
+      };
+
+      const quoteId = generateQuoteId();
+
+      // 2. Create lead in leads table
+      const { data: leadData, error: leadError } = await supabase
+        .from('leads')
+        .insert([{
+          quote_id: quoteId,
+          name: `${customerInfo.firstName.trim()} ${customerInfo.lastName.trim()}`,
+          first_name: customerInfo.firstName.trim(),
+          last_name: customerInfo.lastName.trim(),
+          full_name: `${customerInfo.firstName.trim()} ${customerInfo.lastName.trim()}`,
+          phone: customerInfo.phone.trim(),
+          email: customerInfo.email.trim() || null,
+          address: customerInfo.address.trim() || null,
+          postcode: customerPostcode.trim().toUpperCase(),
+          vrn: vrn || null,
+          make: make || null,
+          model: model || null,
+          year: year || null,
+          glass_type: features.glassType || 'windscreen',
+          glass_description: glassDescription || null,
+          service_type: 'Glass Replacement',
+          estimated_price: totalEstimate || 0,
+          quote_price: totalEstimate || 0,
+          credits_cost: 1,
+          status: 'new',
+          source: 'price_estimator',
+          assigned_technician_id: null,
+          appointment_date: format(appointmentDate, 'yyyy-MM-dd'),
+          time_slot: appointmentTime,
+          created_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+      if (leadError || !leadData) {
+        console.error('Lead creation error:', leadError);
+        throw new Error('Failed to create lead');
+      }
+
+      // 3. Create lead_purchase record to make it appear in Jobs
+      const { error: purchaseError } = await supabase
+        .from('lead_purchases')
+        .insert([{
+          lead_id: leadData.id,
+          technician_id: technicianId,
+          purchased_at: new Date().toISOString(),
+          credits_paid: 0, // No credits paid for self-created leads
+          converted_to_job_id: null
+        }]);
+
+      if (purchaseError) {
+        console.error('Lead purchase record creation error:', purchaseError);
+        // Don't throw - the lead was created successfully
       }
 
       toast({
-        title: "Job Created Successfully!",
-        description: `Job #${result.jobId} has been created and appears in your History.`,
+        title: "Lead Created Successfully!",
+        description: `A new lead for ${customerInfo.firstName} ${customerInfo.lastName} has been created and added to your Jobs.`,
       });
 
-      setShowModal(false);
+      setIsCustomerInfoOpen(false);
+      setCreatingJob(false);
       
-      // Navigate to History page to see the created job
+      // Navigate to Jobs page to view the lead
       setTimeout(() => {
-        navigate('/history');
+        navigate('/jobs', { state: { tab: 'leads' } });
       }, 1500);
 
     } catch (error) {
-      console.error('Error creating job:', error);
+      console.error('Error creating lead:', error);
       toast({
-        title: "Job Creation Failed",
-        description: error instanceof Error ? error.message : "Failed to create job",
+        title: "Lead Creation Failed",
+        description: error instanceof Error ? error.message : "Failed to create lead",
         variant: "destructive",
       });
-    } finally {
       setCreatingJob(false);
     }
   };
@@ -362,25 +471,35 @@ const PriceEstimator = () => {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-        {/* Header */}
-        <div className="bg-white shadow-sm border-b border-gray-200 rounded-b-2xl">
-          <div className="px-6 py-8">
-            <div className="flex flex-col gap-6">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <Coins className="w-10 h-10 text-[#145484]" />
-                  <h1 className="text-4xl font-bold text-gray-900">Price Estimator</h1>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 relative overflow-hidden">
+        {/* Animated background elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 -left-4 w-96 h-96 bg-[#0FB8C1]/5 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl animate-pulse delay-700" />
+        </div>
+
+        {/* Modern Header */}
+        <div className="relative backdrop-blur-xl bg-white/80 border border-gray-200/50 shadow-sm rounded-3xl m-4">
+          <div className="px-6 py-10">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-4">
+                    <div className="w-1 h-10 bg-gradient-to-b from-[#0FB8C1] via-[#0FB8C1]/70 to-transparent rounded-full" />
+                    <h1 className="text-4xl font-light tracking-tight text-gray-900">
+                      Price Estimator<span className="text-[#0FB8C1] font-normal">.</span>
+                    </h1>
+                  </div>
+                  <p className="text-gray-600 text-base font-light ml-5 tracking-wide">
+                    Get detailed pricing by specifying glass features
+                  </p>
                 </div>
-                <p className="text-gray-600 text-lg">
-                  Get detailed pricing by specifying glass features
-                </p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="p-4 sm:p-6 pb-20 max-w-4xl mx-auto">
+        <div className="p-4 sm:p-8 pb-20 max-w-4xl mx-auto relative z-10">
           {/* Vehicle Info Card (if available) */}
           {vrn && (
             <Card className="shadow-lg mb-6 bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200">
@@ -920,6 +1039,164 @@ const PriceEstimator = () => {
         onEditDetails={handleEditDetails}
         creatingJob={creatingJob}
       />
+
+      {/* Customer Information Dialog */}
+      <Dialog open={isCustomerInfoOpen} onOpenChange={setIsCustomerInfoOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">Customer & Appointment Details</DialogTitle>
+            <DialogDescription>
+              Please provide customer information and select an appointment date to create the lead.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* Customer Name */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName" className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  First Name *
+                </Label>
+                <Input
+                  id="firstName"
+                  value={customerInfo.firstName}
+                  onChange={(e) => setCustomerInfo({ ...customerInfo, firstName: e.target.value })}
+                  placeholder="John"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName" className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Last Name *
+                </Label>
+                <Input
+                  id="lastName"
+                  value={customerInfo.lastName}
+                  onChange={(e) => setCustomerInfo({ ...customerInfo, lastName: e.target.value })}
+                  placeholder="Doe"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Phone Number */}
+            <div className="space-y-2">
+              <Label htmlFor="phone" className="flex items-center gap-2">
+                <PhoneIcon className="h-4 w-4" />
+                Phone Number *
+              </Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={customerInfo.phone}
+                onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })}
+                placeholder="07123 456789"
+                required
+              />
+            </div>
+
+            {/* Email (Optional) */}
+            <div className="space-y-2">
+              <Label htmlFor="email" className="flex items-center gap-2">
+                <Mail className="h-4 w-4" />
+                Email Address (Optional)
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                value={customerInfo.email}
+                onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })}
+                placeholder="john.doe@example.com"
+              />
+            </div>
+
+            {/* Address (Optional) */}
+            <div className="space-y-2">
+              <Label htmlFor="address" className="flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                Address (Optional)
+              </Label>
+              <Input
+                id="address"
+                value={customerInfo.address}
+                onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })}
+                placeholder="123 Main Street, London"
+              />
+            </div>
+
+            {/* Appointment Date */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4" />
+                Appointment Date *
+              </Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !appointmentDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {appointmentDate ? format(appointmentDate, "PPP") : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 bg-white" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={appointmentDate}
+                    onSelect={(date) => {
+                      setAppointmentDate(date);
+                      setAppointmentTime(''); // Reset time when date changes
+                    }}
+                    disabled={(date) => date < new Date()}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Time Slot Picker - Only show when date is selected */}
+            {appointmentDate && (
+              <div className="mt-4">
+                <TimeSlotPicker
+                  selectedDate={appointmentDate}
+                  selectedTime={appointmentTime}
+                  onTimeSelect={setAppointmentTime}
+                />
+              </div>
+            )}
+
+            <p className="text-sm text-muted-foreground">
+              * Required fields
+            </p>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsCustomerInfoOpen(false);
+                setShowModal(true);
+              }}
+              disabled={creatingJob}
+            >
+              Back to Price
+            </Button>
+            <Button
+              onClick={handleCreateLead}
+              disabled={creatingJob}
+              className="bg-[#FFC107] hover:bg-[#e6ad06] text-black"
+            >
+              {creatingJob ? "Creating Lead..." : "Create Lead"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };

@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { SecureHeader, getDepots, checkGlassAvailability, PriceRecord, getStockList, getBranchAvailability, searchStock } from '@/utils/glassService';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PageTransition } from "@/components/PageTransition";
 
 const Glass = () => {
   const { toast } = useToast();
@@ -220,50 +221,62 @@ const Glass = () => {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-        {/* Enhanced Header */}
-        <div className="bg-white shadow-sm border-b border-gray-200 rounded-b-2xl">
-          <div className="px-6 py-8">
-            <div className="flex flex-col gap-6">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-4xl font-bold text-gray-900">Glass Inventory</h1>
+      <PageTransition>
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 relative overflow-hidden">
+          {/* Animated background elements */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-0 -left-4 w-96 h-96 bg-[#0FB8C1]/5 rounded-full blur-3xl animate-pulse" />
+            <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl animate-pulse delay-700" />
+          </div>
+
+        {/* Modern Header */}
+        <div className="relative backdrop-blur-xl bg-white/80 border border-gray-200/50 shadow-sm rounded-3xl m-4">
+          <div className="px-6 py-10">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-4">
+                    <div className="w-1 h-10 bg-gradient-to-b from-[#0FB8C1] via-[#0FB8C1]/70 to-transparent rounded-full" />
+                    <h1 className="text-4xl font-light tracking-tight text-gray-900">
+                      Glass Inventory<span className="text-[#0FB8C1] font-normal">.</span>
+                    </h1>
+                  </div>
+                  <p className="text-gray-600 text-base font-light ml-5 tracking-wide">
+                    Search and check availability of windscreen glass products
+                  </p>
                 </div>
-                <p className="text-gray-600 text-lg">
-                  Search and check availability of windscreen glass products
-                </p>
-              </div>
-              {availableDepots.length > 0 && (
-                <div className="w-full md:w-64">
-                  <Select 
-                    value={selectedDepot}
-                    onValueChange={setSelectedDepot}
-                  >
-                    <SelectTrigger className="w-full border-[#145484] focus:ring-[#145484]">
-                      <SelectValue placeholder="Select depot" />
-                    </SelectTrigger>
-                    <SelectContent>
+                {availableDepots.length > 0 && (
+                  <div className="w-64">
+                    <Select 
+                      value={selectedDepot}
+                      onValueChange={setSelectedDepot}
+                    >
+                      <SelectTrigger className="w-full border-gray-200 focus:border-[#0FB8C1] bg-white">
+                        <SelectValue placeholder="Select depot" />
+                      </SelectTrigger>
+                      <SelectContent>
                       {availableDepots.map((depot) => (
                         <SelectItem key={depot.code} value={depot.code}>
                           {depot.name}
                         </SelectItem>
                       ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="p-4 sm:p-6 space-y-6">
+        <div className="p-4 sm:p-8 space-y-8 relative z-10 max-w-7xl mx-auto">
 
         <Tabs defaultValue="vrn-vin" className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="vrn-vin">Search by VRN/VIN</TabsTrigger>
             <TabsTrigger value="vehicle">Search by Vehicle</TabsTrigger>
           </TabsList>
-          <TabsContent value="vrn-vin" className="space-y-4">
+          <TabsContent value="vrn-vin" className="space-y-4 data-[state=active]:animate-fadeIn">
             <div className="flex items-center gap-4 w-full">
               <Input
                 placeholder="Enter VRN or VIN..."
@@ -281,7 +294,7 @@ const Glass = () => {
               </Button>
             </div>
           </TabsContent>
-          <TabsContent value="vehicle" className="space-y-4">
+          <TabsContent value="vehicle" className="space-y-4 data-[state=active]:animate-fadeIn">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Input
                 placeholder="Make (e.g., Ford)"
@@ -376,6 +389,7 @@ const Glass = () => {
         )}
       </div>
       </div>
+      </PageTransition>
     </DashboardLayout>
   );
 };

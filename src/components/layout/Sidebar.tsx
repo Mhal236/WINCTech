@@ -19,6 +19,8 @@ import {
   Package,
   Globe,
   Car,
+  Zap,
+  ListTodo,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useState } from "react";
@@ -62,7 +64,8 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
   ];
 
   const jobsAndCalendarNavigation = [
-    { name: "Jobs", href: "/job-swipe", icon: Briefcase, requiredRole: "pro-1" },
+    { name: "Instant Leads", href: "/instant-leads", icon: Zap, requiredRole: "pro-1" },
+    { name: "Jobs", href: "/jobs", icon: ListTodo, requiredRole: "pro-1" },
     { name: "Calendar", href: "/calendar", icon: Calendar, requiredRole: "pro-1" },
   ];
 

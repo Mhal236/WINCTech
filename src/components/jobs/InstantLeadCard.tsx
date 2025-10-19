@@ -411,11 +411,21 @@ export const JobCard: React.FC<JobCardProps> = ({
                     </div>
                   )}
                 </div>
-                {job.timeline && (
-                  <div className="mt-1">
+                {/* Show appointment date and time slot instead of generic "ASAP" timeline */}
+                {job.appointment_date && (
+                  <div className="mt-1 flex flex-wrap gap-1">
                     <Badge className={`text-xs font-medium px-2 py-1 rounded-full inline-block ${getPriorityColor(job.timeline, job.appointment_date)}`}>
-                      {job.timeline}
+                      {new Date(job.appointment_date).toLocaleDateString('en-GB', { 
+                        day: 'numeric', 
+                        month: 'short', 
+                        year: 'numeric' 
+                      })}
                     </Badge>
+                    {job.time_slot && (
+                      <Badge className="text-xs font-medium px-2 py-1 rounded-full inline-block bg-blue-100 text-blue-800 border-blue-200">
+                        {job.time_slot}
+                      </Badge>
+                    )}
                   </div>
                 )}
               </div>
