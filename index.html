@@ -8,14 +8,16 @@
     <!-- Content Security Policy for Stripe, Google OAuth, and ElevenLabs -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self' https://js.stripe.com https://api.stripe.com https://m.stripe.network https://m.stripe.com;
-      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://cdn.gpteng.co https://accounts.google.com https://unpkg.com;
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://cdn.gpteng.co https://accounts.google.com https://unpkg.com blob:;
+      script-src-elem 'self' 'unsafe-inline' https://js.stripe.com https://cdn.gpteng.co https://accounts.google.com https://unpkg.com https://*.elevenlabs.io blob:;
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com http://fonts.googleapis.com https://m.stripe.network;
       font-src 'self' data: https://fonts.gstatic.com;
       frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://accounts.google.com https://v0-tony-ai-technician-assistant.vercel.app;
       connect-src 'self' http://localhost:3000 https://api.stripe.com https://m.stripe.network https://m.stripe.com https://julpwjxzrlkbxdbphrdy.supabase.co wss://julpwjxzrlkbxdbphrdy.supabase.co https://oauth2.googleapis.com https://www.googleapis.com https://accounts.google.com https://api.ideal-postcodes.co.uk https://api.postcodes.io https://*.elevenlabs.io wss://*.elevenlabs.io;
       img-src 'self' data: https:;
       media-src 'self' https: blob: data:;
-      worker-src 'self' blob:;
+      worker-src 'self' blob: https://*.elevenlabs.io https://unpkg.com;
+      child-src 'self' blob: https://*.elevenlabs.io;
     " />
   </head>
 

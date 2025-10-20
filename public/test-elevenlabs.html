@@ -65,6 +65,48 @@
         // Debug logging
         console.log('🤖 ElevenLabs Test Page - Loading...');
         
+        // Check browser compatibility
+        function checkCompatibility() {
+            const statusEl = document.getElementById('status');
+            let issues = [];
+            
+            // Check if we're in a secure context
+            if (!window.isSecureContext) {
+                issues.push('⚠️ Not in a secure context. Please use HTTPS or localhost.');
+            }
+            
+            // Check AudioContext support
+            if (!window.AudioContext && !window.webkitAudioContext) {
+                issues.push('❌ AudioContext not supported.');
+            }
+            
+            // Check AudioWorklet support
+            if (window.AudioContext) {
+                const audioContext = new AudioContext();
+                if (!audioContext.audioWorklet) {
+                    issues.push('❌ AudioWorklet not supported. Please use a modern browser.');
+                }
+            }
+            
+            // Check if running from file://
+            if (window.location.protocol === 'file:') {
+                issues.push('⚠️ Running from file:// protocol. Please serve via HTTP/HTTPS.');
+            }
+            
+            if (issues.length > 0) {
+                statusEl.innerHTML = '<strong>Compatibility Issues:</strong><br>' + issues.join('<br>');
+                statusEl.style.background = 'rgba(255, 165, 0, 0.2)';
+                console.warn('Compatibility issues detected:', issues);
+            } else {
+                statusEl.innerHTML = '<strong>Status:</strong> ✅ Browser is compatible. Loading widget...';
+                statusEl.style.background = 'rgba(0, 255, 0, 0.2)';
+                console.log('✅ Browser compatibility check passed');
+            }
+        }
+        
+        // Run compatibility check immediately
+        checkCompatibility();
+        
         // Check if script loads
         setTimeout(() => {
             const widget = document.querySelector('elevenlabs-convai');
@@ -72,7 +114,7 @@
             
             if (widget) {
                 console.log('✅ Widget element found:', widget);
-                statusEl.innerHTML = '<strong>Status:</strong> ✅ Widget element found! Check bottom right corner.';
+                statusEl.innerHTML = '<strong>Status:</strong> ✅ Widget loaded! Check bottom right corner.<br><small>If you see errors, make sure you\'re using HTTPS or localhost.</small>';
                 statusEl.style.background = 'rgba(0, 255, 0, 0.2)';
             } else {
                 console.log('❌ Widget element not found');
@@ -81,9 +123,22 @@
             }
         }, 3000);
 
+        // Listen for errors
+        window.addEventListener('error', (e) => {
+            console.error('Error detected:', e);
+            if (e.message && e.message.includes('audio-concat-processor')) {
+                const statusEl = document.getElementById('status');
+                statusEl.innerHTML = '<strong>Status:</strong> ❌ AudioWorklet error detected.<br>' +
+                    '<small>Solution: Serve this page via HTTPS or localhost (use: npm run dev or python -m http.server)</small>';
+                statusEl.style.background = 'rgba(255, 0, 0, 0.2)';
+            }
+        }, true);
+
         // Listen for script load
         window.addEventListener('load', () => {
             console.log('✅ Page fully loaded');
+            console.log('Protocol:', window.location.protocol);
+            console.log('Secure context:', window.isSecureContext);
         });
     </script>
 </body>

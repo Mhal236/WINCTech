@@ -124,7 +124,7 @@ const PriceLookupContent = () => {
   const [showOrderChoice, setShowOrderChoice] = useState(false);
   const [proceedToOrder, setProceedToOrder] = useState(false);
   const [glassTypeFilter, setGlassTypeFilter] = useState<string>('windscreen');
-  const [showTradeOnly, setShowTradeOnly] = useState(false);
+  const [glassQualityFilter, setGlassQualityFilter] = useState<'OEM' | 'OEE'>('OEE');
   const [windscreenAttributes, setWindscreenAttributes] = useState({
     rainSensor: false,
     heatedScreen: false,
@@ -264,6 +264,71 @@ const PriceLookupContent = () => {
       console.error("Error querying stock API:", error);
       throw error;
     }
+  };
+
+  // Helper function to get demo pricing for HN11EYW
+  const getDemoPriceForHN11EYW = (glassType: string, supplierName: string): number | null => {
+    // Only apply demo pricing for VRN HN11EYW
+    if (vrn.trim().toUpperCase() !== 'HN11EYW') {
+      return null;
+    }
+
+    // Demo prices for HN11EYW - Master Auto Glass
+    const magPrices: Record<string, number> = {
+      'windscreen': 213.47,
+      'right-body-glass': 31.30,
+      'left-body-glass': 54.36,
+      'rear-screen': 198.15
+    };
+
+    // Demo prices for HN11EYW - Charles Pugh
+    const pughsPrices: Record<string, number> = {
+      'windscreen': 95.24,
+      'right-body-glass': 41.24,
+      'left-body-glass': 41.24,
+      'rear-screen': 187.43
+    };
+
+    // Return appropriate price based on supplier
+    if (supplierName === 'Master Auto Glass') {
+      return magPrices[glassType] || null;
+    } else if (supplierName === 'Charles Pugh') {
+      return pughsPrices[glassType] || null;
+    }
+
+    return null;
+  };
+
+  // Helper function to get demo depot location for HN11EYW
+  const getDemoDepotForHN11EYW = (originalDepotCode: string): { code: string; name: string } => {
+    // Only apply demo depot override for VRN HN11EYW and when Enfield is selected
+    if (vrn.trim().toUpperCase() === 'HN11EYW' && originalDepotCode === 'ENF') {
+      console.log('🎯 Demo: Overriding depot ENF → WAL (Walthamstow) for HN11EYW');
+      return { code: 'WAL', name: 'Walthamstow (London)' };
+    }
+    return { code: originalDepotCode, name: availableDepots.find(d => d.DepotCode === originalDepotCode)?.DepotName || originalDepotCode };
+  };
+
+  // Helper function to get demo delivery times for HN11EYW
+  const getDemoDeliveryTimesForHN11EYW = (supplierName: string): { delivery: string; pickup: string } | null => {
+    // Only apply demo delivery times for VRN HN11EYW
+    if (vrn.trim().toUpperCase() !== 'HN11EYW') {
+      return null;
+    }
+
+    if (supplierName === 'Master Auto Glass') {
+      return { 
+        delivery: 'Next Day', 
+        pickup: 'Next day delivery to depot' 
+      };
+    } else if (supplierName === 'Charles Pugh') {
+      return { 
+        delivery: 'Same Day', 
+        pickup: 'Same-day pickup available' 
+      };
+    }
+
+    return null;
   };
 
   // Helper function to get the ARGIC code based on selected glass type
@@ -1068,26 +1133,67 @@ const PriceLookupContent = () => {
           
           if (selectedProvider === 'guest') {
             // Guest mode: Show 1 from MAG and 1 from Pughs
+            // Check for demo pricing for both suppliers
+            const demoMagPrice = getDemoPriceForHN11EYW(glassTypeFilter, 'Master Auto Glass');
+            const demoPughsPrice = getDemoPriceForHN11EYW(glassTypeFilter, 'Charles Pugh');
+            
+            // Check for demo depot override
+            const originalDepot = allApiQuotes[0].depotCode || selectedDepots[0];
+            const demoDepot = getDemoDepotForHN11EYW(originalDepot);
+            
+            // Check for demo delivery times
+            const demoMagDeliveryTimes = getDemoDeliveryTimesForHN11EYW('Master Auto Glass');
+            const demoPughsDeliveryTimes = getDemoDeliveryTimesForHN11EYW('Charles Pugh');
+            
             const magQuote = {
               ...allApiQuotes[0],
-              supplierCompany: 'Master Auto Glass'
+              supplierCompany: 'Master Auto Glass',
+              price: demoMagPrice || allApiQuotes[0].price, // Use demo price if available
+              depotCode: demoDepot.code,
+              depotName: demoDepot.name,
+              estimatedTimeDelivery: demoMagDeliveryTimes?.delivery || allApiQuotes[0].estimatedTimeDelivery,
+              estimatedTimePickup: demoMagDeliveryTimes?.pickup || allApiQuotes[0].estimatedTimePickup
             };
             
             const pughsQuote = {
               ...allApiQuotes[0],
               supplierCompany: 'Charles Pugh',
-              price: allApiQuotes[0].price * 1.05, // Slightly different price for Pughs
+              price: demoPughsPrice || (allApiQuotes[0].price * 1.05), // Use demo price if available
+              depotCode: demoDepot.code,
+              depotName: demoDepot.name,
+              estimatedTimeDelivery: demoPughsDeliveryTimes?.delivery || allApiQuotes[0].estimatedTimeDelivery,
+              estimatedTimePickup: demoPughsDeliveryTimes?.pickup || allApiQuotes[0].estimatedTimePickup
             };
             
             finalQuotes = [magQuote, pughsQuote];
-            console.log("Guest mode: Created 1 MAG + 1 Pughs quote");
+            console.log("Guest mode: Created 1 MAG + 1 Pughs quote", 
+              demoMagPrice ? `(MAG Demo: £${demoMagPrice})` : '', 
+              demoPughsPrice ? `(Pughs Demo: £${demoPughsPrice})` : '',
+              demoDepot.code !== originalDepot ? `(Depot: ${demoDepot.name})` : '');
           } else {
             // Logged in mode: Show only 1 result from selected supplier
+            const supplierName = selectedProvider === 'mag' ? 'Master Auto Glass' : 'Charles Pugh';
+            const demoPrice = getDemoPriceForHN11EYW(glassTypeFilter, supplierName);
+            
+            // Check for demo depot override
+            const originalDepot = allApiQuotes[0].depotCode || selectedDepots[0];
+            const demoDepot = getDemoDepotForHN11EYW(originalDepot);
+            
+            // Check for demo delivery times
+            const demoDeliveryTimes = getDemoDeliveryTimesForHN11EYW(supplierName);
+            
             finalQuotes = [{
               ...allApiQuotes[0],
-              supplierCompany: selectedProvider === 'mag' ? 'Master Auto Glass' : 'Charles Pugh'
+              supplierCompany: supplierName,
+              price: demoPrice || allApiQuotes[0].price, // Use demo price if available
+              depotCode: demoDepot.code,
+              depotName: demoDepot.name,
+              estimatedTimeDelivery: demoDeliveryTimes?.delivery || allApiQuotes[0].estimatedTimeDelivery,
+              estimatedTimePickup: demoDeliveryTimes?.pickup || allApiQuotes[0].estimatedTimePickup
             }];
-            console.log("Logged in mode: Showing 1 result from", selectedProvider);
+            console.log("Logged in mode: Showing 1 result from", selectedProvider, 
+              demoPrice ? `(Demo price: £${demoPrice})` : '',
+              demoDepot.code !== originalDepot ? `(Depot: ${demoDepot.name})` : '');
           }
           
           setQuotes(finalQuotes);
@@ -1112,7 +1218,7 @@ const PriceLookupContent = () => {
           
           // Silently use mock data without showing toast notification
           
-          const mockData = await generateMockDataForDepots(selectedDepots, vehicleDetails);
+          const mockData = await generateMockDataForDepots(selectedDepots, vehicleDetails, glassTypeFilter);
           setQuotes(mockData);
           setShowQuotes(true);
           
@@ -1210,13 +1316,14 @@ const PriceLookupContent = () => {
       description: `${glassTypes} - ${vehicleInfo}`,
       unitPrice: quote.price,
       quantity: totalQuantity,
-      supplier: quote.company,
+      supplier: glassQualityFilter === 'OEE' ? quote.company.replace('OEM', 'OEE') : quote.company,
       vehicleInfo: `${vrn} - ${vehicleInfo}`,
     });
     
+    const displayName = glassQualityFilter === 'OEE' ? quote.company.replace('OEM', 'OEE') : quote.company;
     toast({
       title: "Added to Cart",
-      description: `${quote.company} glass parts added to your cart. Click the cart icon to checkout.`,
+      description: `${displayName} glass parts added to your cart. Click the cart icon to checkout.`,
     });
     
     // Only proceed with API calls if we have an ARGIC code (for availability check)
@@ -1397,7 +1504,7 @@ const PriceLookupContent = () => {
         }
       }
 
-      // Create a lead in leads table
+      // Create a lead in leads table (assigned to the creating technician)
       const { data: leadData, error: leadError } = await supabase
         .from('leads')
         .insert({
@@ -1424,7 +1531,7 @@ const PriceLookupContent = () => {
           credits_cost: 1,
           status: 'new',
           source: 'price_lookup',
-          assigned_technician_id: null,
+          assigned_technician_id: technicianId, // Assign to creating technician
           created_at: new Date().toISOString(),
         })
         .select()
@@ -1432,9 +1539,25 @@ const PriceLookupContent = () => {
 
       if (leadError) throw leadError;
 
+      // Create lead_purchase record to make it appear in Jobs
+      const { error: purchaseError } = await supabase
+        .from('lead_purchases')
+        .insert([{
+          lead_id: leadData.id,
+          technician_id: technicianId,
+          purchased_at: new Date().toISOString(),
+          credits_paid: 0, // No credits paid for self-created leads
+          converted_to_job_id: null
+        }]);
+
+      if (purchaseError) {
+        console.error('Lead purchase record creation error:', purchaseError);
+        // Don't throw - the lead was created successfully
+      }
+
       toast({
-        title: "Lead Created!",
-        description: `Lead for ${customerInfo.firstName} ${customerInfo.lastName} has been created. Accept it from Instant Leads to add it to your Jobs.`,
+        title: "Lead Created Successfully!",
+        description: `A new lead for ${customerInfo.firstName} ${customerInfo.lastName} has been created and added to your Jobs.`,
       });
 
       // Reset form
@@ -1450,9 +1573,9 @@ const PriceLookupContent = () => {
       setIsCustomerInfoOpen(false);
       setSelectedQuote(null);
 
-      // Navigate to Instant Leads
+      // Navigate to Jobs page
       setTimeout(() => {
-        navigate('/instant-leads');
+        navigate('/jobs', { state: { tab: 'leads' } });
       }, 1000);
     } catch (error) {
       console.error('Error creating lead:', error);
@@ -1465,7 +1588,7 @@ const PriceLookupContent = () => {
   };
 
   // Helper function to generate mock data for demonstration purposes when API is unavailable
-  const generateMockDataForDepots = async (depots: string[], vehicleInfo: VehicleDetails): Promise<CompanyQuote[]> => {
+  const generateMockDataForDepots = async (depots: string[], vehicleInfo: VehicleDetails, currentGlassType: string): Promise<CompanyQuote[]> => {
     // Create mock data entries for each selected depot
     const mockQuotes: CompanyQuote[] = [];
     
@@ -1483,8 +1606,12 @@ const PriceLookupContent = () => {
     }
     
     // Only use first depot
-    const depotCode = depots[0];
-    const depotName = availableDepots.find(d => d.DepotCode === depotCode)?.DepotName || depotCode;
+    const originalDepotCode = depots[0];
+    
+    // Get demo depot override for HN11EYW or use original
+    const demoDepot = getDemoDepotForHN11EYW(originalDepotCode);
+    const depotCode = demoDepot.code;
+    const depotName = demoDepot.name;
     
     // Create exactly 2 options: 1 from MAG and 1 from Pughs
     const suppliers = [
@@ -1496,11 +1623,18 @@ const PriceLookupContent = () => {
       const basePrice = 215 + (Math.random() * 50);
       const qty = 12 + Math.floor(Math.random() * 10); // Always good stock (12-22)
       
+      // Check for demo pricing
+      const demoPrice = getDemoPriceForHN11EYW(currentGlassType, supplier.name);
+      const finalPrice = demoPrice || parseFloat((basePrice * supplier.priceMultiplier).toFixed(2));
+      
+      // Check for demo delivery times
+      const demoDeliveryTimes = getDemoDeliveryTimesForHN11EYW(supplier.name);
+      
       mockQuotes.push({
         company: `OEM Glass - ${vehicleInfo.make} ${vehicleInfo.model}`,
-        price: parseFloat((basePrice * supplier.priceMultiplier).toFixed(2)),
-        estimatedTimeDelivery: "Next Day",
-        estimatedTimePickup: qty > 15 ? "Same-day pickup available" : `Available Qty: ${qty}`,
+        price: finalPrice,
+        estimatedTimeDelivery: demoDeliveryTimes?.delivery || "Next Day",
+        estimatedTimePickup: demoDeliveryTimes?.pickup || (qty > 15 ? "Same-day pickup available" : `Available Qty: ${qty}`),
         argicCode: realArgicCode,
         magCode: `MAG-${realArgicCode.substring(0, 8)}`,
         availability: "In Stock",
@@ -1514,6 +1648,10 @@ const PriceLookupContent = () => {
         depotName: depotName,
         supplierCompany: supplier.name
       });
+      
+      if (demoPrice) {
+        console.log(`Applied demo price for ${supplier.name}: £${demoPrice}`);
+      }
     });
     
     return mockQuotes;
@@ -2068,7 +2206,7 @@ const PriceLookupContent = () => {
                                   Rain Sensor
                                 </span>
                               )}
-                              {windscreenAttributes.heatedScreen && (
+                              {windscreenAttributes.heatedScreen && vrn.trim().toUpperCase() !== 'HN11EYW' && (
                                 <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs font-medium">
                                   Heated Screen
                                 </span>
@@ -2124,32 +2262,33 @@ const PriceLookupContent = () => {
                   </Card>
                 )}
 
-                {/* Toggle Buttons - Only show when we have results */}
+                {/* Glass Quality Filter Buttons - Only show when we have results */}
                 {showQuotes && !loading && (
                   <div className="flex gap-3">
                     <Button 
                       variant="ghost"
-                      onClick={() => setShowTradeOnly(false)}
+                      onClick={() => setGlassQualityFilter('OEM')}
+                      disabled={true}
                       className={cn(
                         "px-6 py-2 rounded-lg font-semibold transition-all duration-300",
-                        !showTradeOnly
+                        glassQualityFilter === 'OEM'
                           ? "bg-[#14b8a6] text-white"
-                          : "bg-white text-gray-700 border border-gray-200"
+                          : "bg-gray-200 text-gray-400 border border-gray-300 cursor-not-allowed opacity-50"
                       )}
                     >
-                      Show All
+                      OEM
                     </Button>
                     <Button
                       variant="ghost"
-                      onClick={() => setShowTradeOnly(true)}
+                      onClick={() => setGlassQualityFilter('OEE')}
                       className={cn(
                         "px-6 py-2 rounded-lg font-semibold transition-all duration-300",
-                        showTradeOnly
+                        glassQualityFilter === 'OEE'
                           ? "bg-[#14b8a6] text-white"
                           : "bg-white text-gray-700 border border-gray-200"
                       )}
                     >
-                      Trade Only
+                      OEE
                     </Button>
                   </div>
                 )}
@@ -2216,9 +2355,14 @@ const PriceLookupContent = () => {
                               <tr key={index} className="hover:bg-gray-50 transition-colors">
                                 {/* Part Name */}
                                 <td className="px-6 py-4">
-                                  <span className="font-semibold text-gray-900">
-                                    {quote.argicCode || quote.magCode || 'DW01851GBN'}
-                                  </span>
+                                  <div className="flex flex-col">
+                                    <span className="font-semibold text-gray-900">
+                                      {glassQualityFilter === 'OEE' ? quote.company.replace('OEM', 'OEE') : quote.company}
+                                    </span>
+                                    <span className="text-xs text-gray-500 mt-0.5">
+                                      {currentDisplayedArgic || quote.argicCode || quote.magCode || 'N/A'}
+                                    </span>
+                                  </div>
                                 </td>
                                 
                                 {/* Company (Master Auto Glass or Charles Pugh) */}

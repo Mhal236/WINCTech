@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { Home, Briefcase, Calendar, Settings, Car, ShoppingCart, ClipboardList, MessageCircle, MoreHorizontal, X, Sparkles, Package, Globe } from "lucide-react";
+import { Home, Briefcase, Calendar, Settings, Car, ShoppingCart, ClipboardList, MessageCircle, MoreHorizontal, X, Sparkles, Package, Globe, Layout } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { useRoleBasedAccess } from "@/components/auth/RoleBasedAccess";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,7 @@ const secondaryNavItems = [
   { icon: ShoppingCart, label: "Glass Order", href: "/glass-order", requiredRole: "pro-2" },
   { icon: Package, label: "Shop Supplies", href: "/shop-supplies", requiredRole: "pro-2" },
   { icon: Globe, label: "Website", href: "/website", requiredRole: "pro-2" },
+  { icon: Layout, label: "Templates", href: "/templates", requiredRole: "pro-2" },
   { icon: Sparkles, label: "Tony A.I", href: "/tony-ai", requiredRole: "admin" },
   { icon: ClipboardList, label: "History", href: "/history", requiredRole: "pro-1" },
   { icon: Settings, label: "Settings", href: "/settings", requiredRole: "user" },

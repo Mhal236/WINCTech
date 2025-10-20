@@ -19,10 +19,12 @@ const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 
 // Payment Form Component (uses Stripe Elements)
 function CheckoutForm({ 
   total, 
-  onSuccess 
+  onSuccess,
+  agreedToTerms
 }: { 
   total: number;
   onSuccess: (paymentIntentId: string) => void;
+  agreedToTerms: boolean;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -32,6 +34,15 @@ function CheckoutForm({
     e.preventDefault();
 
     if (!stripe || !elements) {
+      return;
+    }
+
+    if (!agreedToTerms) {
+      toast({
+        title: "Terms Required",
+        description: "Please agree to the Terms & Conditions before proceeding",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -68,14 +79,16 @@ function CheckoutForm({
       <PaymentElement />
       <Button
         type="submit"
-        disabled={!stripe || isProcessing}
-        className="w-full bg-[#145484] hover:bg-[#145484]/90 h-12 text-lg font-semibold btn-glisten"
+        disabled={!stripe || isProcessing || !agreedToTerms}
+        className="w-full bg-[#145484] hover:bg-[#145484]/90 h-12 text-lg font-semibold btn-glisten disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isProcessing ? (
           <>
             <LoaderIcon className="h-4 w-4 mr-2 animate-spin" />
             Processing...
           </>
+        ) : !agreedToTerms ? (
+          'Please Agree to Terms & Conditions'
         ) : (
           `Pay £${total.toFixed(2)}`
         )}
@@ -506,7 +519,7 @@ export default function Checkout() {
                         }
                       }
                     }}>
-                      <CheckoutForm total={total} onSuccess={handlePaymentSuccess} />
+                      <CheckoutForm total={total} onSuccess={handlePaymentSuccess} agreedToTerms={agreedToTerms} />
                     </Elements>
                   ) : (
                     <div className="text-center py-8 text-gray-500">
@@ -549,33 +562,45 @@ export default function Checkout() {
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-2 mb-4 sm:mb-6">
-                    <Checkbox
-                      id="terms"
-                      checked={agreedToTerms}
-                      onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
-                      className="mt-0.5"
-                    />
-                    <label htmlFor="terms" className="text-xs sm:text-sm text-gray-600 cursor-pointer leading-relaxed">
-                      I have read and agree to the{' '}
-                      <a href="#" className="text-[#145484] hover:underline">
-                        Terms & Conditions
-                      </a>{' '}
-                      and{' '}
-                      <a href="#" className="text-[#145484] hover:underline">
-                        Privacy Policy
-                      </a>
-                      .
-                    </label>
-                  </div>
-
-                  {!agreedToTerms && (
-                    <div className="p-3 sm:p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                      <p className="text-xs sm:text-sm text-amber-700">
-                        Please agree to the Terms & Conditions to proceed with payment
-                      </p>
+                  {/* Terms & Conditions - Highlighted */}
+                  <div className={`p-4 rounded-lg border-2 transition-all ${
+                    !agreedToTerms 
+                      ? 'bg-amber-50 border-amber-400 shadow-lg animate-pulse' 
+                      : 'bg-white border-gray-200'
+                  }`}>
+                    <div className="flex items-start gap-3">
+                      <Checkbox
+                        id="terms"
+                        checked={agreedToTerms}
+                        onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
+                        className="mt-1 h-5 w-5 border-2"
+                      />
+                      <div className="flex-1">
+                        <label 
+                          htmlFor="terms" 
+                          className={`text-sm font-medium cursor-pointer leading-relaxed block ${
+                            !agreedToTerms ? 'text-amber-900' : 'text-gray-700'
+                          }`}
+                        >
+                          I have read and agree to the{' '}
+                          <a href="#" className="text-[#145484] hover:underline font-semibold">
+                            Terms & Conditions
+                          </a>{' '}
+                          and{' '}
+                          <a href="#" className="text-[#145484] hover:underline font-semibold">
+                            Privacy Policy
+                          </a>
+                          <span className="text-red-600 ml-1">*</span>
+                        </label>
+                        
+                        {!agreedToTerms && (
+                          <p className="text-xs text-amber-700 mt-2 font-medium">
+                            ⚠️ You must agree to the Terms & Conditions before completing your purchase
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  )}
+                  </div>
                 </CardContent>
               </Card>
             </div>

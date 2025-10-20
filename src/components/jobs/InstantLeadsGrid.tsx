@@ -63,30 +63,47 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
     return () => clearInterval(interval);
   }, [jobType]);
 
-  const fetchPurchaseCounts = async (jobIds: string[]) => {
-    if (jobIds.length === 0) return;
+  const fetchPurchaseCounts = async (jobIds: string[], leadIds: string[] = []) => {
+    if (jobIds.length === 0 && leadIds.length === 0) return;
     
     try {
-      // Fetch purchase counts for all jobs
-      const { data, error } = await supabase
-        .from('job_assignments')
-        .select('job_id')
-        .in('job_id', jobIds);
+      const counts = new Map<string, number>();
+      
+      // Fetch purchase counts for old jobs (from job_assignments)
+      if (jobIds.length > 0) {
+        const { data, error } = await supabase
+          .from('job_assignments')
+          .select('job_id')
+          .in('job_id', jobIds);
 
-      if (error) {
-        console.error('Error fetching purchase counts:', error);
-        return;
+        if (error) {
+          console.error('Error fetching job purchase counts:', error);
+        } else if (data) {
+          data.forEach(assignment => {
+            const currentCount = counts.get(assignment.job_id) || 0;
+            counts.set(assignment.job_id, currentCount + 1);
+          });
+        }
       }
 
-      if (data) {
-        // Count purchases per job
-        const counts = new Map<string, number>();
-        data.forEach(assignment => {
-          const currentCount = counts.get(assignment.job_id) || 0;
-          counts.set(assignment.job_id, currentCount + 1);
-        });
-        setPurchaseCounts(counts);
+      // Fetch purchase counts for leads from leads table (from lead_purchases)
+      if (leadIds.length > 0) {
+        const { data, error } = await supabase
+          .from('lead_purchases')
+          .select('lead_id')
+          .in('lead_id', leadIds);
+
+        if (error) {
+          console.error('Error fetching lead purchase counts:', error);
+        } else if (data) {
+          data.forEach(purchase => {
+            const currentCount = counts.get(purchase.lead_id) || 0;
+            counts.set(purchase.lead_id, currentCount + 1);
+          });
+        }
       }
+
+      setPurchaseCounts(counts);
     } catch (error) {
       console.error('Error in fetchPurchaseCounts:', error);
     }
@@ -119,11 +136,14 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
         );
         
         // Also fetch leads from leads table with status='new' for board/bids types
+        // Only show WindscreenCompare leads (not manual leads from price_estimator/price_lookup)
+        // Manual leads are only visible to the technician who created them
         if (jobType === 'board' || jobType === 'bids') {
           const { data: leadsData, error: leadsError } = await supabase
             .from('leads')
             .select('*')
-            .eq('status', 'new');
+            .eq('status', 'new')
+            .not('source', 'in', '(price_estimator,price_lookup)');
           
           if (!leadsError && leadsData) {
             console.log('🟢 Found leads from leads table:', leadsData.length);
@@ -230,6 +250,11 @@ export const JobsGrid: React.FC<JobsGridProps> = ({ onJobAccepted, jobType = 'bo
         console.log(`Filtered ${jobType} jobs:`, filteredJobs);
         setJobs(filteredJobs);
         setFilteredJobs(filteredJobs);
+
+        // Fetch purchase counts for all jobs and leads
+        const jobIds = filteredJobs.filter(job => !job.isFromLeadsTable).map(job => job.id);
+        const leadIds = filteredJobs.filter(job => job.isFromLeadsTable).map(job => job.id);
+        fetchPurchaseCounts(jobIds, leadIds);
       }
     } catch (error) {
       console.error('Error in fetchJobs:', error);

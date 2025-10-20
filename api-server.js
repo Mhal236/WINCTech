@@ -296,14 +296,14 @@ app.get('/api/vehicle/glass/:vrn', async (req, res) => {
       console.log('🎯 DEMO MODE: Returning demonstration data for VRN HN11EYW');
       
       const demoVehicleDetails = {
-        make: "AUDI",
-        model: "A3",
+        make: "BMW",
+        model: "3 SERIES",
         year: "2011",
-        bodyStyle: "HATCHBACK",
-        variant: "2.0 TDI",
+        bodyStyle: "SALOON",
+        variant: "320D",
         fuel: "Diesel",
         transmission: "Manual",
-        doors: "5",
+        doors: "4",
         vin: "DEMO12345678VIN",
         vrn: "HN11EYW",
         argicCode: "2448ACCGNMV1B",
@@ -312,15 +312,15 @@ app.get('/api/vehicle/glass/:vrn', async (req, res) => {
           {
             fullCode: "2448ACCGNMV1B",
             shortCode: "2448",
-            description: "Windscreen - Rain Sensor - Camera - Acoustic Laminated Glass",
+            description: "Windscreen - Rain Sensor - Acoustic Laminated Glass",
             price: 285.50,
             qty: 5,
             hasSensor: true,
-            hasCamera: true,
+            hasCamera: false,
             isAcoustic: true,
             features: {
               sensor: true,
-              camera: true,
+              camera: false,
               acoustic: true
             }
           },
@@ -351,15 +351,15 @@ app.get('/api/vehicle/glass/:vrn', async (req, res) => {
           {
             fullCode: "2448BGDHAB1F",
             shortCode: "2448",
-            description: "Rear Screen - Backlight - Heated Glass",
+            description: "Rear Screen - Backlight",
             price: 165.00,
             qty: 2,
             hasSensor: false,
             hasCamera: false,
-            isHeated: true,
+            isHeated: false,
             features: {
               sensor: false,
-              heated: true
+              heated: false
             }
           }
         ],

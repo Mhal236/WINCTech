@@ -387,7 +387,7 @@ const PriceEstimator = () => {
 
       const quoteId = generateQuoteId();
 
-      // 2. Create lead in leads table
+      // 2. Create lead in leads table (assigned to the creating technician)
       const { data: leadData, error: leadError } = await supabase
         .from('leads')
         .insert([{
@@ -412,7 +412,7 @@ const PriceEstimator = () => {
           credits_cost: 1,
           status: 'new',
           source: 'price_estimator',
-          assigned_technician_id: null,
+          assigned_technician_id: technicianId, // Assign to creating technician
           appointment_date: format(appointmentDate, 'yyyy-MM-dd'),
           time_slot: appointmentTime,
           created_at: new Date().toISOString()

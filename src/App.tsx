@@ -37,6 +37,7 @@ const LandingPage = lazy(() => import("./pages/LandingPage"));
 const DebugAuth = lazy(() => import("./pages/DebugAuth"));
 const TonyAI = lazy(() => import("./pages/TonyAI"));
 const ShopSupplies = lazy(() => import("./pages/ShopSupplies"));
+const Templates = lazy(() => import("./pages/Templates"));
 const Website = lazy(() => import("./pages/Website"));
 const TopUp = lazy(() => import("./pages/TopUp"));
 const Checkout = lazy(() => import("./pages/Checkout"));
@@ -202,6 +203,11 @@ const AnimatedRoutes = () => {
         <Route path="/website" element={
           <ProtectedRoute requiredRole="admin">
             <Website />
+          </ProtectedRoute>
+        } />
+        <Route path="/templates" element={
+          <ProtectedRoute requiredRole="admin">
+            <Templates />
           </ProtectedRoute>
         } />
         <Route path="/topup" element={

@@ -21,9 +21,10 @@ import {
   Car,
   Zap,
   ListTodo,
+  Layout,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { LogoutButton } from "@/components/auth/LogoutButton";
@@ -44,6 +45,17 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
   const { hasPermission, isAdmin, user } = useRoleBasedAccess();
   const { signOut } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  
+  // Auto-expand website submenu if on website or templates page
+  const isWebsiteSectionActive = location.pathname === '/website' || location.pathname === '/templates';
+  const [websiteExpanded, setWebsiteExpanded] = useState(isWebsiteSectionActive);
+
+  // Keep website submenu expanded when navigating between website pages
+  useEffect(() => {
+    if (isWebsiteSectionActive) {
+      setWebsiteExpanded(true);
+    }
+  }, [isWebsiteSectionActive]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -79,9 +91,15 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
     { name: "Shop Supplies", href: "/shop-supplies", icon: Package, requiredRole: "pro-2" },
   ];
 
-  const websiteNavigation = [
-    { name: "Website", href: "/website", icon: Globe, requiredRole: "pro-2" },
-  ];
+  const websiteNavigation = {
+    name: "Website",
+    href: "/website",
+    icon: Globe,
+    requiredRole: "pro-2",
+    submenu: [
+      { name: "Templates", href: "/templates", icon: Layout, requiredRole: "pro-2" },
+    ],
+  };
 
   const preSettingsNavigation = [
     { name: "History", href: "/history", icon: ClipboardList, requiredRole: "pro-1" },
@@ -157,6 +175,7 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
 
   const renderSubmenuNavigation = (parentItem: any, isExpanded: boolean, setExpanded: (expanded: boolean) => void) => {
     const hasAccess = hasPermission(parentItem.requiredRole);
+    const isParentActive = location.pathname === parentItem.href;
     const isAnySubmenuActive = parentItem.submenu?.some((subItem: any) => location.pathname === subItem.href);
 
     return (
@@ -165,31 +184,41 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
           <Tooltip>
             <TooltipTrigger asChild>
               {hasAccess ? (
-                <button
-                  onClick={() => setExpanded(!isExpanded)}
-                  className={cn(
-                    "group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150 w-full",
-                    "hover:bg-gray-50 hover:text-gray-900",
-                    isAnySubmenuActive
-                      ? "bg-gray-100 text-gray-900 font-semibold" 
-                      : "text-gray-600",
-                    collapsed && "justify-center px-2"
-                  )}
-                >
-                  <parentItem.icon className={cn(
-                    "h-5 w-5 flex-shrink-0 transition-colors",
-                    isAnySubmenuActive ? "text-gray-700" : "text-gray-400 group-hover:text-gray-600"
-                  )} />
-                  {!collapsed && (
-                    <>
+                <div className="relative">
+                  <Link
+                    to={parentItem.href}
+                    className={cn(
+                      "group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150",
+                      "hover:bg-gray-50 hover:text-gray-900",
+                      isParentActive || isAnySubmenuActive
+                        ? "bg-gray-100 text-gray-900 font-semibold" 
+                        : "text-gray-600",
+                      collapsed && "justify-center px-2"
+                    )}
+                  >
+                    <parentItem.icon className={cn(
+                      "h-5 w-5 flex-shrink-0 transition-colors",
+                      isParentActive || isAnySubmenuActive ? "text-gray-700" : "text-gray-400 group-hover:text-gray-600"
+                    )} />
+                    {!collapsed && (
                       <span className="truncate">{parentItem.name}</span>
+                    )}
+                  </Link>
+                  {!collapsed && (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setExpanded(!isExpanded);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-200 rounded"
+                    >
                       <ChevronDown className={cn(
-                        "ml-auto h-4 w-4 transition-transform duration-200",
+                        "h-4 w-4 transition-transform duration-200 text-gray-400",
                         isExpanded && "rotate-180"
                       )} />
-                    </>
+                    </button>
                   )}
-                </button>
+                </div>
               ) : (
                 <div
                   className={cn(
@@ -331,7 +360,7 @@ export const Sidebar = ({ children }: { children?: React.ReactNode }) => {
 
             {/* Website Navigation */}
             <div className="p-3 space-y-1">
-              {websiteNavigation.map((item) => renderNavItem(item))}
+              {renderSubmenuNavigation(websiteNavigation, websiteExpanded, setWebsiteExpanded)}
             </div>
 
           </div>

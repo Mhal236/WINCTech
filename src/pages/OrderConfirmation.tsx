@@ -367,7 +367,6 @@ const OrderConfirmation = () => {
           onSuccess={fetchOrder}
         />
       )}
-      </div>
       </PageTransition>
     </DashboardLayout>
   );

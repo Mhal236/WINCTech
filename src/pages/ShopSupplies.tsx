@@ -8,98 +8,103 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ExternalLink, Star, Search, Filter, Package, Truck, Shield, Award } from "lucide-react";
 import { SlidePageTransition } from "@/components/PageTransition";
 
-// Dummy promotional products data
+// Professional windscreen supplies from carglasstools.com
 const dummyProducts = [
   {
     id: 1,
-    name: "Professional Glass Cleaner Kit",
-    description: "Premium glass cleaning solution with microfiber cloths and squeegee",
-    price: 29.99,
-    originalPrice: 39.99,
-    image: "/placeholder.svg",
-    category: "Cleaning",
-    rating: 4.8,
-    reviews: 156,
+    name: "DuPont Betaseal 1580 Adhesive Sausage Kit",
+    description: "Premium polyurethane adhesive for professional windscreen installation",
+    price: 0,
+    originalPrice: null,
+    image: "/images/glass/Dupont1580AdhesiveSausageKit1_1024x1024.webp",
+    category: "Adhesives",
+    rating: 4.9,
+    reviews: 287,
     inStock: true,
     isPromo: true,
-    promoText: "25% OFF",
-    features: ["Streak-free formula", "Professional grade", "Includes 3 cloths"]
+    promoText: "PROFESSIONAL",
+    features: ["Fast curing", "Weather resistant", "OEM approved"],
+    url: "https://carglasstools.com/collections/adhesive-polyurethane/products/dupont-betaseal-1580-adhesive-sausage-kit"
   },
   {
     id: 2,
-    name: "Windscreen Protection Film",
-    description: "High-quality protective film for windscreen installation",
-    price: 15.50,
+    name: "WRD Orange Bat Cut Out Tool Kit",
+    description: "Complete wire and fibre cut out tool kit for windscreen removal",
+    price: 0,
     originalPrice: null,
-    image: "/placeholder.svg",
-    category: "Protection",
-    rating: 4.6,
-    reviews: 89,
+    image: "/images/glass/WrdOrangeBatCut-OutTool_1024x1024.webp",
+    category: "Tools",
+    rating: 4.8,
+    reviews: 143,
     inStock: true,
     isPromo: false,
-    features: ["Easy application", "Bubble-free", "Removable"]
+    features: ["Ergonomic design", "Professional grade", "Complete kit"],
+    url: "http://carglasstools.com/collections/wire-fibre-cut-out-tools/products/wrd-orange-bat-cut-out-tool-kit"
   },
   {
     id: 3,
-    name: "Technician Tool Set",
-    description: "Complete set of specialized tools for windscreen installation",
-    price: 149.99,
-    originalPrice: 199.99,
-    image: "/placeholder.svg",
-    category: "Tools",
-    rating: 4.9,
-    reviews: 234,
+    name: "SensorTack 2",
+    description: "Advanced adhesive gel pad for sensor and component mounting",
+    price: 0,
+    originalPrice: null,
+    image: "/images/glass/Sensortack2.webp",
+    category: "Gels & Pads",
+    rating: 4.7,
+    reviews: 98,
     inStock: true,
-    isPromo: true,
-    promoText: "BESTSELLER",
-    features: ["12-piece set", "Professional quality", "Carrying case included"]
+    isPromo: false,
+    features: ["Secure mounting", "Reusable", "Temperature resistant"],
+    url: "https://carglasstools.com/collections/gels-pads/products/sensortack-2"
   },
   {
     id: 4,
-    name: "Adhesive Primer Pen",
-    description: "High-performance primer for optimal adhesion",
-    price: 8.99,
+    name: "WRD Spider Cutting Line",
+    description: "Premium cutting wire for precise windscreen removal",
+    price: 0,
     originalPrice: null,
-    image: "/placeholder.svg",
-    category: "Adhesives",
-    rating: 4.7,
-    reviews: 67,
+    image: "/images/glass/WrdSpiderCuttingLine96m_1024x1024.webp",
+    category: "Wires & Cutting",
+    rating: 4.6,
+    reviews: 176,
     inStock: true,
     isPromo: false,
-    features: ["Fast-acting", "Weather resistant", "Easy application"]
+    features: ["High strength", "Precision cutting", "Professional quality"],
+    url: "https://carglasstools.com/collections/wires-cutting-lines/products/wrd-spider-cutting-line"
   },
   {
     id: 5,
-    name: "Safety Equipment Bundle",
-    description: "Complete safety kit including gloves, glasses, and protective gear",
-    price: 45.00,
-    originalPrice: 60.00,
-    image: "/placeholder.svg",
-    category: "Safety",
-    rating: 4.5,
-    reviews: 123,
+    name: "Betaclean 3350 Solvent Bonding Cleaner",
+    description: "Industrial-grade cleaning solvent for optimal bonding surfaces",
+    price: 0,
+    originalPrice: null,
+    image: "/images/glass/Dupont_Betaclean_3350_Surface_Cleaner_1ltr_e719fd54-e385-41ed-8e1b-2a98267349d8_1024x1024.webp",
+    category: "Cleaning",
+    rating: 4.9,
+    reviews: 201,
     inStock: true,
     isPromo: true,
-    promoText: "LIMITED TIME",
-    features: ["CE certified", "Multiple sizes", "High visibility"]
+    promoText: "BESTSELLER",
+    features: ["Fast evaporation", "Professional formula", "OEM recommended"],
+    url: "https://carglasstools.com/collections/cleaning-supplies/products/betaclean-3350-solvent-bonding-cleaner"
   },
   {
     id: 6,
-    name: "Mobile Workstation Mat",
-    description: "Non-slip mat for organizing tools and protecting surfaces",
-    price: 24.99,
+    name: "Esprit Resin Pack",
+    description: "Professional windscreen repair resin for chip and crack repairs",
+    price: 0,
     originalPrice: null,
-    image: "/placeholder.svg",
-    category: "Accessories",
-    rating: 4.4,
-    reviews: 45,
-    inStock: false,
+    image: "/images/glass/resin-packs_1024x1024.webp",
+    category: "Repair",
+    rating: 4.8,
+    reviews: 134,
+    inStock: true,
     isPromo: false,
-    features: ["Water resistant", "Easy to clean", "Portable design"]
+    features: ["Crystal clear finish", "UV resistant", "Professional results"],
+    url: "https://carglasstools.com/collections/windscreen-repair/products/esprit-resin-pack"
   }
 ];
 
-const categories = ["All", "Cleaning", "Protection", "Tools", "Adhesives", "Safety", "Accessories"];
+const categories = ["All", "Adhesives", "Tools", "Gels & Pads", "Wires & Cutting", "Cleaning", "Repair"];
 
 export default function ShopSupplies() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -239,8 +244,12 @@ export default function ShopSupplies() {
                         {product.promoText}
                       </Badge>
                     )}
-                    <div className="aspect-square bg-gray-100 rounded-lg mb-4 flex items-center justify-center">
-                      <Package className="h-16 w-16 text-gray-400" />
+                    <div className="aspect-square bg-white rounded-lg mb-4 flex items-center justify-center overflow-hidden border border-gray-100">
+                      <img 
+                        src={product.image} 
+                        alt={product.name}
+                        className="w-full h-full object-contain p-4"
+                      />
                     </div>
                     <CardTitle className="text-lg">{product.name}</CardTitle>
                     <CardDescription className="text-sm">
@@ -277,16 +286,22 @@ export default function ShopSupplies() {
 
                   <CardFooter className="flex items-center justify-between pt-4">
                     <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <span className="text-2xl font-bold text-gray-900">
-                          £{product.price.toFixed(2)}
-                        </span>
-                        {product.originalPrice && (
-                          <span className="text-sm text-gray-500 line-through">
-                            £{product.originalPrice.toFixed(2)}
+                      {product.price > 0 ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl font-bold text-gray-900">
+                            £{product.price.toFixed(2)}
                           </span>
-                        )}
-                      </div>
+                          {product.originalPrice && (
+                            <span className="text-sm text-gray-500 line-through">
+                              £{product.originalPrice.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-600 font-medium">
+                          View pricing on website
+                        </span>
+                      )}
                       {!product.inStock && (
                         <span className="text-sm text-red-600 font-medium">Out of Stock</span>
                       )}
@@ -296,9 +311,9 @@ export default function ShopSupplies() {
                       asChild
                       className="flex items-center gap-2 btn-glisten"
                     >
-                      <a href="https://carglasstools.com" target="_blank" rel="noopener noreferrer">
+                      <a href={product.url} target="_blank" rel="noopener noreferrer">
                         <ExternalLink className="h-4 w-4" />
-                        Go to website
+                        View Product
                       </a>
                     </Button>
                   </CardFooter>
