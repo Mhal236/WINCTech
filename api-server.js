@@ -1739,6 +1739,7 @@ app.post('/api/technician/jobs', async (req, res) => {
         *,
         MasterCustomer (
           id,
+          quote_id,
           full_name,
           mobile,
           location,
@@ -1759,7 +1760,8 @@ app.post('/api/technician/jobs', async (req, res) => {
           adas_calibration,
           delivery_type,
           timeline,
-          duration
+          duration,
+          job_progress
         )
       `)
       .eq('technician_id', technicianId)
