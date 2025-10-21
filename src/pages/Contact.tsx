@@ -193,6 +193,7 @@ const Contact = () => {
           </div>
         </div>
         </div>
+        </div>
       </PageTransition>
     </DashboardLayout>
   );
