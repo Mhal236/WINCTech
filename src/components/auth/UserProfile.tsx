@@ -108,8 +108,8 @@ export function UserProfile({
         collapsed ? "justify-center" : "gap-3"
       )}>
         <Avatar className="h-10 w-10 flex-shrink-0">
-          <AvatarImage src="" alt={displayName} />
-          <AvatarFallback>{getInitials()}</AvatarFallback>
+          <AvatarImage src={user?.photo_url || ""} alt={displayName} className="object-cover" />
+          <AvatarFallback className="bg-gradient-to-br from-[#145484] to-[#0FB8C1] text-white">{getInitials()}</AvatarFallback>
         </Avatar>
         
         {!collapsed && (

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TwoFactorSettings } from "@/components/auth/TwoFactorSettings";
 import { CashoutSettings } from "@/components/settings/CashoutSettings";
+import { ProfilePhotoUpload } from "@/components/settings/ProfilePhotoUpload";
 import { MAGAuthProvider } from "@/contexts/MAGAuthContext";
 import { Settings as SettingsIcon, User, Bell, Lock, CreditCard, Crown, Calendar, AlertTriangle, DollarSign, Loader2, Plug, CheckCircle, XCircle, Bot } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -395,6 +396,9 @@ const Settings = () => {
 
           {/* General Tab */}
           <TabsContent value="general" className="space-y-4 sm:space-y-6 data-[state=active]:animate-fadeIn">
+            {/* Profile Photo Upload */}
+            <ProfilePhotoUpload />
+
             <Card className="hover:shadow-lg transition-shadow duration-200">
               <CardHeader className="flex flex-row items-center space-y-0 pb-2 mobile-card">
                 <User className="h-5 w-5 sm:h-6 sm:w-6 text-[#145484] mr-2" />

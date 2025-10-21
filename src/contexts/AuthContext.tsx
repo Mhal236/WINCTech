@@ -41,6 +41,7 @@ interface User {
   verified_by?: string;
   rejection_reason?: string;
   credits?: number;
+  photo_url?: string;
 }
 
 // Use Supabase Session type directly
@@ -124,7 +125,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 verified_at: dbUser.verified_at,
                 verified_by: dbUser.verified_by,
                 rejection_reason: dbUser.rejection_reason,
-                credits: dbUser.credits
+                credits: dbUser.credits,
+                photo_url: dbUser.photo_url
               };
             } else {
               console.log('🔵 No database user found, creating new user in app_users table');
@@ -175,7 +177,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         verified_at: existingUser.verified_at,
                         verified_by: existingUser.verified_by,
                         rejection_reason: existingUser.rejection_reason,
-                        credits: existingUser.credits
+                        credits: existingUser.credits,
+                        photo_url: existingUser.photo_url
                       };
                     } else {
                       // Still fallback to basic user object
@@ -210,7 +213,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     verified_at: insertedUser.verified_at,
                     verified_by: insertedUser.verified_by,
                     rejection_reason: insertedUser.rejection_reason,
-                    credits: insertedUser.credits
+                    credits: insertedUser.credits,
+                    photo_url: insertedUser.photo_url
                   };
                 }
               } catch (createError) {
@@ -304,7 +308,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 verified_at: userData.verified_at,
                 verified_by: userData.verified_by,
                 rejection_reason: userData.rejection_reason,
-                credits: userData.credits
+                credits: userData.credits,
+                photo_url: userData.photo_url
               };
             } else {
               console.log('🔵 User not found in app_users or timeout, using session data only');
@@ -409,7 +414,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     verified_at: userData.verified_at,
                     verified_by: userData.verified_by,
                     rejection_reason: userData.rejection_reason,
-                    credits: userData.credits
+                    credits: userData.credits,
+                    photo_url: userData.photo_url
                   };
                 } else {
                   console.log('🔵 No database record found or timeout, using OAuth data as non-verified');
@@ -698,7 +704,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           verified_at: updatedUserData.verified_at,
           verified_by: updatedUserData.verified_by,
           rejection_reason: updatedUserData.rejection_reason,
-          credits: credits
+          credits: credits,
+          photo_url: updatedUserData.photo_url
         };
         
         setUser(updatedUser);
