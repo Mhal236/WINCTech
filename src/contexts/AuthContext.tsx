@@ -5,25 +5,55 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://julpwjxzrlkbxdbphrdy.supabase.co";
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1bHB3anh6cmxrYnhkYnBocmR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc0MTQ4NDUsImV4cCI6MjA1Mjk5MDg0NX0.rynZAq6bjPlpfyTaxHYcs8FdVdTo_gy95lazi2Kt5RY";
 
-// Global singleton to prevent multiple instances
+// Global singleton to prevent multiple instances - SHARED with supabase-client.ts
 declare global {
   interface Window {
-    __authSupabaseInstance?: any;
+    __supabaseInstance: any;
+    __loggedKeys: Set<string>;
   }
 }
 
+// Use the SAME singleton instance as supabase-client.ts to prevent multiple instances warning
 function getAuthSupabaseClient() {
-  if (typeof window !== 'undefined' && !window.__authSupabaseInstance) {
-    window.__authSupabaseInstance = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  if (typeof window !== 'undefined' && !window.__supabaseInstance) {
+    console.log('🔵 AuthContext: Creating new Supabase singleton instance');
+    window.__supabaseInstance = createClient(SUPABASE_URL, SUPABASE_KEY, {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true,
-        flowType: 'pkce'
+        flowType: 'pkce',
+        storage: {
+          getItem: (key: string) => {
+            if (typeof window !== 'undefined') {
+              const value = window.localStorage.getItem(key);
+              // Only log once per key to avoid spam
+              if (!window.__loggedKeys) window.__loggedKeys = new Set();
+              if (!window.__loggedKeys.has(key)) {
+                console.log(`🔵 Storage getItem: ${key} = ${value ? 'found' : 'null'}`);
+                window.__loggedKeys.add(key);
+              }
+              return value;
+            }
+            return null;
+          },
+          setItem: (key: string, value: string) => {
+            if (typeof window !== 'undefined') {
+              console.log(`🔵 Storage setItem: ${key} = ${value ? 'set' : 'null'}`);
+              window.localStorage.setItem(key, value);
+            }
+          },
+          removeItem: (key: string) => {
+            if (typeof window !== 'undefined') {
+              console.log(`🔵 Storage removeItem: ${key}`);
+              window.localStorage.removeItem(key);
+            }
+          }
+        }
       }
     });
   }
-  return typeof window !== 'undefined' ? window.__authSupabaseInstance : null;
+  return typeof window !== 'undefined' ? window.__supabaseInstance : null;
 }
 
 const supabase = getAuthSupabaseClient();
