@@ -76,6 +76,7 @@ const Team = () => {
             </Card>
           ))}
         </div>
+        </div>
       </div>
       </div>
       </PageTransition>
