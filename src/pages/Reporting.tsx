@@ -235,6 +235,7 @@ const Reporting = () => {
             </CardContent>
           </Card>
         </div>
+        </div>
       </div>
       </PageTransition>
     </DashboardLayout>
