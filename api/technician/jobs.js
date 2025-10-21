@@ -18,16 +18,28 @@ export default async function handler(req, res) {
     const supabaseUrl = process.env.VITE_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+    console.log('Environment check:', {
+      hasSupabaseUrl: !!supabaseUrl,
+      hasServiceKey: !!supabaseServiceKey,
+      bodyReceived: !!req.body
+    });
+
     if (!supabaseUrl || !supabaseServiceKey) {
       console.error('Missing Supabase configuration');
       return res.status(500).json({ 
         success: false, 
-        error: 'Server configuration error' 
+        error: 'Server configuration error',
+        details: {
+          hasSupabaseUrl: !!supabaseUrl,
+          hasServiceKey: !!supabaseServiceKey
+        }
       });
     }
 
     // Dynamically import Supabase client
+    console.log('Importing Supabase client...');
     const { createClient } = await import('@supabase/supabase-js');
+    console.log('Supabase client imported successfully');
     
     // Create Supabase client with service role key for admin access
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
@@ -92,9 +104,12 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, data });
   } catch (error) {
     console.error('Error in /api/technician/jobs:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return res.status(500).json({ 
       success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      type: error instanceof Error ? error.constructor.name : typeof error
     });
   }
 }
