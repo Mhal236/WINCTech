@@ -2,14 +2,14 @@
 export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
-  // Only allow POST requests
-  if (req.method !== 'POST') {
+  // Accept both GET and POST requests
+  if (req.method !== 'POST' && req.method !== 'GET') {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
 
@@ -49,12 +49,20 @@ export default async function handler(req, res) {
       }
     });
 
-    const { technicianId } = req.body || {};
+    // Get technicianId from body (POST) or query params (GET)
+    const technicianId = req.method === 'POST' 
+      ? req.body?.technicianId 
+      : req.query?.technicianId;
+    
+    console.log('Received technicianId:', technicianId, 'from method:', req.method);
     
     if (!technicianId) {
       return res.status(400).json({ 
         success: false, 
-        error: 'Missing technicianId' 
+        error: 'Missing technicianId',
+        method: req.method,
+        body: req.body,
+        query: req.query
       });
     }
 
