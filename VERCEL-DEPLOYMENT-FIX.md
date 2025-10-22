@@ -28,8 +28,8 @@ Add or update these environment variables:
 #### Required Environment Variables:
 
 ```bash
-# API Routing
-VITE_USE_LOCAL_SERVER=false
+# API Routing - MOST IMPORTANT!
+VITE_API_MODE=vercel
 
 # MAG API Credentials
 MAG_LOGIN=Q-100
@@ -51,7 +51,10 @@ STRIPE_SECRET_KEY=<your-stripe-secret-key>
 
 #### Important Notes:
 
-1. **`VITE_USE_LOCAL_SERVER=false`** - This is the most critical one! It tells the app to use Vercel's serverless functions instead of localhost.
+1. **`VITE_API_MODE=vercel`** - This is the most critical one! It tells the app to use Vercel's serverless functions instead of localhost or Railway.
+   - `vercel` = Use Vercel serverless functions (recommended for Vercel deployment)
+   - `local` = Use localhost:3000 (for local development)
+   - `railway` = Use Railway API server (if you have a separate API server)
 
 2. **MAG API Credentials** - Replace with your actual Master Auto Glass credentials if different.
 
@@ -93,10 +96,12 @@ If you still have issues:
 
 ## Files Changed
 
-- Created: `/api/health.js`
-- Created: `/api/vehicle/glass/[vrn].js`
-- Created: `/api/stock-query.js`
-- Created: `/api/glass-availability.js`
+- **Created**: `/api/health.js` - Vercel serverless health check endpoint
+- **Created**: `/api/vehicle/glass/[vrn].js` - Vercel serverless vehicle glass data endpoint
+- **Created**: `/api/stock-query.js` - Vercel serverless stock query endpoint
+- **Created**: `/api/glass-availability.js` - Vercel serverless glass availability endpoint
+- **Updated**: `/src/pages/PriceLookup.tsx` - Added support for `VITE_API_MODE` environment variable
+- **Updated**: `/index.html` - Updated Content Security Policy to allow Railway and API URLs
 
-All existing local development files remain unchanged.
+All existing local development files remain unchanged and will continue to work with `VITE_API_MODE=local`.
 

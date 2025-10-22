@@ -214,21 +214,36 @@ const PriceLookupContent = () => {
   const RAILWAY_API_URL = import.meta.env.VITE_API_URL_PRODUCTION || 'https://function-bun-production-7f7b.up.railway.app';
   const LOCAL_API_URL = import.meta.env.VITE_API_URL_LOCAL || 'http://localhost:3000';
   
-  // Use local server based on environment variable or default to true for development
-  const USE_LOCAL_SERVER = import.meta.env.VITE_USE_LOCAL_SERVER === 'false' ? false : true;
+  // Determine which API to use:
+  // - 'local' = localhost:3000 (for local development)
+  // - 'vercel' = Vercel serverless functions (for Vercel deployment)
+  // - 'railway' = Railway API (if you have a separate API server)
+  const API_MODE = import.meta.env.VITE_API_MODE || (import.meta.env.DEV ? 'local' : 'vercel');
   
   // Debug environment variables (only in development)
   if (import.meta.env.DEV) {
     console.log('Environment Variables:');
+    console.log('- VITE_API_MODE:', import.meta.env.VITE_API_MODE);
     console.log('- VITE_API_URL_PRODUCTION:', import.meta.env.VITE_API_URL_PRODUCTION);
     console.log('- VITE_API_URL_LOCAL:', import.meta.env.VITE_API_URL_LOCAL);
-    console.log('- VITE_USE_LOCAL_SERVER:', import.meta.env.VITE_USE_LOCAL_SERVER);
-    console.log('- Using API URL:', USE_LOCAL_SERVER ? LOCAL_API_URL : RAILWAY_API_URL);
+    console.log('- Using API mode:', API_MODE);
   }
   
   // Utility function to get the appropriate API URL
   const getApiUrl = (endpoint: string): string => {
-    const url = USE_LOCAL_SERVER ? `${LOCAL_API_URL}${endpoint}` : `${RAILWAY_API_URL}${endpoint}`;
+    let url: string;
+    
+    if (API_MODE === 'local') {
+      // Local development with api-server.js
+      url = `${LOCAL_API_URL}${endpoint}`;
+    } else if (API_MODE === 'railway') {
+      // External Railway API server
+      url = `${RAILWAY_API_URL}${endpoint}`;
+    } else {
+      // Vercel serverless functions (use relative URLs)
+      url = endpoint;
+    }
+    
     console.log(`API Request to: ${url}`);
     return url;
   };
