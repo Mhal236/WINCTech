@@ -15,8 +15,7 @@ When searching for this VRN on the glass-order page, the system will automatical
 
 1. **Windscreen** - ARGIC: `2448ACCGNMV1B`
    - Rain Sensor badge ✓
-   - Camera badge ✓
-   - Description: "Windscreen - Rain Sensor - Camera - Acoustic Laminated Glass"
+   - Description: "Windscreen - Rain Sensor - Acoustic Laminated Glass"
    - Price: £285.50
    - Stock: 5 units
 
@@ -40,13 +39,12 @@ When searching for this VRN on the glass-order page, the system will automatical
 ### 1. Demo Data in API Server (`api-server.js`)
 - Hardcoded response for VRN `HN11EYW`
 - Returns complete vehicle and glass data without requiring external API calls
-- Glass option includes sensor and camera detection flags
+- Glass option includes sensor detection flags
 
 ### 2. Auto-Detection of Windscreen Features (`src/pages/PriceLookup.tsx`)
 - Automatically scans glass options for feature keywords:
   - **Rain Sensor**: Detects "rain sensor", "sensor", "rs", or `hasSensor: true`
   - **Heated Screen**: Detects "heated", "heat", "hrf"
-  - **Camera**: Detects "camera", "cam", or `hasCamera: true`
   - **ADAS**: Detects "adas", "advanced", "assist"
   - **HUD**: Detects "hud", "head up", "heads up"
 
@@ -109,7 +107,7 @@ When searching for this VRN on the glass-order page, the system will automatical
   - Same teal border as loading screen (border-2 border-[#0FB8C1])
   - Matching shadow-lg for consistency
   - Creates cohesive branded experience
-- Sensor badges (Rain Sensor, Camera) only display for Windscreen type
+- Sensor badges (Rain Sensor) only display for Windscreen type
 
 ## How to Use for Demo
 
@@ -125,7 +123,7 @@ When searching for this VRN on the glass-order page, the system will automatical
 6. **3-second branded loading animation appears** with WINC logo
 7. Results display showing:
    - ARGIC code: `2448ACCGNMV1B` (Windscreen - default)
-   - "Rain Sensor" and "Camera" badges
+   - "Rain Sensor" badge
    - Pricing and stock information
 
 ### Switching Glass Types:
@@ -137,7 +135,7 @@ When searching for this VRN on the glass-order page, the system will automatical
 13. New results appear with updated ARGIC: `2448RGDH5RD`
 
 ### Try All Glass Types:
-- **Windscreen**: Click Search → Shows `2448ACCGNMV1B` + Sensor badges
+- **Windscreen**: Click Search → Shows `2448ACCGNMV1B` + Rain Sensor badge
 - **Right Body Glass**: Click Search → Shows `2448RGDH5RD`
 - **Left Body Glass**: Click Search → Shows `2448LGDH5RD`
 - **Rear Screen**: Click Search → Shows `2448BGDHAB1F`
@@ -220,13 +218,13 @@ A new postcode search feature has been added to help filter depots by proximity:
       {
         fullCode: "2448ACCGNMV1B",
         shortCode: "2448",
-        description: "Windscreen - Rain Sensor - Camera - Acoustic Laminated Glass",
+        description: "Windscreen - Rain Sensor - Acoustic Laminated Glass",
         price: 285.50,
         qty: 5,
         hasSensor: true,
-        hasCamera: true,
+        hasCamera: false,
         isAcoustic: true,
-        features: { sensor: true, camera: true, acoustic: true }
+        features: { sensor: true, camera: false, acoustic: true }
       },
       {
         fullCode: "2448RGDH5RD",

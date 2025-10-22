@@ -59,14 +59,14 @@ export default async function handler(req, res) {
           {
             fullCode: "2448ACCGNMV1B",
             shortCode: "2448",
-            description: "Windscreen - Acoustic, Rain Sensor, Camera",
-            features: "Acoustic Glass, Rain Sensor, Camera, Green Tinted"
+            description: "Windscreen - Acoustic, Rain Sensor",
+            features: "Acoustic Glass, Rain Sensor, Green Tinted"
           },
           {
             fullCode: "2448ACCGNMV1A",
             shortCode: "2448",
-            description: "Windscreen - Acoustic, Camera",
-            features: "Acoustic Glass, Camera, Green Tinted"
+            description: "Windscreen - Acoustic",
+            features: "Acoustic Glass, Green Tinted"
           },
           {
             fullCode: "2448ACCGNM",
@@ -77,8 +77,8 @@ export default async function handler(req, res) {
           {
             fullCode: "2448ACCGNMV1C",
             shortCode: "2448",
-            description: "Windscreen - Heated, Acoustic, Camera",
-            features: "Heated, Acoustic Glass, Camera, Green Tinted"
+            description: "Windscreen - Heated, Acoustic",
+            features: "Heated, Acoustic Glass, Green Tinted"
           }
         ]
       };
